@@ -430,6 +430,81 @@ svg text { font-family: var(--font-body); }
 .dropdown-item:first-child { border-radius: var(--radius-sm) var(--radius-sm) 0 0; }
 .dropdown-item:last-child { border-radius: 0 0 var(--radius-sm) var(--radius-sm); }
 
+/* ─── UPLOAD / DOCUMENTOS ───────────────────── */
+.upload-zone { border: 2px dashed var(--border); border-radius: var(--radius); padding: 40px 24px; text-align: center; cursor: pointer; transition: all 0.25s; background: var(--card); position: relative; }
+.upload-zone:hover, .upload-zone.dragover { border-color: var(--teal); background: var(--teal-wash); transform: translateY(-2px); }
+.upload-zone.dragover { box-shadow: 0 0 0 4px var(--teal-wash); }
+.upload-zone-icon { font-size: 40px; margin-bottom: 8px; }
+.upload-zone-title { font-family: var(--font-display); font-weight: 700; font-size: 15px; margin-bottom: 4px; }
+.upload-zone-desc { font-size: 12px; color: var(--ink-3); }
+.upload-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.doc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+.doc-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow); transition: all 0.2s; cursor: pointer; display: flex; gap: 14px; align-items: flex-start; }
+.doc-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-2px); }
+.doc-icon { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+.doc-icon.fatura { background: var(--expense-light); }
+.doc-icon.holerite { background: var(--income-light); }
+.doc-icon.emprestimo { background: var(--amber-light); }
+.doc-icon.nf { background: var(--blue-light); }
+.doc-icon.relatorio { background: var(--violet-light); }
+.doc-icon.outro { background: var(--card-alt); }
+.doc-info { flex: 1; min-width: 0; }
+.doc-name { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.doc-meta { font-size: 11px; color: var(--ink-3); margin-top: 2px; display: flex; gap: 8px; align-items: center; }
+.doc-tag { font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+.doc-tag.auto { background: var(--teal-light); color: var(--teal); }
+.doc-tag.manual { background: var(--card-alt); color: var(--ink-3); }
+.doc-amount { font-family: var(--font-display); font-weight: 700; font-size: 14px; margin-top: 6px; }
+.doc-actions { display: flex; gap: 6px; margin-top: 8px; }
+.doc-btn { font-size: 11px; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--card); color: var(--ink-2); cursor: pointer; font-family: var(--font-body); font-weight: 500; transition: all 0.15s; }
+.doc-btn:hover { border-color: var(--teal); color: var(--teal); }
+.doc-btn.danger:hover { border-color: var(--expense); color: var(--expense); }
+.doc-type-selector { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.doc-type-btn { padding: 8px 14px; border: 2px solid var(--border); border-radius: var(--radius-sm); background: var(--card); cursor: pointer; text-align: center; transition: all 0.2s; font-family: var(--font-body); font-size: 12px; font-weight: 500; display: flex; align-items: center; gap: 6px; }
+.doc-type-btn:hover { border-color: var(--teal); background: var(--teal-wash); }
+.doc-type-btn.selected { border-color: var(--teal); background: var(--teal-light); color: var(--teal); font-weight: 600; }
+.doc-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.doc-stat { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; text-align: center; }
+.doc-stat-num { font-family: var(--font-display); font-weight: 700; font-size: 22px; }
+.doc-stat-label { font-size: 11px; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.04em; margin-top: 2px; }
+
+/* ─── INSIGHTS ──────────────────────────────── */
+.insight-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); margin-bottom: 14px; transition: all 0.2s; }
+.insight-card:hover { box-shadow: var(--shadow-lg); }
+.insight-header { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.insight-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+.insight-icon.alert { background: var(--expense-light); }
+.insight-icon.tip { background: var(--income-light); }
+.insight-icon.trend { background: var(--blue-light); }
+.insight-icon.warn { background: var(--amber-light); }
+.insight-icon.premium { background: var(--violet-light); }
+.insight-title { font-family: var(--font-display); font-weight: 700; font-size: 14px; }
+.insight-subtitle { font-size: 11px; color: var(--ink-3); }
+.insight-body { font-size: 13px; color: var(--ink-2); line-height: 1.6; }
+.insight-body strong { color: var(--ink); }
+.insight-metric { display: flex; align-items: baseline; gap: 8px; margin-top: 10px; }
+.insight-metric-value { font-family: var(--font-display); font-weight: 800; font-size: 24px; }
+.insight-metric-label { font-size: 12px; color: var(--ink-3); }
+.insight-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px; }
+@media (max-width: 700px) { .insight-grid { grid-template-columns: 1fr; } }
+.insight-progress { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; margin-top: 10px; }
+.insight-progress-fill { height: 100%; border-radius: 3px; transition: width 0.8s ease; }
+
+/* ─── OPEN FINANCE ──────────────────────────── */
+.openfi-hero { background: linear-gradient(135deg, #6D28D9 0%, #7C3AED 40%, #0F766E 100%); border-radius: var(--radius); padding: 32px; color: #fff; position: relative; overflow: hidden; margin-bottom: 20px; }
+.openfi-hero::after { content: ''; position: absolute; top: -30%; right: -8%; width: 180px; height: 180px; background: rgba(255,255,255,0.06); border-radius: 50%; }
+.openfi-hero-title { font-family: var(--font-display); font-weight: 800; font-size: 24px; margin-bottom: 6px; }
+.openfi-hero-desc { font-size: 14px; opacity: 0.85; line-height: 1.6; max-width: 500px; }
+.openfi-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.15); padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; margin-bottom: 12px; backdrop-filter: blur(4px); }
+.bank-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+.bank-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; text-align: center; transition: all 0.2s; cursor: pointer; opacity: 0.7; }
+.bank-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); opacity: 1; }
+.bank-card-icon { font-size: 32px; margin-bottom: 8px; }
+.bank-card-name { font-family: var(--font-display); font-weight: 700; font-size: 14px; margin-bottom: 2px; }
+.bank-card-status { font-size: 11px; color: var(--ink-3); }
+.premium-lock { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 14px; background: var(--violet-light); border-radius: var(--radius-sm); font-size: 13px; color: var(--violet); font-weight: 600; margin-top: 16px; cursor: pointer; transition: all 0.2s; }
+.premium-lock:hover { background: var(--violet); color: #fff; }
+
 /* ─── RESPONSIVE ─────────────────────────────── */
 @media (max-width: 500px) {
   .hero-value { font-size: 32px; }
@@ -440,6 +515,9 @@ svg text { font-family: var(--font-body); }
   .option-grid { grid-template-columns: 1fr; }
   .profile-toggle-btn { padding: 5px 10px; font-size: 11px; }
   .header-actions { gap: 6px; }
+  .doc-grid { grid-template-columns: 1fr; }
+  .insight-grid { grid-template-columns: 1fr; }
+  .bank-grid { grid-template-columns: 1fr 1fr; }
 }
 </style>
 </head>
@@ -589,10 +667,29 @@ let state = {
   profile_type: 'PF', currency: 'BRL', name: '', monthlyIncome: 5000,
   transactions: [], goals: [], debts: [], assets: [], liabilities: [], subscriptions: [],
   budgets: {},
+  documents: [], // { id, name, type, category, amount, date, status, fileSize, mimeType, extractedData }
   // PJ-specific
   pj_faturamento_anual: 0,
   pj_regime: 'MEI', // MEI, Simples, Lucro Presumido
 };
+
+const DOC_TYPES_PF = [
+  { id: 'fatura', icon: '💳', label: 'Fatura de cartão', color: 'fatura' },
+  { id: 'holerite', icon: '💰', label: 'Holerite / Contracheque', color: 'holerite' },
+  { id: 'emprestimo', icon: '🏦', label: 'Empréstimo / Financiamento', color: 'emprestimo' },
+  { id: 'extrato', icon: '📄', label: 'Extrato bancário', color: 'outro' },
+  { id: 'imposto', icon: '🧾', label: 'IRPF / Impostos', color: 'outro' },
+  { id: 'outro', icon: '📎', label: 'Outro', color: 'outro' },
+];
+const DOC_TYPES_PJ = [
+  { id: 'nf', icon: '📑', label: 'Nota Fiscal (NF-e)', color: 'nf' },
+  { id: 'relatorio', icon: '📊', label: 'Relatório fiscal', color: 'relatorio' },
+  { id: 'das', icon: '🧾', label: 'Guia DAS / Imposto', color: 'outro' },
+  { id: 'contrato', icon: '📝', label: 'Contrato', color: 'outro' },
+  { id: 'extrato_pj', icon: '🏦', label: 'Extrato PJ', color: 'outro' },
+  { id: 'outro', icon: '📎', label: 'Outro', color: 'outro' },
+];
+function getDocTypes() { return state.profile_type === 'PJ' ? DOC_TYPES_PJ : DOC_TYPES_PF; }
 
 const SYMBOLS = { BRL: 'R$', USD: '$', EUR: '€', GBP: '£' };
 const MONTHS = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
@@ -655,7 +752,7 @@ document.getElementById('btn-login').addEventListener('click', async () => {
   const email = document.getElementById('login-email').value;
   const pass = document.getElementById('login-pass').value;
   if (!email || !pass) return showAuthError('Preencha todos os campos.');
-  if (!sb) { state.name = email.split('@')[0]; document.getElementById('auth-screen').hidden = true; seedSampleData(); showApp(); return; }
+  if (!sb) { state.name = email.split('@')[0]; document.getElementById('auth-screen').hidden = true; showApp(); return; }
   const btn = document.getElementById('btn-login'); btn.disabled = true;
   const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
   btn.disabled = false;
@@ -681,7 +778,7 @@ document.getElementById('btn-signup').addEventListener('click', async () => {
 document.getElementById('btn-logout').addEventListener('click', async () => {
   if (sb) await sb.auth.signOut();
   currentUser = null; profile = null;
-  state = { profile_type: 'PF', currency: 'BRL', name: '', monthlyIncome: 5000, transactions: [], goals: [], debts: [], assets: [], liabilities: [], subscriptions: [], budgets: {}, pj_faturamento_anual: 0, pj_regime: 'MEI' };
+  state = { profile_type: 'PF', currency: 'BRL', name: '', monthlyIncome: 5000, transactions: [], goals: [], debts: [], assets: [], liabilities: [], subscriptions: [], budgets: {}, documents: [], pj_faturamento_anual: 0, pj_regime: 'MEI' };
   document.getElementById('app-screen').hidden = true; document.getElementById('auth-screen').hidden = false;
   document.body.classList.remove('pj-mode');
   showToast('Você saiu da sua conta', 'info');
@@ -754,7 +851,7 @@ async function finishOnboard() {
       onboarding_done: true,
     }).eq('id', currentUser.id);
   }
-  seedSampleData(); showApp();
+  showApp();
 }
 
 function seedSampleData() {
@@ -1087,17 +1184,20 @@ function renderBarChart(c) {
 // ═══════════════════════════════════════════════════════
 const tabsPF = [
   {id:'dashboard',label:'Visão Geral'},{id:'receitas',label:'Receitas'},{id:'despesas',label:'Despesas'},
+  {id:'documentos',label:'Documentos'},{id:'insights',label:'Insights'},
   {id:'orcamento',label:'Orçamento'},{id:'metas',label:'Metas'},{id:'dividas',label:'Dívidas'},
   {id:'patrimonio',label:'Patrimônio'},{id:'assinaturas',label:'Assinaturas'},
   {id:'projecao',label:'Projeção'},{id:'saude',label:'Saúde Financeira'},
-  {id:'cambio',label:'Câmbio'},{id:'plano',label:'Plano'},
+  {id:'openfinance',label:'Open Finance'},{id:'cambio',label:'Câmbio'},{id:'plano',label:'Plano'},
 ];
 const tabsPJ = [
   {id:'dashboard',label:'Visão Geral'},{id:'receitas',label:'Faturamento'},{id:'despesas',label:'Custos'},
+  {id:'documentos',label:'Documentos'},{id:'insights',label:'Insights'},
   {id:'orcamento',label:'Orçamento'},{id:'fiscal',label:'Fiscal',pj:true},{id:'fluxo',label:'Fluxo de Caixa',pj:true},
   {id:'metas',label:'Metas'},{id:'dividas',label:'Dívidas'},{id:'patrimonio',label:'Patrimônio'},
   {id:'assinaturas',label:'Ferramentas & SaaS'},{id:'projecao',label:'Projeção'},
-  {id:'saude',label:'Saúde Financeira'},{id:'cambio',label:'Câmbio'},{id:'plano',label:'Plano'},
+  {id:'saude',label:'Saúde Financeira'},{id:'openfinance',label:'Open Finance'},
+  {id:'cambio',label:'Câmbio'},{id:'plano',label:'Plano'},
 ];
 
 function getAvailableTabs() { return state.profile_type === 'PJ' ? tabsPJ : tabsPF; }
@@ -1123,10 +1223,14 @@ function renderCurrentTab() {
     plano: () => renderPlano(),
     fiscal: () => renderFiscal(c),
     fluxo: () => renderFluxoCaixa(c),
+    documentos: () => renderDocumentos(c),
+    insights: () => renderInsights(c),
+    openfinance: () => renderOpenFinance(c),
   };
   main.innerHTML = renderers[currentTab] ? renderers[currentTab]() : renderers.dashboard();
   if (currentTab === 'projecao') bindScenarioPills();
   if (currentTab === 'cambio') bindConverter();
+  if (currentTab === 'documentos') bindUploadZone();
   // Bind search
   const searchInput = document.getElementById('tx-search');
   if (searchInput) {
@@ -1346,6 +1450,358 @@ function renderFluxoCaixa(c) {
   <div class="card animate-in stagger-4"><div class="card-title" style="margin-bottom:12px">Saldo acumulado</div><div class="overflow-x"><table class="data-table"><thead><tr><th>Mês</th><th class="text-right">Entradas</th><th class="text-right">Saídas</th><th class="text-right">Saldo acum.</th></tr></thead><tbody>${months.map((m,i)=>`<tr><td style="font-weight:600">${m.label}</td><td class="amount income">+ ${fmt(m.in)}</td><td class="amount expense">- ${fmt(m.out)}</td><td class="amount" style="color:${saldoAcum[i]>=0?'var(--income)':'var(--expense)'}; font-weight:700">${saldoAcum[i]>=0?'+':'-'} ${fmt(saldoAcum[i])}</td></tr>`).join('')}</tbody></table></div></div>`;
 }
 
+// ═══════════════════════════════════════════════════════
+// DOCUMENTOS — Upload, categorização, gestão
+// ═══════════════════════════════════════════════════════
+function renderDocumentos(c) {
+  const isPJ = state.profile_type === 'PJ';
+  const docs = state.documents;
+  const docTypes = getDocTypes();
+  const byType = {};
+  docs.forEach(d => { byType[d.category] = (byType[d.category] || 0) + 1; });
+  const totalExtracted = docs.filter(d => d.amount > 0).reduce((s, d) => s + d.amount, 0);
+
+  return `<div class="section-header animate-in"><div><div class="section-title">Central de Documentos</div><div class="section-desc">${isPJ ? 'NFs, relatórios e documentos fiscais' : 'Faturas, holerites e comprovantes'} — upload inteligente com categorização automática.</div></div><button class="btn-add" onclick="openDocUploadModal()">+ Upload manual</button></div>
+
+  <div class="doc-stats animate-in stagger-1">${[
+    { num: docs.length, label: 'Documentos' },
+    { num: docs.filter(d => d.status === 'processado').length, label: 'Processados' },
+    { num: docs.filter(d => d.status === 'pendente').length, label: 'Pendentes' },
+    { num: totalExtracted > 0 ? fmt(totalExtracted) : '—', label: 'Valor extraído' },
+  ].map(s => `<div class="doc-stat"><div class="doc-stat-num">${s.num}</div><div class="doc-stat-label">${s.label}</div></div>`).join('')}</div>
+
+  <div class="upload-zone animate-in stagger-2" id="upload-zone">
+    <input type="file" id="doc-file-input" multiple accept=".pdf,.png,.jpg,.jpeg,.csv,.xml,.xlsx,.txt" />
+    <div class="upload-zone-icon">📤</div>
+    <div class="upload-zone-title">Arraste arquivos aqui ou clique para selecionar</div>
+    <div class="upload-zone-desc">PDF, imagens, CSV, XML — máx. 10MB por arquivo. ${isPJ ? 'NFs são reconhecidas automaticamente.' : 'Faturas e holerites são categorizados automaticamente.'}</div>
+  </div>
+
+  <div style="margin-top:20px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div style="font-family:var(--font-display);font-weight:700;font-size:15px">Documentos recentes</div>
+      <div class="doc-type-selector">${docTypes.map(dt => `<button class="doc-type-btn" data-filter="${dt.id}" onclick="filterDocs(this)">${dt.icon} ${dt.label}</button>`).join('')}</div>
+    </div>
+    ${docs.length === 0 ? `<div class="card"><div class="empty-state"><div class="empty-icon">📁</div><div class="empty-title">Nenhum documento</div><div class="empty-desc">${isPJ ? 'Envie suas NFs e relatórios para análise automática.' : 'Envie faturas, holerites ou extratos para categorização inteligente.'}</div></div></div>` :
+    `<div class="doc-grid" id="doc-grid">${docs.map((d, i) => renderDocCard(d, i)).join('')}</div>`}
+  </div>`;
+}
+
+function renderDocCard(d, i) {
+  const dt = getDocTypes().find(t => t.id === d.category) || { icon: '📎', color: 'outro' };
+  const statusTag = d.status === 'processado' ? '<span class="doc-tag auto">Processado</span>' : '<span class="doc-tag manual">Pendente</span>';
+  return `<div class="doc-card animate-in stagger-${(i % 4) + 1}" onclick='openDocDetailModal("${d.id}")'>
+    <div class="doc-icon ${dt.color}">${dt.icon}</div>
+    <div class="doc-info">
+      <div class="doc-name">${d.name}</div>
+      <div class="doc-meta">${d.date} · ${formatFileSize(d.fileSize)} ${statusTag}</div>
+      ${d.amount > 0 ? `<div class="doc-amount" style="color:${d.type === 'income' ? 'var(--income)' : 'var(--expense)'}">${d.type === 'income' ? '+' : '-'} ${fmt(d.amount)}</div>` : ''}
+      <div class="doc-actions">
+        <button class="doc-btn" onclick="event.stopPropagation();createTransactionFromDoc('${d.id}')">Lançar</button>
+        <button class="doc-btn danger" onclick="event.stopPropagation();deleteDoc('${d.id}')">Excluir</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function formatFileSize(bytes) {
+  if (!bytes) return '—';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1048576) return (bytes / 1024).toFixed(0) + ' KB';
+  return (bytes / 1048576).toFixed(1) + ' MB';
+}
+
+function bindUploadZone() {
+  const zone = document.getElementById('upload-zone');
+  const input = document.getElementById('doc-file-input');
+  if (!zone || !input) return;
+  ['dragenter', 'dragover'].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.classList.add('dragover'); }));
+  ['dragleave', 'drop'].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.classList.remove('dragover'); }));
+  zone.addEventListener('drop', e => { if (e.dataTransfer.files.length) processUploadedFiles(e.dataTransfer.files); });
+  input.addEventListener('change', e => { if (e.target.files.length) processUploadedFiles(e.target.files); });
+}
+
+function processUploadedFiles(files) {
+  const isPJ = state.profile_type === 'PJ';
+  Array.from(files).forEach(file => {
+    const doc = {
+      id: genId(),
+      name: file.name,
+      type: 'expense',
+      category: autoDetectCategory(file.name, isPJ),
+      amount: autoExtractAmount(file.name),
+      date: new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+      status: 'processado',
+      fileSize: file.size,
+      mimeType: file.type,
+      extractedData: {},
+    };
+    // Auto-detect income vs expense
+    const cat = doc.category;
+    if (['holerite', 'nf'].includes(cat)) doc.type = 'income';
+    if (['fatura', 'emprestimo'].includes(cat)) doc.type = 'expense';
+    state.documents.unshift(doc);
+  });
+  renderCurrentTab();
+  showToast(`${files.length} documento(s) processado(s)`, 'success');
+}
+
+function autoDetectCategory(filename, isPJ) {
+  const fn = filename.toLowerCase();
+  if (isPJ) {
+    if (fn.includes('nf') || fn.includes('nota') || fn.includes('fiscal') || fn.includes('danfe')) return 'nf';
+    if (fn.includes('das') || fn.includes('imposto') || fn.includes('guia')) return 'das';
+    if (fn.includes('relatorio') || fn.includes('balanco') || fn.includes('dre')) return 'relatorio';
+    if (fn.includes('contrato')) return 'contrato';
+    if (fn.includes('extrato')) return 'extrato_pj';
+  } else {
+    if (fn.includes('fatura') || fn.includes('cartao') || fn.includes('cartão') || fn.includes('nubank') || fn.includes('itau') || fn.includes('bradesco') || fn.includes('mastercard') || fn.includes('visa')) return 'fatura';
+    if (fn.includes('holerite') || fn.includes('contracheque') || fn.includes('salario') || fn.includes('salário') || fn.includes('folha')) return 'holerite';
+    if (fn.includes('emprestimo') || fn.includes('empréstimo') || fn.includes('financiamento') || fn.includes('parcela')) return 'emprestimo';
+    if (fn.includes('extrato')) return 'extrato';
+    if (fn.includes('irpf') || fn.includes('imposto') || fn.includes('informe')) return 'imposto';
+  }
+  return 'outro';
+}
+
+function autoExtractAmount(filename) {
+  // Try to extract a monetary value from filename
+  const match = filename.match(/(\d{1,3}(?:[._]\d{3})*[,.]?\d{0,2})/);
+  if (match) {
+    const val = parseFloat(match[1].replace(/[._]/g, '').replace(',', '.'));
+    if (val > 0 && val < 999999) return val;
+  }
+  return 0;
+}
+
+function openDocUploadModal() {
+  const types = getDocTypes();
+  openModal('Upload de documento', `
+    <div style="font-size:13px;color:var(--ink-2);margin-bottom:16px">Selecione o tipo e preencha os dados manualmente.</div>
+    <div class="doc-type-selector" id="doc-type-pick">${types.map((t, i) => `<button class="doc-type-btn${i === 0 ? ' selected' : ''}" data-dtype="${t.id}" onclick="pickDocType(this)">${t.icon} ${t.label}</button>`).join('')}</div>
+    <div class="form-group"><label class="form-label">Descrição / Nome do documento</label>
+      <input class="form-input" type="text" id="m-docname" placeholder="Ex: Fatura Nubank Janeiro" /></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Valor</label>
+        <input class="form-input" type="number" id="m-docamount" placeholder="0.00" step="0.01" /></div>
+      <div class="form-group"><label class="form-label">Data</label>
+        <input class="form-input" type="text" id="m-docdate" placeholder="DD/MM" /></div>
+    </div>
+    <div class="form-group"><label class="form-label">Tipo de lançamento</label>
+      <select class="form-select" id="m-doctype"><option value="expense">Despesa</option><option value="income">Receita</option></select></div>
+    <div class="modal-actions"><button class="btn-cancel" onclick="closeModal()">Cancelar</button>
+      <button class="btn-save" onclick="saveManualDoc()">Salvar</button></div>`);
+}
+
+function pickDocType(el) {
+  el.parentElement.querySelectorAll('.doc-type-btn').forEach(b => b.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function saveManualDoc() {
+  const selectedType = document.querySelector('#doc-type-pick .doc-type-btn.selected')?.dataset.dtype || 'outro';
+  const doc = {
+    id: genId(),
+    name: document.getElementById('m-docname').value || 'Documento sem nome',
+    type: document.getElementById('m-doctype').value,
+    category: selectedType,
+    amount: parseFloat(document.getElementById('m-docamount').value) || 0,
+    date: document.getElementById('m-docdate').value || new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+    status: 'processado',
+    fileSize: 0,
+    mimeType: 'manual',
+    extractedData: {},
+  };
+  state.documents.unshift(doc);
+  closeModal();
+  renderCurrentTab();
+  showToast('Documento adicionado', 'success');
+}
+
+function openDocDetailModal(id) {
+  const d = state.documents.find(x => x.id === id);
+  if (!d) return;
+  const dt = getDocTypes().find(t => t.id === d.category) || { icon: '📎', label: 'Outro' };
+  openModal('Detalhes do documento', `
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+      <div class="doc-icon ${dt.color || 'outro'}" style="width:48px;height:48px;font-size:22px">${dt.icon}</div>
+      <div><div style="font-weight:700;font-size:15px">${d.name}</div><div style="font-size:12px;color:var(--ink-3)">${dt.label} · ${d.date} · ${formatFileSize(d.fileSize)}</div></div>
+    </div>
+    ${d.amount > 0 ? `<div style="padding:16px;background:${d.type === 'income' ? 'var(--income-light)' : 'var(--expense-light)'};border-radius:var(--radius-sm);margin-bottom:16px;display:flex;justify-content:space-between;align-items:center"><span style="font-size:13px;color:var(--ink-2)">Valor detectado</span><span style="font-family:var(--font-display);font-weight:700;font-size:20px;color:${d.type === 'income' ? 'var(--income)' : 'var(--expense)'}">${fmt(d.amount)}</span></div>` : ''}
+    <div class="form-group"><label class="form-label">Status</label>
+      <div style="font-size:13px;color:var(--ink)">${d.status === 'processado' ? 'Processado automaticamente' : 'Pendente de revisão'}</div></div>
+    <div class="modal-actions">
+      <button class="btn-danger" onclick="deleteDoc('${d.id}');closeModal()">Excluir</button>
+      <button class="btn-cancel" onclick="closeModal()">Fechar</button>
+      <button class="btn-save" onclick="createTransactionFromDoc('${d.id}');closeModal()">Criar lançamento</button>
+    </div>`);
+}
+
+function createTransactionFromDoc(id) {
+  const d = state.documents.find(x => x.id === id);
+  if (!d) return;
+  const catMap = { fatura: 'Outros', holerite: 'Trabalho', emprestimo: 'Outros', nf: 'Vendas', relatorio: 'Outros', outro: 'Outros' };
+  const cat = d.type === 'income' ? (getCatsIncome().includes(catMap[d.category]) ? catMap[d.category] : getCatsIncome()[0]) : (getCatsExpense().includes(catMap[d.category]) ? catMap[d.category] : getCatsExpense()[getCatsExpense().length - 1]);
+  openTransactionModal(d.type, { date: d.date, desc: d.name, cat, amount: d.amount, recur: false });
+}
+
+function deleteDoc(id) {
+  state.documents = state.documents.filter(d => d.id !== id);
+  renderCurrentTab();
+  showToast('Documento excluído', 'info');
+}
+
+function filterDocs(btn) {
+  const filter = btn.dataset.filter;
+  btn.classList.toggle('selected');
+  const grid = document.getElementById('doc-grid');
+  if (!grid) return;
+  const activeFilters = [...document.querySelectorAll('.doc-type-btn.selected')].map(b => b.dataset.filter);
+  const filtered = activeFilters.length === 0 ? state.documents : state.documents.filter(d => activeFilters.includes(d.category));
+  grid.innerHTML = filtered.map((d, i) => renderDocCard(d, i)).join('');
+  if (filtered.length === 0) grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:32px;color:var(--ink-3);font-size:13px">Nenhum documento neste filtro.</div>';
+}
+
+// ═══════════════════════════════════════════════════════
+// INSIGHTS INTELIGENTES
+// ═══════════════════════════════════════════════════════
+function renderInsights(c) {
+  const isPJ = state.profile_type === 'PJ';
+  const insights = generateInsights(c, isPJ);
+  const savingsScore = Math.min(100, Math.round(c.taxaEconomia * 3));
+  const riskLevel = c.debtPct > 40 ? 'Alto' : c.debtPct > 20 ? 'Moderado' : 'Baixo';
+  const riskColor = c.debtPct > 40 ? 'var(--expense)' : c.debtPct > 20 ? 'var(--amber)' : 'var(--income)';
+
+  return `<div class="section-header animate-in"><div><div class="section-title">Insights Inteligentes</div><div class="section-desc">Análise automatizada baseada nos seus dados financeiros.</div></div></div>
+
+  <div class="insight-grid animate-in stagger-1">
+    <div class="card" style="text-align:center;padding:28px">
+      ${renderScoreRing(c.healthTotal, 120)}
+      <div style="font-family:var(--font-display);font-weight:700;font-size:16px;margin-top:12px">Score Financeiro</div>
+      <div style="font-size:12px;color:var(--ink-3)">${c.healthTotal >= 80 ? 'Excelente' : c.healthTotal >= 60 ? 'Bom' : c.healthTotal >= 40 ? 'Regular' : 'Atenção'}</div>
+    </div>
+    <div class="card" style="padding:28px">
+      <div style="display:grid;gap:16px">
+        <div><div style="font-size:11px;color:var(--ink-3);text-transform:uppercase;letter-spacing:0.04em">Capacidade de poupança</div>
+          <div class="insight-metric"><div class="insight-metric-value" style="color:${savingsScore >= 50 ? 'var(--income)' : 'var(--amber)'}">${savingsScore}%</div><div class="insight-metric-label">do potencial</div></div>
+          <div class="insight-progress"><div class="insight-progress-fill" style="width:${savingsScore}%;background:${savingsScore >= 50 ? 'var(--income)' : 'var(--amber)'}"></div></div>
+        </div>
+        <div><div style="font-size:11px;color:var(--ink-3);text-transform:uppercase;letter-spacing:0.04em">Nível de risco</div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:4px"><div style="font-family:var(--font-display);font-weight:800;font-size:20px;color:${riskColor}">${riskLevel}</div><div style="font-size:12px;color:var(--ink-3)">${pct(c.debtPct)} comprometido</div></div>
+        </div>
+        <div><div style="font-size:11px;color:var(--ink-3);text-transform:uppercase;letter-spacing:0.04em">${isPJ ? 'Margem operacional' : 'Resultado mensal'}</div>
+          <div style="font-family:var(--font-display);font-weight:800;font-size:20px;color:${c.resultado >= 0 ? 'var(--income)' : 'var(--expense)'}; margin-top:4px">${c.resultado >= 0 ? '+' : ''}${fmt(c.resultado)}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:20px">${insights.map((ins, i) => `
+    <div class="insight-card animate-in stagger-${(i % 4) + 2}">
+      <div class="insight-header">
+        <div class="insight-icon ${ins.type}">${ins.icon}</div>
+        <div><div class="insight-title">${ins.title}</div><div class="insight-subtitle">${ins.sub}</div></div>
+      </div>
+      <div class="insight-body">${ins.body}</div>
+    </div>`).join('')}</div>`;
+}
+
+function generateInsights(c, isPJ) {
+  const insights = [];
+  // 1. Biggest expense category
+  if (c.categories.length > 0) {
+    const top = c.categories[0];
+    const topPct = c.totalExpense > 0 ? (top.value / c.totalExpense * 100).toFixed(0) : 0;
+    insights.push({ type: 'trend', icon: '📊', title: `Maior ${isPJ ? 'custo' : 'gasto'}: ${top.name}`, sub: 'Análise de categorias', body: `<strong>${top.name}</strong> representa <strong>${topPct}%</strong> dos seus ${isPJ ? 'custos' : 'gastos'} (${fmt(top.value)}). ${topPct > 40 ? 'Considere diversificar e renegociar para reduzir a concentração.' : 'A distribuição está equilibrada.'}` });
+  }
+  // 2. Savings rate
+  if (c.totalIncome > 0) {
+    const rate = c.taxaEconomia;
+    if (rate < 10) {
+      insights.push({ type: 'alert', icon: '🚨', title: isPJ ? 'Margem muito baixa' : 'Taxa de economia crítica', sub: 'Alerta financeiro', body: `Sua ${isPJ ? 'margem líquida' : 'taxa de economia'} está em <strong>${pct(rate)}</strong>. O recomendado é manter acima de ${isPJ ? '15%' : '20%'}. Revise ${isPJ ? 'custos fixos e variáveis' : 'gastos recorrentes'} para aumentar a margem.` });
+    } else if (rate >= 30) {
+      insights.push({ type: 'tip', icon: '🏆', title: isPJ ? 'Margem excelente' : 'Poupança exemplar', sub: 'Parabéns!', body: `Você está ${isPJ ? 'com margem de' : 'economizando'} <strong>${pct(rate)}</strong> ${isPJ ? 'do faturamento' : 'da renda'}. Continue assim e considere direcionar o excedente para investimentos de maior retorno.` });
+    }
+  }
+  // 3. Debt alert
+  if (c.debtPct > 30) {
+    insights.push({ type: 'alert', icon: '⚠️', title: 'Endividamento elevado', sub: 'Gestão de dívidas', body: `Suas dívidas mensais consomem <strong>${pct(c.debtPct)}</strong> da renda. O ideal é manter abaixo de 30%. ${state.debts.filter(d => d.juros > 5).length > 0 ? 'Priorize quitar as dívidas com juros mais altos para economizar em juros compostos.' : ''}` });
+  }
+  // 4. Subscriptions analysis
+  if (c.totalSubs > 0) {
+    const subPct = c.totalIncome > 0 ? (c.totalSubs / c.totalIncome * 100).toFixed(1) : 0;
+    insights.push({ type: 'warn', icon: '💸', title: `${isPJ ? 'Ferramentas & SaaS' : 'Assinaturas'}: ${fmtD(c.totalSubs)}/mês`, sub: 'Recorrências', body: `Você gasta <strong>${fmtD(c.totalSubs * 12)}</strong> por ano em ${isPJ ? 'ferramentas' : 'assinaturas'} (${subPct}% da renda). Revise periodicamente se todas estão sendo utilizadas.` });
+  }
+  // 5. Goals progress
+  if (state.goals.length > 0) {
+    const closest = state.goals.reduce((a, b) => { const pa = a.target > 0 ? a.current / a.target : 0; const pb = b.target > 0 ? b.current / b.target : 0; return pa > pb ? a : b; });
+    const pctDone = closest.target > 0 ? (closest.current / closest.target * 100).toFixed(0) : 0;
+    insights.push({ type: 'tip', icon: '🎯', title: `Meta mais próxima: ${closest.name}`, sub: 'Progresso de metas', body: `Você já alcançou <strong>${pctDone}%</strong> da meta "${closest.name}" (${fmt(closest.current)} de ${fmt(closest.target)}). ${pctDone > 75 ? 'Está quase lá! Mantenha o ritmo.' : 'Continue contribuindo mensalmente para atingir o objetivo.'}` });
+  }
+  // 6. Net worth trend
+  if (c.netWorth !== 0) {
+    insights.push({ type: 'trend', icon: '📈', title: `Patrimônio líquido: ${fmt(c.netWorth)}`, sub: 'Evolução patrimonial', body: `${c.netWorth > 0 ? 'Seu patrimônio é positivo — seus ativos superam seus passivos.' : 'Seu patrimônio está negativo — seus passivos superam seus ativos. Foque em reduzir dívidas e aumentar reservas.'} ${c.resultado > 0 ? `Com o resultado mensal de ${fmt(c.resultado)}, seu patrimônio tende a crescer.` : ''}` });
+  }
+  // 7. Emergency fund
+  const emergMonths = c.totalExpense > 0 ? (c.totalAssets / c.totalExpense) : 0;
+  if (emergMonths < 6 && c.totalExpense > 0) {
+    insights.push({ type: 'warn', icon: '🛡️', title: `Reserva de emergência: ${emergMonths.toFixed(1)} meses`, sub: 'Segurança financeira', body: `Sua reserva cobre <strong>${emergMonths.toFixed(1)} meses</strong> de ${isPJ ? 'custos' : 'gastos'}. O recomendado é ter pelo menos 6 meses. Faltam <strong>${fmt(Math.max(0, c.totalExpense * 6 - c.totalAssets))}</strong> para atingir o ideal.` });
+  }
+  // 8. Open Finance CTA
+  insights.push({ type: 'premium', icon: '🔗', title: 'Conecte seu banco via Open Finance', sub: 'Feature Premium', body: `Automatize a importação de extratos e transações conectando sua conta bancária. Dados categorizados automaticamente, sem digitação manual. <strong>Disponível no plano Plus ou superior.</strong>` });
+
+  return insights;
+}
+
+// ═══════════════════════════════════════════════════════
+// OPEN FINANCE
+// ═══════════════════════════════════════════════════════
+function renderOpenFinance(c) {
+  const isPJ = state.profile_type === 'PJ';
+  const banks = [
+    { icon: '🟣', name: 'Nubank', status: 'Disponível' },
+    { icon: '🟠', name: 'Itaú', status: 'Disponível' },
+    { icon: '🔴', name: 'Bradesco', status: 'Disponível' },
+    { icon: '🔵', name: 'Banco do Brasil', status: 'Disponível' },
+    { icon: '🟢', name: 'Sicredi', status: 'Em breve' },
+    { icon: '🟡', name: 'Inter', status: 'Disponível' },
+    { icon: '🟤', name: 'C6 Bank', status: 'Disponível' },
+    { icon: '⚫', name: 'BTG Pactual', status: 'Em breve' },
+  ];
+  const isActive = profile?.plan === 'plus' || profile?.plan === 'pro' || profile?.plan === 'business';
+
+  return `<div class="openfi-hero animate-in">
+    <div class="openfi-badge">✨ Open Finance Brasil</div>
+    <div class="openfi-hero-title">Conecte suas contas bancárias</div>
+    <div class="openfi-hero-desc">Importe transações automaticamente, categorize gastos em tempo real e tenha uma visão 360° das suas finanças${isPJ ? ' empresariais' : ''}. Dados criptografados e seguros.</div>
+  </div>
+
+  <div class="kpi-grid mb-24 animate-in stagger-1">${[
+    { label: 'Bancos suportados', value: '250+', cls: '' },
+    { label: 'Atualização', value: 'Tempo real', cls: 'teal' },
+    { label: 'Categorização', value: 'Automática', cls: 'income' },
+    { label: 'Segurança', value: 'Criptografia E2E', cls: '' },
+  ].map((k, i) => `<div class="kpi animate-in stagger-${i + 1}"><div class="kpi-label">${k.label}</div><div class="kpi-value ${k.cls}" style="font-size:20px">${k.value}</div></div>`).join('')}</div>
+
+  <div class="card mb-24 animate-in stagger-3">
+    <div class="card-header"><div><div class="card-title">Bancos parceiros</div><div class="card-subtitle">Selecione seu banco para iniciar a conexão</div></div></div>
+    <div class="bank-grid">${banks.map((b, i) => `<div class="bank-card animate-in stagger-${(i % 4) + 1}" onclick="${isActive ? `showToast('Conexão com ${b.name} em breve!','info')` : `showToast('Disponível no plano Plus ou superior','info')`}"><div class="bank-card-icon">${b.icon}</div><div class="bank-card-name">${b.name}</div><div class="bank-card-status">${b.status}</div></div>`).join('')}</div>
+    ${!isActive ? `<div class="premium-lock" onclick="switchTab('plano')">🔒 Upgrade para Plus — Desbloquear Open Finance</div>` : ''}
+  </div>
+
+  <div class="card animate-in stagger-5">
+    <div class="card-header"><div><div class="card-title">Como funciona</div></div></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;padding-top:8px">
+      ${[
+        { step: '1', icon: '🏦', title: 'Selecione o banco', desc: 'Escolha entre 250+ instituições financeiras.' },
+        { step: '2', icon: '🔐', title: 'Autorize o acesso', desc: 'Autentique-se com segurança no app do seu banco.' },
+        { step: '3', icon: '📊', title: 'Dados importados', desc: 'Transações categorizadas automaticamente no seu dashboard.' },
+        { step: '4', icon: '🤖', title: 'Insights em tempo real', desc: 'Alertas e sugestões baseados nos seus gastos reais.' },
+      ].map(s => `<div style="text-align:center"><div style="width:40px;height:40px;border-radius:50%;background:var(--teal-wash);display:flex;align-items:center;justify-content:center;margin:0 auto 10px;font-size:18px">${s.icon}</div><div style="font-family:var(--font-display);font-weight:700;font-size:13px;margin-bottom:4px">${s.title}</div><div style="font-size:12px;color:var(--ink-3);line-height:1.5">${s.desc}</div></div>`).join('')}
+    </div>
+  </div>`;
+}
+
 function bindScenarioPills() { document.getElementById('scenario-pills')?.addEventListener('click', e => { const pill = e.target.closest('.scenario-pill'); if (!pill) return; document.querySelectorAll('.scenario-pill').forEach(p => p.classList.remove('active')); pill.classList.add('active'); }); }
 function bindConverter() {
   function update() { const val = parseFloat(document.getElementById('conv-val')?.value) || 0, from = document.getElementById('conv-from')?.value, to = document.getElementById('conv-to')?.value, rates = { BRL: 1, USD: 5.32, EUR: 6.18, GBP: 7.14 }, inBRL = from === 'BRL' ? val : val * rates[from], result = to === 'BRL' ? inBRL : inBRL / rates[to], syms = { BRL: 'R$', USD: '$', EUR: '€', GBP: '£' }, el = document.getElementById('conv-result'); if (el) el.textContent = `${syms[to]} ${result.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
@@ -1463,7 +1919,7 @@ async function showApp() {
   updateToggleUI();
 
   await loadAllData();
-  if (state.transactions.length === 0 && !profile?.onboarding_done) { seedSampleData(); }
+  // Dashboard sempre vazio — sem dados de exemplo
 
   // Handle Stripe redirect
   const params = new URLSearchParams(window.location.search);

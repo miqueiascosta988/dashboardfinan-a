@@ -505,6 +505,56 @@ svg text { font-family: var(--font-body); }
 .premium-lock { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 14px; background: var(--violet-light); border-radius: var(--radius-sm); font-size: 13px; color: var(--violet); font-weight: 600; margin-top: 16px; cursor: pointer; transition: all 0.2s; }
 .premium-lock:hover { background: var(--violet); color: #fff; }
 
+/* ─── ESTRATÉGIA FINANCEIRA ─────────────────── */
+.strategy-hero { background: linear-gradient(135deg, #0F766E 0%, #14B8A6 40%, #6D28D9 100%); border-radius: var(--radius); padding: 32px; color: #fff; position: relative; overflow: hidden; margin-bottom: 20px; }
+.strategy-hero::after { content: ''; position: absolute; top: -30%; right: -5%; width: 200px; height: 200px; background: rgba(255,255,255,0.06); border-radius: 50%; }
+.strategy-hero-title { font-family: var(--font-display); font-weight: 800; font-size: 24px; margin-bottom: 6px; }
+.strategy-hero-desc { font-size: 14px; opacity: 0.85; line-height: 1.6; max-width: 560px; }
+.strategy-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.15); padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; margin-bottom: 12px; backdrop-filter: blur(4px); }
+.plan-timeline { display: flex; flex-direction: column; gap: 0; position: relative; padding-left: 28px; }
+.plan-timeline::before { content: ''; position: absolute; left: 11px; top: 8px; bottom: 8px; width: 2px; background: var(--border); border-radius: 2px; }
+.plan-step { position: relative; padding: 16px 20px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 12px; transition: all 0.2s; }
+.plan-step:hover { box-shadow: var(--shadow-lg); transform: translateX(4px); }
+.plan-step-dot { position: absolute; left: -23px; top: 20px; width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--teal); background: var(--card); z-index: 1; }
+.plan-step-dot.active { background: var(--teal); }
+.plan-step-dot.done { background: var(--income); border-color: var(--income); }
+.plan-step-phase { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; color: var(--teal); margin-bottom: 4px; }
+.plan-step-title { font-family: var(--font-display); font-weight: 700; font-size: 15px; margin-bottom: 4px; }
+.plan-step-desc { font-size: 12px; color: var(--ink-3); line-height: 1.6; }
+.plan-step-value { font-family: var(--font-display); font-weight: 700; font-size: 18px; margin-top: 8px; }
+.tip-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; transition: all 0.2s; }
+.tip-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-2px); }
+.tip-icon { width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; margin-bottom: 12px; }
+.tip-icon.saving { background: var(--income-light); }
+.tip-icon.warning { background: var(--expense-light); }
+.tip-icon.info { background: var(--teal-wash); }
+.tip-icon.premium { background: var(--violet-light); }
+.tip-title { font-family: var(--font-display); font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+.tip-text { font-size: 12px; color: var(--ink-3); line-height: 1.6; }
+.tip-action { font-size: 11px; font-weight: 600; color: var(--teal); margin-top: 10px; cursor: pointer; }
+.tip-impact { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 8px; margin-top: 8px; }
+.tip-impact.high { background: var(--income-light); color: var(--income); }
+.tip-impact.medium { background: var(--amber-light); color: #D97706; }
+.tip-impact.low { background: var(--bg-2); color: var(--ink-3); }
+.sim-container { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; }
+.sim-slider-group { margin-bottom: 20px; }
+.sim-slider-label { display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+.sim-slider-value { font-family: var(--font-display); font-weight: 700; color: var(--teal); }
+.sim-slider { width: 100%; height: 6px; -webkit-appearance: none; appearance: none; border-radius: 4px; background: var(--border); outline: none; }
+.sim-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: var(--teal); cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.15); }
+.sim-results { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 20px; }
+.sim-result-card { padding: 16px; border-radius: var(--radius-sm); text-align: center; }
+.sim-result-card.positive { background: var(--income-light); }
+.sim-result-card.negative { background: var(--expense-light); }
+.sim-result-card.neutral { background: var(--teal-wash); }
+.sim-result-label { font-size: 11px; color: var(--ink-3); margin-bottom: 4px; }
+.sim-result-value { font-family: var(--font-display); font-weight: 800; font-size: 22px; }
+.sim-result-sub { font-size: 11px; color: var(--ink-3); margin-top: 2px; }
+.sim-chart { width: 100%; height: 180px; margin-top: 16px; border-radius: var(--radius-sm); overflow: hidden; position: relative; background: var(--bg-2); }
+.sim-chart-bar { position: absolute; bottom: 0; background: linear-gradient(to top, var(--teal), rgba(20,184,166,0.3)); border-radius: 4px 4px 0 0; transition: height 0.4s ease; }
+.sim-chart-label { position: absolute; bottom: -20px; font-size: 9px; color: var(--ink-3); text-align: center; width: 100%; }
+.tips-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
 /* ─── RESPONSIVE ─────────────────────────────── */
 @media (max-width: 500px) {
   .hero-value { font-size: 32px; }
@@ -518,6 +568,9 @@ svg text { font-family: var(--font-body); }
   .doc-grid { grid-template-columns: 1fr; }
   .insight-grid { grid-template-columns: 1fr; }
   .bank-grid { grid-template-columns: 1fr 1fr; }
+  .tips-grid { grid-template-columns: 1fr; }
+  .sim-results { grid-template-columns: 1fr; }
+  .strategy-hero { padding: 24px; }
 }
 </style>
 </head>
@@ -947,13 +1000,15 @@ async function loadProfile() {
 async function loadAllData() {
   if (!sb || !currentUser) return;
   const uid = currentUser.id;
-  const [tx, goals, debts, assets, liab, subs] = await Promise.all([
+  const [tx, goals, debts, assets, liab, subs, docs, budgets] = await Promise.all([
     sb.from('transactions').select('*').eq('user_id', uid).order('date', { ascending: false }),
     sb.from('goals').select('*').eq('user_id', uid),
     sb.from('debts').select('*').eq('user_id', uid),
     sb.from('assets').select('*').eq('user_id', uid),
     sb.from('liabilities').select('*').eq('user_id', uid),
     sb.from('subscriptions').select('*').eq('user_id', uid),
+    sb.from('documents').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
+    sb.from('budgets').select('*').eq('user_id', uid),
   ]);
   state.transactions = (tx.data || []).map(r => ({ id: r.id, date: r.date, desc: r.description, cat: r.category, amount: parseFloat(r.amount), type: r.type, recur: r.recurring }));
   state.goals = (goals.data || []).map(r => ({ id: r.id, icon: r.icon, name: r.name, target: parseFloat(r.target_amount), current: parseFloat(r.current_amount), monthly: parseFloat(r.monthly_contribution) }));
@@ -961,6 +1016,10 @@ async function loadAllData() {
   state.assets = (assets.data || []).map(r => ({ id: r.id, name: r.name, value: parseFloat(r.value) }));
   state.liabilities = (liab.data || []).map(r => ({ id: r.id, name: r.name, value: parseFloat(r.value) }));
   state.subscriptions = (subs.data || []).map(r => ({ id: r.id, name: r.name, cat: r.category, price: parseFloat(r.price), color: r.color }));
+  state.documents = (docs.data || []).map(r => ({ id: r.id, name: r.name, type: r.type, category: r.category, amount: parseFloat(r.amount), date: r.date, status: r.status, fileSize: r.file_size, mimeType: r.mime_type, extractedData: r.extracted_data || {} }));
+  // Load budgets as object { category: amount }
+  state.budgets = {};
+  (budgets.data || []).forEach(r => { state.budgets[r.category] = parseFloat(r.amount); });
 }
 
 async function syncAllToDb() {
@@ -972,6 +1031,8 @@ async function syncAllToDb() {
   if (state.assets.length > 0) { await sb.from('assets').upsert(state.assets.map(a => ({ id: a.id, user_id: uid, name: a.name, category: 'Outros', value: a.value }))); }
   if (state.liabilities.length > 0) { await sb.from('liabilities').upsert(state.liabilities.map(l => ({ id: l.id, user_id: uid, name: l.name, value: l.value }))); }
   if (state.subscriptions.length > 0) { await sb.from('subscriptions').upsert(state.subscriptions.map(s => ({ id: s.id, user_id: uid, name: s.name, category: s.cat, price: s.price, color: s.color }))); }
+  if (state.documents.length > 0) { await sb.from('documents').upsert(state.documents.map(d => ({ id: d.id, user_id: uid, name: d.name, type: d.type, category: d.category, amount: d.amount, date: d.date, status: d.status, file_size: d.fileSize, mime_type: d.mimeType, extracted_data: d.extractedData || {} }))); }
+  if (Object.keys(state.budgets).length > 0) { await sb.from('budgets').upsert(Object.entries(state.budgets).map(([cat, amt]) => ({ user_id: uid, category: cat, amount: amt }))); }
 }
 
 async function dbUpsert(table, record) { if (!sb || !currentUser) return; await sb.from(table).upsert(record); }
@@ -1188,7 +1249,7 @@ const tabsPF = [
   {id:'orcamento',label:'Orçamento'},{id:'metas',label:'Metas'},{id:'dividas',label:'Dívidas'},
   {id:'patrimonio',label:'Patrimônio'},{id:'assinaturas',label:'Assinaturas'},
   {id:'projecao',label:'Projeção'},{id:'saude',label:'Saúde Financeira'},
-  {id:'openfinance',label:'Open Finance'},{id:'cambio',label:'Câmbio'},{id:'plano',label:'Plano'},
+  {id:'estrategia',label:'Estratégia'},{id:'openfinance',label:'Open Finance'},{id:'cambio',label:'Câmbio'},{id:'plano',label:'Plano'},
 ];
 const tabsPJ = [
   {id:'dashboard',label:'Visão Geral'},{id:'receitas',label:'Faturamento'},{id:'despesas',label:'Custos'},
@@ -1196,8 +1257,8 @@ const tabsPJ = [
   {id:'orcamento',label:'Orçamento'},{id:'fiscal',label:'Fiscal',pj:true},{id:'fluxo',label:'Fluxo de Caixa',pj:true},
   {id:'metas',label:'Metas'},{id:'dividas',label:'Dívidas'},{id:'patrimonio',label:'Patrimônio'},
   {id:'assinaturas',label:'Ferramentas & SaaS'},{id:'projecao',label:'Projeção'},
-  {id:'saude',label:'Saúde Financeira'},{id:'openfinance',label:'Open Finance'},
-  {id:'cambio',label:'Câmbio'},{id:'plano',label:'Plano'},
+  {id:'saude',label:'Saúde Financeira'},{id:'estrategia',label:'Estratégia'},
+  {id:'openfinance',label:'Open Finance'},{id:'cambio',label:'Câmbio'},{id:'plano',label:'Plano'},
 ];
 
 function getAvailableTabs() { return state.profile_type === 'PJ' ? tabsPJ : tabsPF; }
@@ -1225,12 +1286,14 @@ function renderCurrentTab() {
     fluxo: () => renderFluxoCaixa(c),
     documentos: () => renderDocumentos(c),
     insights: () => renderInsights(c),
+    estrategia: () => renderEstrategia(c),
     openfinance: () => renderOpenFinance(c),
   };
   main.innerHTML = renderers[currentTab] ? renderers[currentTab]() : renderers.dashboard();
   if (currentTab === 'projecao') bindScenarioPills();
   if (currentTab === 'cambio') bindConverter();
   if (currentTab === 'documentos') bindUploadZone();
+  if (currentTab === 'estrategia') bindSimulator();
   // Bind search
   const searchInput = document.getElementById('tx-search');
   if (searchInput) {
@@ -1311,6 +1374,17 @@ function saveBudgets() {
     const val = parseFloat(document.getElementById('budget-' + cat.replace(/[^a-zA-Z]/g, ''))?.value) || 0;
     if (val > 0) state.budgets[cat] = val; else delete state.budgets[cat];
   });
+  // Persist budgets to Supabase
+  if (sb && currentUser) {
+    const uid = currentUser.id;
+    Object.entries(state.budgets).forEach(([cat, amt]) => {
+      dbUpsert('budgets', { user_id: uid, category: cat, amount: amt });
+    });
+    // Remove deleted budgets
+    cats.filter(c => !state.budgets[c]).forEach(c => {
+      sb.from('budgets').delete().eq('user_id', uid).eq('category', c);
+    });
+  }
   closeModal(); renderCurrentTab(); showToast('Orçamento atualizado', 'success');
 }
 
@@ -1541,6 +1615,7 @@ function processUploadedFiles(files) {
     if (['holerite', 'nf'].includes(cat)) doc.type = 'income';
     if (['fatura', 'emprestimo'].includes(cat)) doc.type = 'expense';
     state.documents.unshift(doc);
+    dbUpsert('documents', { id: doc.id, user_id: currentUser?.id, name: doc.name, type: doc.type, category: doc.category, amount: doc.amount, date: doc.date, status: doc.status, file_size: doc.fileSize, mime_type: doc.mimeType, extracted_data: doc.extractedData });
   });
   renderCurrentTab();
   showToast(`${files.length} documento(s) processado(s)`, 'success');
@@ -1613,6 +1688,7 @@ function saveManualDoc() {
     extractedData: {},
   };
   state.documents.unshift(doc);
+  dbUpsert('documents', { id: doc.id, user_id: currentUser?.id, name: doc.name, type: doc.type, category: doc.category, amount: doc.amount, date: doc.date, status: doc.status, file_size: doc.fileSize, mime_type: doc.mimeType, extracted_data: doc.extractedData });
   closeModal();
   renderCurrentTab();
   showToast('Documento adicionado', 'success');
@@ -1647,6 +1723,7 @@ function createTransactionFromDoc(id) {
 
 function deleteDoc(id) {
   state.documents = state.documents.filter(d => d.id !== id);
+  dbDelete('documents', id);
   renderCurrentTab();
   showToast('Documento excluído', 'info');
 }
@@ -1800,6 +1877,267 @@ function renderOpenFinance(c) {
       ].map(s => `<div style="text-align:center"><div style="width:40px;height:40px;border-radius:50%;background:var(--teal-wash);display:flex;align-items:center;justify-content:center;margin:0 auto 10px;font-size:18px">${s.icon}</div><div style="font-family:var(--font-display);font-weight:700;font-size:13px;margin-bottom:4px">${s.title}</div><div style="font-size:12px;color:var(--ink-3);line-height:1.5">${s.desc}</div></div>`).join('')}
     </div>
   </div>`;
+}
+
+// ═══════════════════════════════════════════════════════
+// ESTRATÉGIA FINANCEIRA — Plano + Dicas + Simulador
+// ═══════════════════════════════════════════════════════
+function renderEstrategia(c) {
+  const isPJ = state.profile_type === 'PJ';
+  const income = c.totalIncome || state.monthly_income || 0;
+  const expenses = c.totalExpense || 0;
+  const totalDebt = state.debts.reduce((s, d) => s + d.saldo, 0);
+  const totalAssets = state.assets.reduce((s, a) => s + a.value, 0);
+  const totalLiab = state.liabilities.reduce((s, l) => s + l.value, 0);
+  const netWorth = totalAssets - totalLiab;
+  const surplus = income - expenses;
+  const savingsRate = income > 0 ? (surplus / income * 100) : 0;
+  const emergencyTarget = expenses * 6;
+  const emergencyCurrent = state.assets.filter(a => ['Conta corrente', 'Poupança'].includes(a.category)).reduce((s, a) => s + a.value, 0);
+  const subsTotal = state.subscriptions.filter(s => s.active !== false).reduce((s, sub) => s + sub.price, 0);
+  const goalsRemaining = state.goals.reduce((s, g) => s + (g.target - g.current), 0);
+
+  // Financial health score
+  const scores = [];
+  scores.push(savingsRate >= 20 ? 25 : savingsRate >= 10 ? 15 : savingsRate >= 0 ? 8 : 0);
+  scores.push(totalDebt === 0 ? 25 : totalDebt < income * 3 ? 15 : totalDebt < income * 6 ? 8 : 0);
+  scores.push(emergencyCurrent >= emergencyTarget ? 25 : emergencyCurrent >= emergencyTarget * 0.5 ? 15 : emergencyCurrent > 0 ? 8 : 0);
+  scores.push(netWorth > 0 ? 25 : netWorth === 0 ? 10 : 0);
+  const healthScore = scores.reduce((a, b) => a + b, 0);
+
+  return `
+  <div class="strategy-hero animate-in">
+    <div class="strategy-badge">🧠 Consultoria Financeira Inteligente</div>
+    <div class="strategy-hero-title">Sua Estratégia Personalizada</div>
+    <div class="strategy-hero-desc">Plano de ação baseado nos seus dados reais. ${isPJ ? 'Otimize o fluxo de caixa da sua empresa' : 'Organize suas finanças'} com etapas claras, dicas personalizadas e simulações de cenários.</div>
+  </div>
+
+  <div class="kpi-grid mb-24 animate-in stagger-1">${[
+    { label: 'Score financeiro', value: healthScore + '/100', cls: healthScore >= 70 ? 'income' : healthScore >= 40 ? '' : 'expense' },
+    { label: 'Capacidade de poupança', value: fmt(Math.max(0, surplus)) + '/mês', cls: surplus > 0 ? 'income' : 'expense' },
+    { label: 'Reserva de emergência', value: emergencyTarget > 0 ? pct(emergencyCurrent / emergencyTarget * 100) : '—', cls: emergencyCurrent >= emergencyTarget ? 'income' : 'teal' },
+    { label: 'Dívidas ativas', value: fmt(totalDebt), cls: totalDebt > 0 ? 'expense' : 'income' },
+  ].map(function(k, i) { return '<div class="kpi animate-in stagger-'+(i+1)+'"><div class="kpi-label">'+k.label+'</div><div class="kpi-value '+k.cls+'" style="font-size:20px">'+k.value+'</div></div>'; }).join('')}</div>
+
+  <!-- PLANO DE AÇÃO -->
+  <div class="card mb-24 animate-in stagger-2">
+    <div class="card-header"><div><div class="card-title">📋 Plano de Ação Personalizado</div><div class="card-subtitle">Etapas priorizadas para sua situação atual</div></div></div>
+    <div class="plan-timeline">
+      ${generatePlanSteps(c, isPJ, income, expenses, surplus, totalDebt, emergencyCurrent, emergencyTarget, goalsRemaining, subsTotal, savingsRate).map(function(step, i) { return '<div class="plan-step animate-in stagger-'+((i%5)+1)+'"><div class="plan-step-dot '+step.status+'"></div><div class="plan-step-phase">'+step.phase+'</div><div class="plan-step-title">'+step.title+'</div><div class="plan-step-desc">'+step.desc+'</div>'+(step.value ? '<div class="plan-step-value" style="color:'+(step.color||'var(--teal)')+'">'+step.value+'</div>' : '')+'</div>'; }).join('')}
+    </div>
+  </div>
+
+  <!-- DICAS CONTEXTUAIS -->
+  <div class="card mb-24 animate-in stagger-3">
+    <div class="card-header"><div><div class="card-title">💡 Dicas Personalizadas</div><div class="card-subtitle">Recomendações baseadas no seu perfil financeiro</div></div></div>
+    <div class="tips-grid">
+      ${generateTips(c, isPJ, income, expenses, surplus, totalDebt, emergencyCurrent, emergencyTarget, subsTotal, savingsRate).map(function(tip, i) { return '<div class="tip-card animate-in stagger-'+((i%4)+1)+'"><div class="tip-icon '+tip.iconType+'">'+tip.icon+'</div><div class="tip-title">'+tip.title+'</div><div class="tip-text">'+tip.text+'</div><div class="tip-impact '+tip.impact+'">'+tip.impactIcon+' '+tip.impactText+'</div>'+(tip.action ? '<div class="tip-action" onclick="'+tip.action+'">'+tip.actionLabel+' →</div>' : '')+'</div>'; }).join('')}
+    </div>
+  </div>
+
+  <!-- SIMULADOR -->
+  <div class="card animate-in stagger-4">
+    <div class="card-header"><div><div class="card-title">🔮 Simulador de Cenários</div><div class="card-subtitle">Ajuste os parâmetros e veja projeções futuras</div></div></div>
+    <div class="sim-container">
+      <div class="sim-slider-group">
+        <div class="sim-slider-label"><span>${isPJ ? 'Faturamento mensal' : 'Renda mensal'}</span><span class="sim-slider-value" id="sim-income-val">${fmt(income)}</span></div>
+        <input type="range" class="sim-slider" id="sim-income" min="0" max="${Math.max(income * 3, 30000)}" step="100" value="${income}">
+      </div>
+      <div class="sim-slider-group">
+        <div class="sim-slider-label"><span>Redução de gastos</span><span class="sim-slider-value" id="sim-cut-val">0%</span></div>
+        <input type="range" class="sim-slider" id="sim-cut" min="0" max="50" step="1" value="0">
+      </div>
+      <div class="sim-slider-group">
+        <div class="sim-slider-label"><span>Aporte mensal extra</span><span class="sim-slider-value" id="sim-extra-val">${fmt(0)}</span></div>
+        <input type="range" class="sim-slider" id="sim-extra" min="0" max="${Math.max(income, 10000)}" step="50" value="0">
+      </div>
+      <div id="sim-results" class="sim-results">
+        ${renderSimResults(income, expenses, 0, 0, totalDebt, goalsRemaining)}
+      </div>
+      <div id="sim-chart" class="sim-chart" style="margin-top:20px;position:relative;height:200px">
+        ${renderSimChart(income, expenses, 0, 0)}
+      </div>
+    </div>
+  </div>`;
+}
+
+function generatePlanSteps(c, isPJ, income, expenses, surplus, totalDebt, emergCurrent, emergTarget, goalsRem, subsTotal, savingsRate) {
+  const steps = [];
+  // Phase 1: Stabilize
+  if (surplus < 0) {
+    steps.push({ phase: 'Fase 1 — Emergência', title: 'Equilibrar receitas e despesas', desc: 'Você gasta ' + fmt(Math.abs(surplus)) + ' a mais do que recebe. Identifique e corte gastos não essenciais imediatamente.', value: 'Déficit: ' + fmt(Math.abs(surplus)) + '/mês', color: 'var(--expense)', status: 'active' });
+  } else if (surplus < income * 0.1) {
+    steps.push({ phase: 'Fase 1 — Estabilização', title: 'Aumentar margem financeira', desc: 'Sua margem é de apenas ' + pct(surplus/income*100) + '. O ideal é poupar ao menos 20% da renda. Revise gastos variáveis.', value: 'Margem atual: ' + fmt(surplus) + '/mês', color: 'var(--amber)', status: 'active' });
+  } else {
+    steps.push({ phase: 'Fase 1 — Estabilização', title: 'Finanças equilibradas ✓', desc: 'Parabéns! Você tem uma margem saudável de ' + pct(savingsRate) + '. Mantenha esse padrão.', value: 'Sobra: ' + fmt(surplus) + '/mês', color: 'var(--income)', status: 'done' });
+  }
+  // Phase 2: Emergency fund
+  if (emergCurrent < emergTarget) {
+    var months = surplus > 0 ? Math.ceil((emergTarget - emergCurrent) / surplus) : '∞';
+    steps.push({ phase: 'Fase 2 — Segurança', title: 'Construir reserva de emergência', desc: 'Meta: ' + fmt(emergTarget) + ' (6 meses de despesas). Faltam ' + fmt(emergTarget - emergCurrent) + '. ' + (months !== '∞' ? 'No ritmo atual, ' + months + ' meses para completar.' : 'Ajuste gastos para começar a poupar.'), value: pct(emergCurrent/emergTarget*100) + ' concluída', color: 'var(--teal)', status: emergCurrent > 0 ? 'active' : '' });
+  } else {
+    steps.push({ phase: 'Fase 2 — Segurança', title: 'Reserva de emergência completa ✓', desc: 'Você tem ' + fmt(emergCurrent) + ' guardados, cobrindo 6+ meses de despesas.', value: fmt(emergCurrent), color: 'var(--income)', status: 'done' });
+  }
+  // Phase 3: Debt elimination
+  if (totalDebt > 0) {
+    var highInterest = state.debts.filter(function(d){return d.juros > 2}).sort(function(a,b){return b.juros - a.juros});
+    var debtMonthly = state.debts.reduce(function(s,d){return s + d.mensal}, 0);
+    var topDebt = highInterest[0];
+    steps.push({ phase: 'Fase 3 — Eliminar dívidas', title: topDebt ? 'Prioridade: ' + topDebt.name + ' (' + topDebt.juros + '% a.m.)' : 'Quitar dívidas pendentes', desc: 'Dívida total: ' + fmt(totalDebt) + '. Pagamento mensal: ' + fmt(debtMonthly) + '. ' + (topDebt ? 'Concentre pagamentos extras na dívida de maior juros (' + topDebt.name + ').' : 'Use o método avalanche: pague a de maior juros primeiro.'), value: fmt(totalDebt), color: 'var(--expense)', status: 'active' });
+  } else {
+    steps.push({ phase: 'Fase 3 — Dívidas', title: 'Livre de dívidas ✓', desc: 'Você não possui dívidas registradas. Evite financiamentos com juros altos.', color: 'var(--income)', status: 'done' });
+  }
+  // Phase 4: Subscriptions optimization
+  if (subsTotal > income * 0.05 && subsTotal > 0) {
+    steps.push({ phase: 'Fase 4 — Otimizar recorrentes', title: 'Revisar ' + state.subscriptions.filter(function(s){return s.active!==false}).length + ' assinaturas', desc: 'Você gasta ' + fmt(subsTotal) + '/mês em assinaturas (' + pct(subsTotal/income*100) + ' da renda). Cancele as que não usa há 30+ dias.', value: 'Potencial economia: ' + fmt(subsTotal * 0.3) + '/mês', color: 'var(--amber)', status: '' });
+  }
+  // Phase 5: Goals
+  if (goalsRem > 0) {
+    var topGoal = state.goals.sort(function(a,b){return (a.target-a.current)-(b.target-b.current)})[0];
+    steps.push({ phase: 'Fase ' + (steps.length + 1) + ' — Metas', title: 'Alcançar: ' + (topGoal ? topGoal.name : 'suas metas'), desc: 'Faltam ' + fmt(goalsRem) + ' para completar todas as metas. ' + (topGoal ? 'Meta mais próxima: ' + topGoal.name + ' (faltam ' + fmt(topGoal.target - topGoal.current) + ').' : '') + ' Direcione o surplus mensal.', value: fmt(goalsRem), color: 'var(--violet)', status: '' });
+  }
+  // Phase 6: Invest
+  if (surplus > 0 && totalDebt === 0) {
+    steps.push({ phase: 'Fase ' + (steps.length + 1) + ' — Investir', title: isPJ ? 'Reinvestir no negócio' : 'Iniciar investimentos', desc: isPJ ? 'Com ' + fmt(surplus) + ' de sobra mensal, considere reinvestir em marketing, equipe ou estoque. Separe ao menos 30% para reserva empresarial.' : 'Com dívidas zeradas e reserva feita, invista ' + fmt(surplus * 0.5) + '/mês. Comece por renda fixa (CDB, Tesouro Direto) e diversifique gradualmente.', value: fmt(surplus * 0.5) + '/mês sugerido', color: 'var(--teal)', status: '' });
+  }
+  if (steps.length === 0) {
+    steps.push({ phase: 'Início', title: 'Registre seus dados', desc: 'Adicione receitas, despesas e dívidas para gerar seu plano personalizado.', status: '' });
+  }
+  return steps;
+}
+
+function generateTips(c, isPJ, income, expenses, surplus, totalDebt, emergCurrent, emergTarget, subsTotal, savingsRate) {
+  const tips = [];
+  const catTotals = {};
+  state.transactions.filter(t => t.type === 'expense').forEach(t => { catTotals[t.cat] = (catTotals[t.cat] || 0) + t.amount; });
+  const topCat = Object.entries(catTotals).sort((a, b) => b[1] - a[1])[0];
+
+  // Tip: Top expense category
+  if (topCat && income > 0) {
+    var catPct = topCat[1] / income * 100;
+    var benchmarks = { 'Moradia': 30, 'Alimentação': 20, 'Transporte': 15, 'Lazer': 10, 'Saúde': 10 };
+    var bench = benchmarks[topCat[0]] || 15;
+    tips.push({ icon: '📊', iconType: catPct > bench ? 'warning' : 'info', title: topCat[0] + ': ' + pct(catPct) + ' da renda', text: catPct > bench ? 'Acima da média recomendada de ' + bench + '%. Você poderia economizar ' + fmt(topCat[1] - income * bench / 100) + '/mês reduzindo para o benchmark.' : 'Dentro do benchmark de ' + bench + '%. Continue monitorando.', impact: catPct > bench ? 'high' : 'low', impactIcon: catPct > bench ? '🔴' : '🟢', impactText: catPct > bench ? 'Alto impacto' : 'Sob controle', action: "switchTab('despesas')", actionLabel: 'Ver despesas' });
+  }
+
+  // Tip: Savings rate
+  if (income > 0) {
+    tips.push({ icon: '💰', iconType: savingsRate >= 20 ? 'saving' : 'warning', title: 'Taxa de poupança: ' + pct(savingsRate), text: savingsRate >= 20 ? 'Excelente! Você poupa mais de 20% da renda. Considere direcionar o excedente para investimentos diversificados.' : savingsRate >= 0 ? 'O ideal é poupar 20%+ da renda (' + fmt(income * 0.2) + '/mês). Atualmente você poupa ' + fmt(surplus) + '/mês.' : 'Você está no vermelho. Foque em cortar gastos variáveis e aumentar receita.', impact: savingsRate >= 20 ? 'high' : savingsRate >= 10 ? 'medium' : 'high', impactIcon: savingsRate >= 20 ? '🟢' : '🔴', impactText: savingsRate >= 20 ? 'Excelente' : 'Precisa de atenção' });
+  }
+
+  // Tip: Debt warning
+  if (totalDebt > 0) {
+    var highInterestDebts = state.debts.filter(function(d){return d.juros > 2});
+    var monthsToPayoff = surplus > 0 ? Math.ceil(totalDebt / surplus) : null;
+    tips.push({ icon: '⚠️', iconType: 'warning', title: state.debts.length + ' dívida(s) ativa(s)', text: highInterestDebts.length > 0 ? highInterestDebts.length + ' dívida(s) com juros altos (>' + highInterestDebts[0].juros + '% a.m.). Renegociar pode economizar ' + fmt(highInterestDebts.reduce(function(s,d){return s + d.saldo * d.juros / 100}, 0)) + '/mês em juros.' : 'Dívida total de ' + fmt(totalDebt) + '. ' + (monthsToPayoff ? 'Estimativa de quitação: ' + monthsToPayoff + ' meses.' : 'Aumente sua margem para começar a quitar.'), impact: 'high', impactIcon: '🔴', impactText: 'Prioridade alta', action: "switchTab('dividas')", actionLabel: 'Gerenciar dívidas' });
+  }
+
+  // Tip: Subscriptions
+  if (subsTotal > 0) {
+    var subCount = state.subscriptions.filter(function(s){return s.active !== false}).length;
+    tips.push({ icon: '🔄', iconType: income > 0 && subsTotal > income * 0.05 ? 'warning' : 'info', title: subCount + ' assinaturas = ' + fmt(subsTotal) + '/mês', text: 'Isso representa ' + fmt(subsTotal * 12) + '/ano. Cancele serviços duplicados ou pouco usados. Considere planos anuais para economia de 15-20%.', impact: subsTotal > income * 0.05 ? 'medium' : 'low', impactIcon: subsTotal > income * 0.05 ? '🟡' : '🟢', impactText: subsTotal > income * 0.05 ? 'Pode otimizar' : 'Razoável', action: "switchTab('assinaturas')", actionLabel: 'Ver assinaturas' });
+  }
+
+  // Tip: Emergency fund
+  if (emergTarget > 0) {
+    var pctComplete = emergCurrent / emergTarget * 100;
+    tips.push({ icon: '🛡️', iconType: pctComplete >= 100 ? 'saving' : 'info', title: 'Reserva: ' + pct(pctComplete) + ' do ideal', text: pctComplete >= 100 ? 'Sua reserva cobre 6+ meses. Considere investir o excedente em ativos com maior rentabilidade (CDB 100%+ CDI, LCI/LCA).' : 'Meta: ' + fmt(emergTarget) + ' (6 meses de gastos). Faltam ' + fmt(emergTarget - emergCurrent) + '. Automatize transferências todo dia de pagamento.', impact: pctComplete >= 100 ? 'low' : 'high', impactIcon: pctComplete >= 100 ? '🟢' : '🔴', impactText: pctComplete >= 100 ? 'Protegido' : 'Construa agora', action: "switchTab('patrimonio')", actionLabel: 'Ver patrimônio' });
+  }
+
+  // Tip: Goals progress
+  if (state.goals.length > 0) {
+    var avgProgress = state.goals.reduce(function(s,g){return s + (g.target > 0 ? g.current / g.target : 0)}, 0) / state.goals.length * 100;
+    tips.push({ icon: '🎯', iconType: 'info', title: 'Metas: ' + pct(avgProgress) + ' concluídas', text: avgProgress >= 80 ? 'Quase lá! Mantenha o aporte mensal e não resgate antes do prazo.' : 'Acelere: aumente o aporte mensal ou adicione uma fonte de renda extra. Pequenos aportes extras fazem grande diferença com o tempo.', impact: avgProgress >= 50 ? 'medium' : 'high', impactIcon: avgProgress >= 50 ? '🟡' : '🔴', impactText: avgProgress >= 50 ? 'No caminho' : 'Acelere', action: "switchTab('metas')", actionLabel: 'Ver metas' });
+  }
+
+  // Tip: PJ specific
+  if (isPJ) {
+    tips.push({ icon: '🏢', iconType: 'premium', title: 'Otimização tributária', text: 'Revise seu regime tributário anualmente. Simples Nacional, Lucro Presumido ou Real — a escolha errada pode custar até 30% a mais em impostos. Consulte seu contador.', impact: 'high', impactIcon: '💜', impactText: 'Alto impacto' });
+  }
+
+  // Tip: 50-30-20 rule
+  if (income > 0) {
+    tips.push({ icon: '📐', iconType: 'info', title: 'Regra 50-30-20', text: 'Ideal: 50% necessidades (' + fmt(income*0.5) + '), 30% desejos (' + fmt(income*0.3) + '), 20% poupança (' + fmt(income*0.2) + '). Revise se seus gastos seguem essa proporção.', impact: 'medium', impactIcon: '📘', impactText: 'Referência' });
+  }
+
+  if (tips.length === 0) {
+    tips.push({ icon: '📝', iconType: 'info', title: 'Adicione seus dados', text: 'Registre receitas, despesas e dívidas para receber dicas personalizadas.', impact: 'low', impactIcon: '💡', impactText: 'Comece agora' });
+  }
+  return tips;
+}
+
+function renderSimResults(income, expenses, cutPct, extra, totalDebt, goalsRem) {
+  const newExpenses = expenses * (1 - cutPct / 100);
+  const newSurplus = income - newExpenses + extra;
+  const monthly = Math.max(0, newSurplus);
+  const annualSavings = monthly * 12;
+  const debtMonths = totalDebt > 0 && monthly > 0 ? Math.ceil(totalDebt / monthly) : totalDebt > 0 ? 999 : 0;
+  const goalMonths = goalsRem > 0 && monthly > 0 ? Math.ceil(goalsRem / monthly) : goalsRem > 0 ? 999 : 0;
+  // 5-year projection with compound (8% annual / CDB)
+  const r = 0.08 / 12;
+  const fv = monthly > 0 ? monthly * ((Math.pow(1 + r, 60) - 1) / r) : 0;
+
+  return '<div class="sim-result-card ' + (newSurplus >= 0 ? 'positive' : 'negative') + '">' +
+    '<div class="sim-result-label">Sobra mensal</div>' +
+    '<div class="sim-result-value" style="color:' + (newSurplus >= 0 ? 'var(--income)' : 'var(--expense)') + '">' + fmt(newSurplus) + '</div>' +
+    '<div class="sim-result-sub">' + (newSurplus >= 0 ? 'Disponível para investir' : 'Déficit mensal') + '</div></div>' +
+    '<div class="sim-result-card neutral"><div class="sim-result-label">Economia anual</div>' +
+    '<div class="sim-result-value" style="color:var(--teal)">' + fmt(annualSavings) + '</div>' +
+    '<div class="sim-result-sub">Projeção em 12 meses</div></div>' +
+    '<div class="sim-result-card ' + (debtMonths > 0 ? 'negative' : 'positive') + '">' +
+    '<div class="sim-result-label">Quitação de dívidas</div>' +
+    '<div class="sim-result-value" style="color:' + (debtMonths === 0 ? 'var(--income)' : debtMonths > 24 ? 'var(--expense)' : 'var(--amber)') + '">' + (debtMonths === 0 ? 'Livre ✓' : debtMonths >= 999 ? '—' : debtMonths + ' meses') + '</div>' +
+    '<div class="sim-result-sub">' + (debtMonths > 0 && debtMonths < 999 ? 'Com aporte total' : debtMonths === 0 ? 'Sem dívidas' : 'Sem margem') + '</div></div>' +
+    '<div class="sim-result-card neutral"><div class="sim-result-label">Patrimônio em 5 anos</div>' +
+    '<div class="sim-result-value" style="color:var(--teal)">' + fmt(fv) + '</div>' +
+    '<div class="sim-result-sub">Rendendo 8% a.a. (CDB)</div></div>';
+}
+
+function renderSimChart(income, expenses, cutPct, extra) {
+  const newExpenses = expenses * (1 - cutPct / 100);
+  const monthly = Math.max(0, income - newExpenses + extra);
+  const r = 0.08 / 12;
+  const months = [6, 12, 24, 36, 48, 60];
+  const labels = ['6m', '1a', '2a', '3a', '4a', '5a'];
+  const values = months.map(function(m) { return monthly > 0 ? monthly * ((Math.pow(1 + r, m) - 1) / r) : 0; });
+  const maxVal = Math.max.apply(null, values.concat([1]));
+
+  return '<div style="display:flex;align-items:flex-end;height:160px;gap:8px;padding:8px 4px 28px">' +
+    values.map(function(v, i) {
+      var h = maxVal > 0 ? (v / maxVal * 140) : 0;
+      return '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">' +
+        '<div style="font-size:10px;font-weight:600;color:var(--teal)">' + (v >= 1000 ? (v/1000).toFixed(0)+'k' : v.toFixed(0)) + '</div>' +
+        '<div style="width:100%;max-width:40px;height:' + Math.max(4,h) + 'px;background:linear-gradient(to top,var(--teal),rgba(20,184,166,0.3));border-radius:4px 4px 0 0;transition:height 0.4s"></div>' +
+        '<div style="font-size:10px;color:var(--ink-3)">' + labels[i] + '</div></div>';
+    }).join('') +
+  '</div>' +
+  '<div style="text-align:center;font-size:11px;color:var(--ink-3);margin-top:4px">Projeção de patrimônio acumulado (rendendo 8% a.a.)</div>';
+}
+
+function bindSimulator() {
+  const incomeSlider = document.getElementById('sim-income');
+  const cutSlider = document.getElementById('sim-cut');
+  const extraSlider = document.getElementById('sim-extra');
+  if (!incomeSlider) return;
+
+  const totalDebt = state.debts.reduce((s, d) => s + d.saldo, 0);
+  const goalsRem = state.goals.reduce((s, g) => s + (g.target - g.current), 0);
+  const c = compute();
+  const baseExpenses = c.totalExpense || 0;
+
+  function update() {
+    const inc = parseFloat(incomeSlider.value);
+    const cut = parseFloat(cutSlider.value);
+    const extra = parseFloat(extraSlider.value);
+    document.getElementById('sim-income-val').textContent = fmt(inc);
+    document.getElementById('sim-cut-val').textContent = cut + '%';
+    document.getElementById('sim-extra-val').textContent = fmt(extra);
+    document.getElementById('sim-results').innerHTML = renderSimResults(inc, baseExpenses, cut, extra, totalDebt, goalsRem);
+    document.getElementById('sim-chart').innerHTML = renderSimChart(inc, baseExpenses, cut, extra);
+  }
+  [incomeSlider, cutSlider, extraSlider].forEach(el => {
+    el.addEventListener('input', update);
+  });
 }
 
 function bindScenarioPills() { document.getElementById('scenario-pills')?.addEventListener('click', e => { const pill = e.target.closest('.scenario-pill'); if (!pill) return; document.querySelectorAll('.scenario-pill').forEach(p => p.classList.remove('active')); pill.classList.add('active'); }); }

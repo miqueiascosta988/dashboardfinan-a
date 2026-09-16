@@ -181,14 +181,85 @@ body {
 .profile-toggle-slider { position: absolute; top: 3px; left: 3px; height: calc(100% - 6px); border-radius: 16px; background: var(--teal); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 2px 8px rgba(15,118,110,0.3); }
 .profile-toggle.pj .profile-toggle-slider { background: var(--pj-accent); box-shadow: 0 2px 8px rgba(124,58,237,0.3); }
 
-.period-badge { font-size: 13px; color: var(--ink-2); background: var(--card-alt); padding: 6px 14px; border-radius: 20px; font-weight: 500; border: 1px solid var(--border); }
+.period-badge { font-size: 13px; color: var(--ink-2); background: var(--card-alt); padding: 6px 14px; border-radius: 20px; font-weight: 500; border: 1px solid var(--border); cursor: pointer; position: relative; user-select: none; transition: background 0.2s, border-color 0.2s; }
+.period-badge:hover { background: var(--card); border-color: var(--teal); color: var(--ink); }
+.period-badge::after { content: ' ▾'; font-size: 10px; }
+
+/* Calendar Dropdown */
+.calendar-dropdown { position: absolute; top: 100%; right: 0; margin-top: 8px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-xl); z-index: 999; width: 320px; padding: 16px; display: none; }
+.calendar-dropdown.open { display: block; }
+.cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.cal-header button { background: none; border: none; cursor: pointer; font-size: 18px; color: var(--ink-2); padding: 4px 8px; border-radius: var(--radius-sm); transition: background 0.15s; }
+.cal-header button:hover { background: var(--card-alt); color: var(--ink); }
+.cal-month-label { font-family: var(--font-display); font-weight: 700; font-size: 15px; color: var(--ink); cursor: pointer; padding: 4px 8px; border-radius: var(--radius-sm); transition: background 0.15s; }
+.cal-month-label:hover { background: var(--teal-wash); }
+.cal-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-bottom: 4px; }
+.cal-weekday { text-align: center; font-size: 11px; font-weight: 600; color: var(--ink-3); padding: 4px 0; }
+.cal-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.cal-day { text-align: center; font-size: 13px; padding: 8px 4px; border-radius: var(--radius-sm); cursor: pointer; transition: all 0.15s; color: var(--ink); background: none; border: none; font-family: var(--font-body); }
+.cal-day:hover { background: var(--teal-wash); }
+.cal-day.other-month { color: var(--ink-3); opacity: 0.5; }
+.cal-day.today { font-weight: 700; color: var(--teal); }
+.cal-day.selected { background: var(--teal); color: #fff; font-weight: 600; }
+.cal-day.in-range { background: var(--teal-light); }
+.cal-day.range-start { background: var(--teal); color: #fff; border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
+.cal-day.range-end { background: var(--teal); color: #fff; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+.cal-day.range-start.range-end { border-radius: var(--radius-sm); }
+.cal-shortcuts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+.cal-shortcut { font-size: 11px; padding: 4px 10px; border-radius: 20px; border: 1px solid var(--border); background: var(--card-alt); color: var(--ink-2); cursor: pointer; transition: all 0.15s; font-family: var(--font-body); }
+.cal-shortcut:hover, .cal-shortcut.active { background: var(--teal); color: #fff; border-color: var(--teal); }
+.cal-months-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.cal-month-btn { padding: 10px 8px; text-align: center; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--card-alt); color: var(--ink); cursor: pointer; font-size: 13px; font-family: var(--font-body); transition: all 0.15s; }
+.cal-month-btn:hover { border-color: var(--teal); background: var(--teal-wash); }
+.cal-month-btn.current { background: var(--teal); color: #fff; border-color: var(--teal); font-weight: 600; }
+
+/* Dark mode toggle */
+.theme-toggle { background: none; border: 1px solid var(--border); width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 18px; transition: all 0.3s; color: var(--ink-2); }
+.theme-toggle:hover { border-color: var(--teal); background: var(--teal-wash); color: var(--teal); transform: rotate(30deg); }
+
+/* Notifications */
+.notif-btn { background: none; border: 1px solid var(--border); width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 18px; position: relative; transition: all 0.2s; color: var(--ink-2); }
+.notif-btn:hover { border-color: var(--teal); background: var(--teal-wash); color: var(--teal); }
+.notif-badge { position: absolute; top: -4px; right: -4px; background: var(--expense); color: #fff; font-size: 10px; font-weight: 700; min-width: 18px; height: 18px; border-radius: 9px; display: flex; align-items: center; justify-content: center; padding: 0 4px; font-family: var(--font-display); }
+.notif-dropdown { position: absolute; top: 100%; right: 0; margin-top: 8px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-xl); z-index: 999; width: 340px; max-height: 400px; overflow-y: auto; display: none; }
+.notif-dropdown.open { display: block; }
+.notif-header { padding: 12px 16px; border-bottom: 1px solid var(--border); font-family: var(--font-display); font-weight: 700; font-size: 14px; display: flex; justify-content: space-between; align-items: center; }
+.notif-clear { font-size: 11px; color: var(--teal); cursor: pointer; font-weight: 500; background: none; border: none; font-family: var(--font-body); }
+.notif-item { padding: 12px 16px; border-bottom: 1px solid var(--border-subtle); display: flex; gap: 10px; align-items: flex-start; transition: background 0.15s; }
+.notif-item:hover { background: var(--card-alt); }
+.notif-item:last-child { border-bottom: none; }
+.notif-icon { font-size: 20px; flex-shrink: 0; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: var(--card-alt); }
+.notif-content { flex: 1; min-width: 0; }
+.notif-title { font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 2px; }
+.notif-desc { font-size: 12px; color: var(--ink-3); line-height: 1.4; }
+.notif-time { font-size: 10px; color: var(--ink-3); margin-top: 4px; }
+.notif-empty { padding: 32px 16px; text-align: center; color: var(--ink-3); font-size: 13px; }
+
+/* Comparativo Mensal */
+.compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.compare-card { padding: 16px; border-radius: var(--radius-sm); background: var(--card-alt); }
+.compare-label { font-size: 12px; color: var(--ink-3); margin-bottom: 4px; }
+.compare-value { font-family: var(--font-display); font-weight: 700; font-size: 20px; }
+.compare-change { font-size: 12px; font-weight: 600; margin-top: 4px; display: flex; align-items: center; gap: 4px; }
+.compare-change.up { color: var(--income); }
+.compare-change.down { color: var(--expense); }
 .btn-sm { padding: 7px 14px; font-family: var(--font-body); font-size: 12px; font-weight: 600; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--card); color: var(--ink-2); cursor: pointer; transition: all 0.2s; }
 .btn-sm:hover { border-color: var(--teal); color: var(--teal); transform: translateY(-1px); }
 .btn-add { padding: 7px 14px; font-family: var(--font-body); font-size: 12px; font-weight: 600; border: none; border-radius: var(--radius-sm); background: var(--teal); color: #fff; cursor: pointer; transition: all 0.2s; }
 .btn-add:hover { background: var(--teal-mid); transform: translateY(-1px); box-shadow: var(--shadow); }
 
 /* ─── NAV ────────────────────────────────────── */
-.nav { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+.nav-wrapper { position: relative; }
+.nav-wrapper::after { content: ''; position: absolute; right: 0; top: 0; bottom: 0; width: 40px; background: linear-gradient(to right, transparent, var(--surface)); pointer-events: none; z-index: 1; transition: opacity 0.3s; }
+.nav-wrapper.scrolled-end::after { opacity: 0; }
+.nav-wrapper::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 40px; background: linear-gradient(to left, transparent, var(--surface)); pointer-events: none; z-index: 1; opacity: 0; transition: opacity 0.3s; }
+.nav-wrapper.scrolled-start::before { opacity: 1; }
+.nav-arrow { position: absolute; top: 50%; transform: translateY(-50%); z-index: 2; width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--border); background: var(--card); color: var(--ink-2); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; box-shadow: var(--shadow); transition: all 0.2s; opacity: 0; pointer-events: none; }
+.nav-arrow:hover { background: var(--teal-wash); color: var(--teal); border-color: var(--teal); }
+.nav-arrow.left { left: -4px; }
+.nav-arrow.right { right: -4px; }
+.nav-wrapper.show-left .nav-arrow.left, .nav-wrapper.show-right .nav-arrow.right { opacity: 1; pointer-events: auto; }
+.nav { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; scroll-behavior: smooth; }
 .nav::-webkit-scrollbar { display: none; }
 .nav-btn { font-family: var(--font-body); font-size: 13px; font-weight: 500; padding: 8px 16px; border: none; background: transparent; color: var(--ink-3); cursor: pointer; border-radius: 8px; white-space: nowrap; transition: all 0.2s; position: relative; }
 .nav-btn:hover { color: var(--ink-2); background: var(--teal-wash); }
@@ -670,10 +741,22 @@ svg text { font-family: var(--font-body); }
             </div>
           </div>
           <button class="btn-sm" id="btn-logout" title="Sair">Sair</button>
-          <div class="period-badge" id="period-display"></div>
+          <button class="theme-toggle" id="theme-toggle" title="Alternar tema" onclick="toggleTheme()">🌙</button>
+          <div style="position:relative">
+            <button class="notif-btn" id="notif-btn" onclick="toggleNotifications()">🔔<span class="notif-badge" id="notif-badge" style="display:none">0</span></button>
+            <div class="notif-dropdown" id="notif-dropdown"></div>
+          </div>
+          <div style="position:relative">
+            <div class="period-badge" id="period-display" onclick="toggleCalendar()"></div>
+            <div class="calendar-dropdown" id="calendar-dropdown"></div>
+          </div>
         </div>
       </div>
-      <nav class="nav" id="nav"></nav>
+      <div class="nav-wrapper" id="nav-wrapper">
+        <button class="nav-arrow left" id="nav-arrow-left" onclick="document.getElementById('nav').scrollLeft -= 200">‹</button>
+        <nav class="nav" id="nav"></nav>
+        <button class="nav-arrow right" id="nav-arrow-right" onclick="document.getElementById('nav').scrollLeft += 200">›</button>
+      </div>
     </header>
     <main id="main"></main>
   </div>
@@ -768,6 +851,276 @@ const pct = (v) => v.toFixed(1) + '%';
 const genId = () => crypto.randomUUID();
 const currentMonth = () => new Date().getMonth();
 const currentYear = () => new Date().getFullYear();
+
+// ═══════════════════════════════════════════════════════
+// SELECTED PERIOD STATE
+// ═══════════════════════════════════════════════════════
+let selectedPeriod = {
+  month: currentMonth(),
+  year: currentYear(),
+  startDate: null, // null = full month; Date object = specific range
+  endDate: null,
+  mode: 'month' // 'month', 'range', 'all'
+};
+let calViewMonth = currentMonth();
+let calViewYear = currentYear();
+let calViewMode = 'days'; // 'days' or 'months'
+let calRangeStart = null; // temp for range selection
+
+function getSelectedPeriodLabel() {
+  if (selectedPeriod.mode === 'all') return 'Todos os períodos';
+  if (selectedPeriod.mode === 'range' && selectedPeriod.startDate && selectedPeriod.endDate) {
+    const s = selectedPeriod.startDate, e = selectedPeriod.endDate;
+    if (s.getTime() === e.getTime()) return s.getDate() + ' ' + MONTHS[s.getMonth()].substring(0,3) + ' ' + s.getFullYear();
+    return s.getDate() + '/' + (s.getMonth()+1) + ' — ' + e.getDate() + '/' + (e.getMonth()+1) + '/' + e.getFullYear();
+  }
+  return MONTHS[selectedPeriod.month] + ' ' + selectedPeriod.year;
+}
+
+function filterByPeriod(items, dateField) {
+  if (selectedPeriod.mode === 'all') return items;
+  return items.filter(item => {
+    const raw = item[dateField];
+    if (!raw) return true; // keep items without dates
+    let d;
+    if (raw instanceof Date) d = raw;
+    else if (typeof raw === 'string' && raw.includes('-')) d = new Date(raw + 'T00:00:00');
+    else if (typeof raw === 'string' && raw.includes('/')) {
+      const parts = raw.split('/');
+      d = new Date(selectedPeriod.year, selectedPeriod.month, parseInt(parts[0]));
+    } else return true;
+    if (isNaN(d)) return true;
+    if (selectedPeriod.mode === 'range' && selectedPeriod.startDate && selectedPeriod.endDate) {
+      return d >= selectedPeriod.startDate && d <= selectedPeriod.endDate;
+    }
+    return d.getMonth() === selectedPeriod.month && d.getFullYear() === selectedPeriod.year;
+  });
+}
+
+function updatePeriodDisplay() {
+  const el = document.getElementById('period-display');
+  if (el) el.textContent = getSelectedPeriodLabel();
+}
+
+// ── Calendar UI ──
+function toggleCalendar() {
+  const dd = document.getElementById('calendar-dropdown');
+  const wasOpen = dd.classList.contains('open');
+  closeAllDropdowns();
+  if (!wasOpen) { renderCalendar(); dd.classList.add('open'); }
+}
+
+function renderCalendar() {
+  const dd = document.getElementById('calendar-dropdown');
+  if (calViewMode === 'months') { renderCalendarMonths(dd); return; }
+  const firstDay = new Date(calViewYear, calViewMonth, 1).getDay();
+  const daysInMonth = new Date(calViewYear, calViewMonth + 1, 0).getDate();
+  const today = new Date();
+  let html = '<div class="cal-header">';
+  html += '<button onclick="calPrev()">◂</button>';
+  html += '<span class="cal-month-label" onclick="calViewMode=\'months\';renderCalendar()">' + MONTHS[calViewMonth] + ' ' + calViewYear + '</span>';
+  html += '<button onclick="calNext()">▸</button></div>';
+  html += '<div class="cal-weekdays">';
+  ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].forEach(function(d){ html += '<div class="cal-weekday">' + d + '</div>'; });
+  html += '</div><div class="cal-days">';
+  // Empty cells before first day
+  for (let i = 0; i < firstDay; i++) html += '<button class="cal-day other-month" disabled></button>';
+  for (let day = 1; day <= daysInMonth; day++) {
+    const thisDate = new Date(calViewYear, calViewMonth, day);
+    let cls = 'cal-day';
+    if (today.getDate() === day && today.getMonth() === calViewMonth && today.getFullYear() === calViewYear) cls += ' today';
+    if (selectedPeriod.mode === 'range' && selectedPeriod.startDate && selectedPeriod.endDate) {
+      if (thisDate.getTime() === selectedPeriod.startDate.getTime()) cls += ' range-start selected';
+      else if (thisDate.getTime() === selectedPeriod.endDate.getTime()) cls += ' range-end selected';
+      else if (thisDate > selectedPeriod.startDate && thisDate < selectedPeriod.endDate) cls += ' in-range';
+    } else if (selectedPeriod.mode === 'month' && calViewMonth === selectedPeriod.month && calViewYear === selectedPeriod.year) {
+      cls += ' in-range';
+    }
+    html += '<button class="' + cls + '" onclick="calSelectDay(' + day + ')">' + day + '</button>';
+  }
+  html += '</div>';
+  html += '<div class="cal-shortcuts">';
+  html += '<button class="cal-shortcut' + (selectedPeriod.mode==='month'&&selectedPeriod.month===currentMonth()&&selectedPeriod.year===currentYear()?' active':'') + '" onclick="calSelectCurrentMonth()">Este mês</button>';
+  html += '<button class="cal-shortcut" onclick="calSelectLastMonth()">Mês anterior</button>';
+  html += '<button class="cal-shortcut" onclick="calSelectLast7()">7 dias</button>';
+  html += '<button class="cal-shortcut" onclick="calSelectLast30()">30 dias</button>';
+  html += '<button class="cal-shortcut' + (selectedPeriod.mode==='all'?' active':'') + '" onclick="calSelectAll()">Tudo</button>';
+  html += '</div>';
+  dd.innerHTML = html;
+}
+
+function renderCalendarMonths(dd) {
+  let html = '<div class="cal-header">';
+  html += '<button onclick="calViewYear--;renderCalendar()">◂</button>';
+  html += '<span class="cal-month-label" onclick="calViewMode=\'days\';renderCalendar()">' + calViewYear + '</span>';
+  html += '<button onclick="calViewYear++;renderCalendar()">▸</button></div>';
+  html += '<div class="cal-months-grid">';
+  MONTHS.forEach(function(m, i) {
+    const isCurrent = i === selectedPeriod.month && calViewYear === selectedPeriod.year && selectedPeriod.mode === 'month';
+    html += '<button class="cal-month-btn' + (isCurrent ? ' current' : '') + '" onclick="calPickMonth(' + i + ')">' + m.substring(0,3) + '</button>';
+  });
+  html += '</div>';
+  dd.innerHTML = html;
+}
+
+function calPrev() { calViewMonth--; if (calViewMonth < 0) { calViewMonth = 11; calViewYear--; } renderCalendar(); }
+function calNext() { calViewMonth++; if (calViewMonth > 11) { calViewMonth = 0; calViewYear++; } renderCalendar(); }
+
+function calPickMonth(m) {
+  selectedPeriod.month = m; selectedPeriod.year = calViewYear;
+  selectedPeriod.mode = 'month'; selectedPeriod.startDate = null; selectedPeriod.endDate = null;
+  calViewMonth = m; calViewMode = 'days';
+  updatePeriodDisplay(); renderCalendar(); renderCurrentTab();
+}
+
+function calSelectDay(day) {
+  const clicked = new Date(calViewYear, calViewMonth, day);
+  if (!calRangeStart) {
+    calRangeStart = clicked;
+    selectedPeriod.mode = 'range'; selectedPeriod.startDate = clicked; selectedPeriod.endDate = clicked;
+  } else {
+    if (clicked < calRangeStart) { selectedPeriod.startDate = clicked; selectedPeriod.endDate = calRangeStart; }
+    else { selectedPeriod.startDate = calRangeStart; selectedPeriod.endDate = clicked; }
+    selectedPeriod.mode = 'range'; calRangeStart = null;
+    document.getElementById('calendar-dropdown').classList.remove('open');
+    renderCurrentTab();
+  }
+  updatePeriodDisplay(); renderCalendar();
+}
+
+function calSelectCurrentMonth() {
+  selectedPeriod.month = currentMonth(); selectedPeriod.year = currentYear();
+  selectedPeriod.mode = 'month'; selectedPeriod.startDate = null; selectedPeriod.endDate = null;
+  calViewMonth = currentMonth(); calViewYear = currentYear(); calRangeStart = null;
+  updatePeriodDisplay(); document.getElementById('calendar-dropdown').classList.remove('open'); renderCurrentTab();
+}
+function calSelectLastMonth() {
+  let m = currentMonth() - 1, y = currentYear(); if (m < 0) { m = 11; y--; }
+  selectedPeriod.month = m; selectedPeriod.year = y; selectedPeriod.mode = 'month';
+  selectedPeriod.startDate = null; selectedPeriod.endDate = null;
+  calViewMonth = m; calViewYear = y; calRangeStart = null;
+  updatePeriodDisplay(); document.getElementById('calendar-dropdown').classList.remove('open'); renderCurrentTab();
+}
+function calSelectLast7() {
+  const end = new Date(), start = new Date(); start.setDate(start.getDate() - 6);
+  selectedPeriod.mode = 'range'; selectedPeriod.startDate = start; selectedPeriod.endDate = end; calRangeStart = null;
+  updatePeriodDisplay(); document.getElementById('calendar-dropdown').classList.remove('open'); renderCurrentTab();
+}
+function calSelectLast30() {
+  const end = new Date(), start = new Date(); start.setDate(start.getDate() - 29);
+  selectedPeriod.mode = 'range'; selectedPeriod.startDate = start; selectedPeriod.endDate = end; calRangeStart = null;
+  updatePeriodDisplay(); document.getElementById('calendar-dropdown').classList.remove('open'); renderCurrentTab();
+}
+function calSelectAll() {
+  selectedPeriod.mode = 'all'; selectedPeriod.startDate = null; selectedPeriod.endDate = null; calRangeStart = null;
+  updatePeriodDisplay(); document.getElementById('calendar-dropdown').classList.remove('open'); renderCurrentTab();
+}
+
+// ═══════════════════════════════════════════════════════
+// DARK MODE
+// ═══════════════════════════════════════════════════════
+function toggleTheme() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const newTheme = isDark ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', newTheme);
+  try { localStorage.setItem('financa-theme', newTheme); } catch(e) {}
+  updateThemeIcon();
+}
+function updateThemeIcon() {
+  const btn = document.getElementById('theme-toggle');
+  if (!btn) return;
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark' ||
+    (!document.documentElement.getAttribute('data-theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  btn.textContent = isDark ? '☀️' : '🌙';
+}
+function initTheme() {
+  try {
+    const saved = localStorage.getItem('financa-theme');
+    if (saved) document.documentElement.setAttribute('data-theme', saved);
+  } catch(e) {}
+  updateThemeIcon();
+}
+initTheme();
+
+// ═══════════════════════════════════════════════════════
+// NOTIFICATIONS
+// ═══════════════════════════════════════════════════════
+function generateNotifications() {
+  const notifs = [];
+  const today = new Date();
+  const isPJ = state.profile_type === 'PJ';
+  // Budget alerts
+  const c = compute();
+  if (c.totalExpense > 0 && c.totalIncome > 0) {
+    const usedPct = (c.totalExpense / c.totalIncome * 100);
+    if (usedPct >= 90) notifs.push({ icon: '🚨', title: 'Orçamento crítico', desc: Math.round(usedPct) + '% da renda já gasta este mês', type: 'danger', time: 'Agora' });
+    else if (usedPct >= 75) notifs.push({ icon: '⚠️', title: 'Orçamento alto', desc: Math.round(usedPct) + '% da renda comprometida', type: 'warning', time: 'Agora' });
+  }
+  // Debt alerts
+  if (c.debtPct > 30) notifs.push({ icon: '💳', title: 'Endividamento alto', desc: 'Dívidas representam ' + pct(c.debtPct) + ' da renda', type: 'warning', time: 'Análise' });
+  // Savings alert
+  if (c.taxaEconomia < 10 && c.totalIncome > 0) notifs.push({ icon: '📉', title: 'Economia baixa', desc: 'Você está economizando apenas ' + pct(c.taxaEconomia) + '. Ideal: > 20%', type: 'info', time: 'Dica' });
+  // Goals progress
+  state.goals.forEach(function(g) {
+    const progress = g.current / g.target * 100;
+    if (progress >= 90 && progress < 100) notifs.push({ icon: '🎯', title: 'Meta quase atingida!', desc: g.name + ' — ' + Math.round(progress) + '% completa', type: 'success', time: 'Progresso' });
+    if (progress >= 100) notifs.push({ icon: '🏆', title: 'Meta atingida!', desc: g.name + ' — Parabéns!', type: 'success', time: 'Conquista' });
+  });
+  // Subscription alerts
+  if (c.totalSubs > 0) {
+    const subsPct = c.totalIncome > 0 ? (c.totalSubs / c.totalIncome * 100) : 0;
+    if (subsPct > 15) notifs.push({ icon: '📱', title: (isPJ ? 'SaaS elevado' : 'Assinaturas altas'), desc: fmtD(c.totalSubs) + '/mês (' + pct(subsPct) + ' da renda)', type: 'warning', time: 'Análise' });
+  }
+  // Health score
+  if (c.healthTotal < 50) notifs.push({ icon: '💊', title: 'Saúde financeira precisa de atenção', desc: 'Score atual: ' + c.healthTotal + '/100', type: 'danger', time: 'Diagnóstico' });
+  // Empty state tips
+  if (state.transactions.length === 0) notifs.push({ icon: '✨', title: 'Comece adicionando transações', desc: 'Registre receitas e despesas para análises personalizadas', type: 'info', time: 'Dica' });
+  if (state.goals.length === 0 && state.transactions.length > 0) notifs.push({ icon: '🎯', title: 'Defina suas metas', desc: 'Crie metas financeiras e acompanhe o progresso', type: 'info', time: 'Sugestão' });
+  return notifs;
+}
+
+function toggleNotifications() {
+  const dd = document.getElementById('notif-dropdown');
+  const wasOpen = dd.classList.contains('open');
+  closeAllDropdowns();
+  if (!wasOpen) { renderNotifications(); dd.classList.add('open'); }
+}
+
+function renderNotifications() {
+  const notifs = generateNotifications();
+  const dd = document.getElementById('notif-dropdown');
+  if (notifs.length === 0) {
+    dd.innerHTML = '<div class="notif-header"><span>Notificações</span></div><div class="notif-empty">🔔 Nenhuma notificação no momento</div>';
+    return;
+  }
+  let html = '<div class="notif-header"><span>Notificações (' + notifs.length + ')</span></div>';
+  notifs.forEach(function(n) {
+    html += '<div class="notif-item"><div class="notif-icon">' + n.icon + '</div><div class="notif-content"><div class="notif-title">' + n.title + '</div><div class="notif-desc">' + n.desc + '</div><div class="notif-time">' + n.time + '</div></div></div>';
+  });
+  dd.innerHTML = html;
+}
+
+function updateNotifBadge() {
+  const notifs = generateNotifications();
+  const badge = document.getElementById('notif-badge');
+  if (!badge) return;
+  const count = notifs.filter(function(n){ return n.type === 'danger' || n.type === 'warning'; }).length;
+  badge.textContent = count;
+  badge.style.display = count > 0 ? 'flex' : 'none';
+}
+
+function closeAllDropdowns() {
+  document.querySelectorAll('.calendar-dropdown, .notif-dropdown').forEach(function(el) { el.classList.remove('open'); });
+  calRangeStart = null;
+}
+
+// Close dropdowns on outside click
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('#period-display') && !e.target.closest('.calendar-dropdown') &&
+      !e.target.closest('#notif-btn') && !e.target.closest('.notif-dropdown') && !e.target.closest('.notif-btn')) {
+    closeAllDropdowns();
+  }
+});
 
 // ═══════════════════════════════════════════════════════
 // TOAST SYSTEM
@@ -1169,8 +1522,9 @@ async function deleteSub(id) { state.subscriptions = state.subscriptions.filter(
 // COMPUTE
 // ═══════════════════════════════════════════════════════
 function compute() {
-  const incomes = state.transactions.filter(t => t.type === 'income');
-  const expenses = state.transactions.filter(t => t.type === 'expense');
+  const filtered = filterByPeriod(state.transactions, 'date');
+  const incomes = filtered.filter(t => t.type === 'income');
+  const expenses = filtered.filter(t => t.type === 'expense');
   const totalIncome = incomes.reduce((s, t) => s + t.amount, 0);
   const totalExpense = expenses.reduce((s, t) => s + t.amount, 0);
   const resultado = totalIncome - totalExpense;
@@ -1240,6 +1594,40 @@ function renderBarChart(c) {
   }).join('')}</div><div class="bar-chart-legend"><span><span class="dot" style="background:var(--income)"></span>Receita</span><span><span class="dot" style="background:var(--expense)"></span>Despesa</span></div>`;
 }
 
+// ─── COMPARATIVO MENSAL ────────────────────────
+function renderComparativo(c) {
+  // Get previous month data
+  const prevMonth = selectedPeriod.month === 0 ? 11 : selectedPeriod.month - 1;
+  const prevYear = selectedPeriod.month === 0 ? selectedPeriod.year - 1 : selectedPeriod.year;
+  const prevTx = state.transactions.filter(function(t) {
+    if (!t.date) return false;
+    let d;
+    if (typeof t.date === 'string' && t.date.includes('-')) d = new Date(t.date + 'T00:00:00');
+    else if (typeof t.date === 'string' && t.date.includes('/')) d = new Date(prevYear, prevMonth, parseInt(t.date.split('/')[0]));
+    else return false;
+    return d.getMonth() === prevMonth && d.getFullYear() === prevYear;
+  });
+  const prevIncome = prevTx.filter(function(t){ return t.type === 'income'; }).reduce(function(s,t){ return s + t.amount; }, 0);
+  const prevExpense = prevTx.filter(function(t){ return t.type === 'expense'; }).reduce(function(s,t){ return s + t.amount; }, 0);
+  const prevResult = prevIncome - prevExpense;
+
+  function changeHtml(current, previous, invert) {
+    if (previous === 0) return '<span class="compare-change" style="color:var(--ink-3)">— sem dados anteriores</span>';
+    var pctChange = ((current - previous) / previous * 100);
+    var arrow = pctChange >= 0 ? '↑' : '↓';
+    var cls = invert ? (pctChange <= 0 ? 'up' : 'down') : (pctChange >= 0 ? 'up' : 'down');
+    return '<span class="compare-change ' + cls + '">' + arrow + ' ' + Math.abs(pctChange).toFixed(1) + '% vs. ' + MONTHS[prevMonth].substring(0,3) + '</span>';
+  }
+
+  var isPJ = state.profile_type === 'PJ';
+  return '<div class="compare-grid">' +
+    '<div class="compare-card"><div class="compare-label">' + (isPJ ? 'Faturamento' : 'Receitas') + '</div><div class="compare-value" style="color:var(--income)">' + fmt(c.totalIncome) + '</div>' + changeHtml(c.totalIncome, prevIncome, false) + '</div>' +
+    '<div class="compare-card"><div class="compare-label">' + (isPJ ? 'Custos' : 'Despesas') + '</div><div class="compare-value" style="color:var(--expense)">' + fmt(c.totalExpense) + '</div>' + changeHtml(c.totalExpense, prevExpense, true) + '</div>' +
+    '<div class="compare-card"><div class="compare-label">Resultado</div><div class="compare-value" style="color:' + (c.resultado >= 0 ? 'var(--income)' : 'var(--expense)') + '">' + fmt(c.resultado) + '</div>' + changeHtml(c.resultado, prevResult, false) + '</div>' +
+    '<div class="compare-card"><div class="compare-label">Economia</div><div class="compare-value" style="color:var(--teal)">' + pct(c.taxaEconomia) + '</div>' + changeHtml(c.taxaEconomia, prevIncome > 0 ? ((prevIncome-prevExpense)/prevIncome*100) : 0, false) + '</div>' +
+    '</div>';
+}
+
 // ═══════════════════════════════════════════════════════
 // TABS & RENDERING
 // ═══════════════════════════════════════════════════════
@@ -1290,6 +1678,7 @@ function renderCurrentTab() {
     openfinance: () => renderOpenFinance(c),
   };
   main.innerHTML = renderers[currentTab] ? renderers[currentTab]() : renderers.dashboard();
+  updateNotifBadge();
   if (currentTab === 'projecao') bindScenarioPills();
   if (currentTab === 'cambio') bindConverter();
   if (currentTab === 'documentos') bindUploadZone();
@@ -1301,7 +1690,7 @@ function renderCurrentTab() {
     searchInput.value = searchQuery;
   }
 }
-function switchTab(id) { searchQuery = ''; currentTab = id; document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === id)); renderCurrentTab(); }
+function switchTab(id) { searchQuery = ''; currentTab = id; document.querySelectorAll('.nav-btn').forEach(b => { b.classList.toggle('active', b.dataset.tab === id); if (b.dataset.tab === id) b.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' }); }); renderCurrentTab(); }
 
 // ─── DASHBOARD ──────────────────────────────────
 function renderDashboard(c) {
@@ -1318,6 +1707,7 @@ function renderDashboard(c) {
   ].map((k,i) => `<div class="kpi animate-in stagger-${i+1}"><div class="kpi-label">${k.label}</div><div class="kpi-value ${k.cls||''}" ${k.color?`style="color:${k.color}"`:''} >${k.value}</div></div>`).join('')}</div>
   <div class="charts-grid"><div class="card animate-in stagger-3"><div class="card-header"><div><div class="card-title">${isPJ?'Custos por categoria':'Gastos por categoria'}</div></div></div>${renderDonut(c.categories)}<div class="donut-legend">${c.categories.map(cat=>{const total=c.categories.reduce((s,x)=>s+x.value,0);return`<div class="donut-legend-item"><span class="donut-legend-swatch" style="background:${cat.color}"></span><span class="donut-legend-label">${cat.name}</span><span class="donut-legend-value">${fmt(cat.value)}</span><span class="donut-legend-pct">${total>0?(cat.value/total*100).toFixed(0):0}%</span></div>`;}).join('')}</div></div>
   <div class="card animate-in stagger-4"><div class="card-header"><div><div class="card-title">${isPJ?'Faturamento vs Custos':'Receita vs Despesa'}</div><div class="card-subtitle">Últimos 6 meses</div></div></div>${renderBarChart(c)}</div></div>
+  <div class="card animate-in stagger-5" style="margin-bottom:16px"><div class="card-header"><div><div class="card-title">Comparativo Mensal</div><div class="card-subtitle">Atual vs. mês anterior</div></div></div>${renderComparativo(c)}</div>
   <div class="charts-grid"><div class="card animate-in stagger-5"><div class="card-header"><div><div class="card-title">Saúde Financeira</div></div></div><div class="score-ring-container">${renderScoreRing(c.healthTotal)}<div class="score-details">${c.healthItems.map(item=>`<div class="score-bar-row"><span class="score-bar-label">${item.name}</span><div class="score-bar-track"><div class="score-bar-fill" style="width:${item.score}%;background:${scoreColor(item.score)}"></div></div><span class="score-bar-num">${item.score}</span></div>`).join('')}</div></div></div>
   <div class="card animate-in stagger-6"><div style="display:flex;flex-direction:column;gap:12px"><div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:var(--expense-light);border-radius:var(--radius-sm)"><div><div style="font-size:12px;color:var(--ink-3)">Dívidas totais</div><div style="font-family:var(--font-display);font-weight:700;font-size:20px;color:var(--expense)">${fmt(c.totalDebt)}</div></div><div style="font-size:12px;color:var(--ink-3)">${pct(c.debtPct)} da renda</div></div>
   <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:var(--amber-light);border-radius:var(--radius-sm)"><div><div style="font-size:12px;color:var(--ink-3)">${isPJ?'Ferramentas & SaaS':'Assinaturas'}</div><div style="font-family:var(--font-display);font-weight:700;font-size:20px;color:var(--amber)">${fmtD(c.totalSubs)}/mês</div></div><div style="font-size:12px;color:var(--ink-3)">${fmtD(c.totalSubs*12)}/ano</div></div></div></div></div>`;
@@ -2232,7 +2622,9 @@ async function showApp() {
   document.getElementById('app-screen').hidden = false;
   const planNames = { free: 'Free', plus: 'Plus', pro: 'Pro', business: 'Business' };
   document.getElementById('plan-badge').textContent = planNames[profile?.plan] || (state.profile_type === 'PJ' ? 'Business' : 'Free');
-  document.getElementById('period-display').textContent = MONTHS[currentMonth()] + ' ' + currentYear();
+  updatePeriodDisplay();
+  updateThemeIcon();
+  updateNotifBadge();
 
   // Build nav with all tabs
   const nav = document.getElementById('nav'); nav.innerHTML = '';
@@ -2252,6 +2644,19 @@ async function showApp() {
     btn.addEventListener('click', () => switchTab(t.id));
     nav.appendChild(btn);
   });
+
+  // Nav scroll indicators
+  const navEl = document.getElementById('nav');
+  const wrapper = document.getElementById('nav-wrapper');
+  function updateNavScroll() {
+    const sl = navEl.scrollLeft, sw = navEl.scrollWidth, cw = navEl.clientWidth;
+    wrapper.classList.toggle('show-left', sl > 10);
+    wrapper.classList.toggle('show-right', sl < sw - cw - 10);
+    wrapper.classList.toggle('scrolled-start', sl > 10);
+    wrapper.classList.toggle('scrolled-end', sl >= sw - cw - 10);
+  }
+  navEl.addEventListener('scroll', updateNavScroll);
+  setTimeout(updateNavScroll, 100);
 
   // Update toggle UI
   updateToggleUI();

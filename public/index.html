@@ -697,21 +697,144 @@ svg text { font-family: var(--font-body); }
 .tips-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 
 /* ─── RESPONSIVE ─────────────────────────────── */
-@media (max-width: 500px) {
-  .hero-value { font-size: 32px; }
-  .kpi-value { font-size: 22px; }
-  .kpi-grid { grid-template-columns: 1fr 1fr; }
-  .score-ring-container { flex-direction: column; align-items: flex-start; }
+/* ─── TABLET ─────────────────────────────────── */
+@media (max-width: 768px) {
+  .app { padding: 16px 16px 80px; }
+  .header-top { gap: 10px; }
+  .header { margin-bottom: 16px; }
+  .hero-value { font-size: 36px; }
+  .hero-card { padding: 22px; }
+  .hero-card::after { width: 140px; height: 140px; }
+  .kpi-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .kpi { padding: 16px; }
+  .kpi-value { font-size: 24px; }
+  .card { padding: 18px; }
+  .charts-grid { grid-template-columns: 1fr; }
   .form-row { grid-template-columns: 1fr; }
-  .option-grid { grid-template-columns: 1fr; }
-  .profile-toggle-btn { padding: 5px 10px; font-size: 11px; }
-  .header-actions { gap: 6px; }
-  .doc-grid { grid-template-columns: 1fr; }
+  .modal { max-width: 95vw; max-height: 90vh; }
+  .modal-header { padding: 16px 18px 0; }
+  .modal-body { padding: 16px 18px 20px; }
+  .welcome-modal { width: 95vw; max-width: 420px; }
+  .welcome-slides { padding: 20px; }
+  .welcome-header { padding: 20px 20px 0; }
+  .welcome-footer { padding: 12px 20px 20px; }
+  .help-panel { width: 100%; max-width: 100vw; }
+  .tour-tooltip { max-width: min(340px, calc(100vw - 32px)); }
+  .option-grid { grid-template-columns: 1fr 1fr; }
   .insight-grid { grid-template-columns: 1fr; }
-  .bank-grid { grid-template-columns: 1fr 1fr; }
+  .doc-grid { grid-template-columns: 1fr; }
   .tips-grid { grid-template-columns: 1fr; }
   .sim-results { grid-template-columns: 1fr; }
-  .strategy-hero { padding: 24px; }
+  .strategy-hero { padding: 20px; }
+}
+
+/* ─── MOBILE ─────────────────────────────────── */
+@media (max-width: 500px) {
+  .app { padding: 12px 12px 72px; }
+  .header-top { flex-direction: column; align-items: stretch; gap: 10px; }
+  .logo { font-size: 20px; justify-content: center; }
+  .header-actions { justify-content: center; flex-wrap: wrap; gap: 6px; }
+  .profile-toggle { order: -1; align-self: center; }
+  .profile-toggle-btn { padding: 5px 10px; font-size: 11px; }
+  .hero-card { padding: 20px; }
+  .hero-value { font-size: 28px; }
+  .hero-label { font-size: 12px; }
+  .hero-sub { font-size: 12px; }
+  .kpi-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .kpi { padding: 14px; }
+  .kpi-value { font-size: 20px; }
+  .kpi-label { font-size: 11px; }
+  .card { padding: 14px; }
+  .card-title { font-size: 14px; }
+  .nav-btn { font-size: 12px; padding: 7px 12px; }
+  .nav-arrow { width: 24px; height: 24px; font-size: 12px; }
+  .btn-sm { padding: 6px 10px; font-size: 11px; }
+  .btn-add { padding: 6px 10px; font-size: 11px; }
+  .form-row { grid-template-columns: 1fr; }
+  .form-input { font-size: 16px; padding: 10px 12px; } /* 16px prevents iOS zoom */
+  .form-select { font-size: 16px; padding: 10px 12px; }
+  .form-label { font-size: 12px; }
+  .modal { border-radius: var(--radius); max-height: 92vh; }
+  .modal-header { padding: 14px 16px 0; }
+  .modal-body { padding: 14px 16px 18px; }
+  .modal-title { font-size: 15px; }
+  .modal-actions { flex-direction: column; }
+  .modal-actions .btn-cancel,
+  .modal-actions .btn-save { width: 100%; text-align: center; }
+  .option-grid { grid-template-columns: 1fr; }
+  .score-ring-container { flex-direction: column; align-items: flex-start; }
+  .insight-grid { grid-template-columns: 1fr; }
+  .doc-grid { grid-template-columns: 1fr; }
+  .bank-grid { grid-template-columns: 1fr; }
+  .tips-grid { grid-template-columns: 1fr; }
+  .sim-results { grid-template-columns: 1fr; }
+  .strategy-hero { padding: 16px; }
+  .search-bar input { font-size: 16px; }
+  .welcome-modal { width: 96vw; max-width: 380px; border-radius: var(--radius); }
+  .welcome-slides { padding: 16px; }
+  .welcome-header { padding: 16px 16px 0; }
+  .welcome-footer { padding: 12px 16px 16px; }
+  .welcome-feature { padding: 10px; gap: 10px; }
+  .welcome-feature-icon { width: 36px; height: 36px; font-size: 22px; }
+  .welcome-feature h4 { font-size: 13px; }
+  .welcome-feature p { font-size: 11px; }
+  .tour-tooltip { max-width: calc(100vw - 24px); }
+  .tour-title { font-size: 15px; }
+  .tour-desc { font-size: 12px; }
+  .help-panel { width: 100%; max-width: 100vw; }
+  .help-panel-body { padding: 12px 16px; }
+  .help-card { padding: 12px; margin-bottom: 8px; }
+  .help-card-desc { font-size: 11px; padding-left: 0; }
+  .help-card-icon { font-size: 18px; }
+  .help-card-title { font-size: 13px; }
+  .notif-dropdown { width: calc(100vw - 24px); right: -60px; }
+  .calendar-dropdown { width: calc(100vw - 24px); right: -80px; }
+  /* Auth screen mobile */
+  .auth-container { padding: 16px; }
+  .auth-card { padding: 24px 18px; }
+  .auth-logo .mark { font-size: 26px; }
+  .onboard-inner { padding: 24px 18px; }
+  .onboard-title { font-size: 18px; }
+  /* Comparativo mensal */
+  .compare-grid { grid-template-columns: 1fr 1fr !important; }
+}
+
+/* ─── VERY SMALL PHONES ──────────────────────── */
+@media (max-width: 360px) {
+  .app { padding: 8px 8px 68px; }
+  .header-actions { gap: 4px; }
+  .hero-value { font-size: 24px; }
+  .kpi-grid { grid-template-columns: 1fr; }
+  .kpi-value { font-size: 22px; }
+  .logo { font-size: 18px; }
+  .logo span { display: none; }
+  .profile-toggle-btn { font-size: 10px; padding: 4px 8px; }
+  .btn-sm { font-size: 10px; padding: 5px 8px; }
+  .nav-btn { font-size: 11px; padding: 6px 10px; }
+  .welcome-modal { width: 98vw; }
+  .notif-dropdown { right: -40px; }
+  .calendar-dropdown { right: -50px; }
+}
+
+/* ─── TOUCH IMPROVEMENTS ─────────────────────── */
+@media (hover: none) and (pointer: coarse) {
+  .nav-btn { padding: 10px 16px; }
+  .btn-sm, .btn-add { min-height: 40px; display: inline-flex; align-items: center; }
+  .help-btn, .theme-toggle, .notif-btn { min-width: 40px; min-height: 40px; }
+  .card:hover { box-shadow: var(--shadow); transform: none; }
+  .kpi:hover { transform: none; box-shadow: var(--shadow); }
+  .hero-card:hover { transform: none; }
+  .help-card:hover { transform: none; }
+  .dropdown-item { padding: 12px 16px; }
+  .modal-close { width: 40px; height: 40px; }
+  .auth-tab { padding: 14px 10px; }
+}
+
+/* ─── SAFE AREAS (notch phones) ──────────────── */
+@supports (padding: env(safe-area-inset-top)) {
+  .app { padding-left: max(12px, env(safe-area-inset-left)); padding-right: max(12px, env(safe-area-inset-right)); padding-bottom: max(72px, env(safe-area-inset-bottom)); }
+  .modal-overlay { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+  .help-panel { padding-bottom: env(safe-area-inset-bottom); }
 }
 </style>
 </head>

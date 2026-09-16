@@ -1,0 +1,22 @@
+{
+  "name": "financa-app",
+  "version": "1.0.0",
+  "description": "Finança — Planejador Financeiro Pessoal e Empresarial",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "cors": "^2.8.5",
+    "helmet": "^8.0.0",
+    "compression": "^1.7.4",
+    "dotenv": "^16.4.5",
+    "stripe": "^17.3.0",
+    "@supabase/supabase-js": "^2.45.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

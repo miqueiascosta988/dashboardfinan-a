@@ -247,9 +247,9 @@ body {
 /* Tour Guiado */
 .tour-overlay { position: fixed; inset: 0; z-index: 9998; pointer-events: none; transition: opacity 0.3s; }
 .tour-overlay.active { pointer-events: auto; }
-.tour-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 9998; transition: opacity 0.3s; }
-.tour-spotlight { position: absolute; z-index: 9999; border-radius: var(--radius); box-shadow: 0 0 0 9999px rgba(0,0,0,0.55), 0 0 20px rgba(0,0,0,0.3); pointer-events: none; transition: all 0.4s ease; }
-.tour-tooltip { position: absolute; z-index: 10000; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-xl); padding: 20px 24px; max-width: 360px; min-width: 280px; animation: tourFadeIn 0.3s ease; }
+.tour-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 9998; transition: opacity 0.3s; cursor: pointer; }
+.tour-spotlight { position: fixed; z-index: 9999; border-radius: var(--radius); box-shadow: 0 0 0 9999px rgba(0,0,0,0.55), 0 0 20px rgba(0,0,0,0.3); pointer-events: none; transition: all 0.4s ease; }
+.tour-tooltip { position: fixed; z-index: 10000; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-xl); padding: 20px 24px; max-width: 360px; min-width: 280px; animation: tourFadeIn 0.3s ease; }
 @keyframes tourFadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 .tour-tooltip::before { content: ''; position: absolute; width: 12px; height: 12px; background: var(--card); border: 1px solid var(--border); transform: rotate(45deg); }
 .tour-tooltip.arrow-top::before { top: -7px; left: 24px; border-right: none; border-bottom: none; }
@@ -1224,68 +1224,89 @@ let tourActive = false;
 
 function startTour() {
   closeHelpPanel();
+  closeWelcome();
   tourStep = 0;
   tourActive = true;
-  showTourStep();
+  // Scroll to top so header elements are visible
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  setTimeout(function() { showTourStep(); }, 400);
 }
 
 function showTourStep() {
-  if (tourStep >= TOUR_STEPS.length) { endTour(); return; }
-  var step = TOUR_STEPS[tourStep];
-  var el = document.querySelector(step.target);
-  if (!el) { tourStep++; showTourStep(); return; }
+  try {
+    if (tourStep >= TOUR_STEPS.length) { endTour(); return; }
+    var step = TOUR_STEPS[tourStep];
+    var el = document.querySelector(step.target);
+    if (!el) { tourStep++; if (tourStep < TOUR_STEPS.length) showTourStep(); else endTour(); return; }
 
-  var backdrop = document.getElementById('tour-backdrop');
-  var spotlight = document.getElementById('tour-spotlight');
-  var tooltip = document.getElementById('tour-tooltip');
+    var backdrop = document.getElementById('tour-backdrop');
+    var spotlight = document.getElementById('tour-spotlight');
+    var tooltip = document.getElementById('tour-tooltip');
 
-  backdrop.style.display = 'block';
-  spotlight.style.display = 'block';
-  tooltip.style.display = 'block';
+    backdrop.style.display = 'block';
+    spotlight.style.display = 'block';
+    tooltip.style.display = 'block';
 
-  // Position spotlight
-  var rect = el.getBoundingClientRect();
-  var pad = 8;
-  spotlight.style.left = (rect.left - pad + window.scrollX) + 'px';
-  spotlight.style.top = (rect.top - pad + window.scrollY) + 'px';
-  spotlight.style.width = (rect.width + pad * 2) + 'px';
-  spotlight.style.height = (rect.height + pad * 2) + 'px';
+    // Use getBoundingClientRect (fixed positioning, no scroll offset needed)
+    var rect = el.getBoundingClientRect();
+    var pad = 8;
+    spotlight.style.left = (rect.left - pad) + 'px';
+    spotlight.style.top = (rect.top - pad) + 'px';
+    spotlight.style.width = (rect.width + pad * 2) + 'px';
+    spotlight.style.height = (rect.height + pad * 2) + 'px';
 
-  // Scroll element into view
-  el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
-
-  // Build tooltip
-  var totalSteps = TOUR_STEPS.length;
-  var dots = '';
-  for (var i = 0; i < totalSteps; i++) {
-    var cls = i === tourStep ? 'tour-dot active' : (i < tourStep ? 'tour-dot done' : 'tour-dot');
-    dots += '<div class="' + cls + '"></div>';
-  }
-
-  tooltip.className = 'tour-tooltip arrow-' + step.arrow;
-  tooltip.innerHTML =
-    '<div class="tour-step-badge">✨ Passo ' + (tourStep + 1) + ' de ' + totalSteps + '</div>' +
-    '<div class="tour-title">' + step.title + '</div>' +
-    '<div class="tour-desc">' + step.desc + '</div>' +
-    '<div class="tour-actions">' +
-      '<div class="tour-progress">' + dots + '</div>' +
-      '<div style="display:flex;gap:8px;align-items:center">' +
-        (tourStep > 0 ? '<button class="tour-btn tour-btn-secondary" onclick="prevTourStep()">Voltar</button>' : '<button class="tour-btn-skip" onclick="endTour()">Pular tour</button>') +
-        '<button class="tour-btn tour-btn-primary" onclick="nextTourStep()">' + (tourStep === totalSteps - 1 ? 'Concluir ✓' : 'Próximo →') + '</button>' +
-      '</div>' +
-    '</div>';
-
-  // Position tooltip
-  setTimeout(function() {
-    var tRect = tooltip.getBoundingClientRect();
-    if (step.arrow === 'top') {
-      tooltip.style.top = (rect.bottom + pad + 12 + window.scrollY) + 'px';
-      tooltip.style.left = Math.max(16, Math.min(rect.left + window.scrollX, window.innerWidth - tRect.width - 16)) + 'px';
-    } else {
-      tooltip.style.top = (rect.top - tRect.height - pad - 12 + window.scrollY) + 'px';
-      tooltip.style.left = Math.max(16, Math.min(rect.left + window.scrollX, window.innerWidth - tRect.width - 16)) + 'px';
+    // Build tooltip
+    var totalSteps = TOUR_STEPS.length;
+    var dots = '';
+    for (var i = 0; i < totalSteps; i++) {
+      var cls = i === tourStep ? 'tour-dot active' : (i < tourStep ? 'tour-dot done' : 'tour-dot');
+      dots += '<div class="' + cls + '"></div>';
     }
-  }, 10);
+
+    tooltip.className = 'tour-tooltip arrow-' + step.arrow;
+    tooltip.innerHTML =
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">' +
+        '<div class="tour-step-badge">✨ Passo ' + (tourStep + 1) + ' de ' + totalSteps + '</div>' +
+        '<button class="tour-btn-skip" onclick="endTour()" title="Fechar tour (Esc)">✕</button>' +
+      '</div>' +
+      '<div class="tour-title">' + step.title + '</div>' +
+      '<div class="tour-desc">' + step.desc + '</div>' +
+      '<div class="tour-actions">' +
+        '<div class="tour-progress">' + dots + '</div>' +
+        '<div style="display:flex;gap:8px;align-items:center">' +
+          (tourStep > 0 ? '<button class="tour-btn tour-btn-secondary" onclick="prevTourStep()">Voltar</button>' : '<button class="tour-btn-skip" onclick="endTour()">Pular tour</button>') +
+          '<button class="tour-btn tour-btn-primary" onclick="nextTourStep()">' + (tourStep === totalSteps - 1 ? 'Concluir ✓' : 'Próximo →') + '</button>' +
+        '</div>' +
+      '</div>';
+
+    // Position tooltip (use fixed coords from rect)
+    requestAnimationFrame(function() {
+      var tRect = tooltip.getBoundingClientRect();
+      var tooltipLeft = Math.max(16, Math.min(rect.left, window.innerWidth - tRect.width - 16));
+      if (step.arrow === 'top') {
+        var topPos = rect.bottom + pad + 12;
+        // If tooltip would go off bottom, show above instead
+        if (topPos + tRect.height > window.innerHeight - 16) {
+          topPos = rect.top - tRect.height - pad - 12;
+          tooltip.className = 'tour-tooltip arrow-bottom';
+        }
+        tooltip.style.top = topPos + 'px';
+        tooltip.style.left = tooltipLeft + 'px';
+      } else {
+        var topPos2 = rect.top - tRect.height - pad - 12;
+        // If tooltip would go off top, show below instead
+        if (topPos2 < 16) {
+          topPos2 = rect.bottom + pad + 12;
+          tooltip.className = 'tour-tooltip arrow-top';
+        }
+        tooltip.style.top = topPos2 + 'px';
+        tooltip.style.left = tooltipLeft + 'px';
+      }
+    });
+  } catch(e) {
+    console.error('Tour error:', e);
+    endTour();
+  }
 }
 
 function nextTourStep() { tourStep++; showTourStep(); }
@@ -1297,8 +1318,19 @@ function endTour() {
   document.getElementById('tour-spotlight').style.display = 'none';
   document.getElementById('tour-tooltip').style.display = 'none';
   try { localStorage.setItem('financa-tour-done', '1'); } catch(e) {}
-  showToast('Tour concluído! Use o botão ? para ajuda a qualquer momento.', 'success');
 }
+
+// Backdrop click closes tour
+document.getElementById('tour-backdrop').addEventListener('click', function() { if (tourActive) endTour(); });
+
+// ESC key closes tour & welcome
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    if (tourActive) endTour();
+    closeWelcome();
+    closeHelpPanel();
+  }
+});
 
 // ── Welcome Modal ──
 function showWelcomeModal() {
@@ -1369,18 +1401,17 @@ function showWelcomeModal() {
 }
 
 function closeWelcome() {
-  document.getElementById('welcome-overlay').style.display = 'none';
-  try { localStorage.setItem('financa-tour-done', '1'); } catch(e) {}
+  var el = document.getElementById('welcome-overlay');
+  if (el) el.style.display = 'none';
+  try { localStorage.setItem('financa-welcome-done', '1'); } catch(e) {}
 }
 
 function checkFirstVisit() {
   try {
-    if (!localStorage.getItem('financa-tour-done')) {
-      setTimeout(showWelcomeModal, 800);
+    if (!localStorage.getItem('financa-welcome-done')) {
+      setTimeout(showWelcomeModal, 1000);
     }
-  } catch(e) {
-    setTimeout(showWelcomeModal, 800);
-  }
+  } catch(e) {}
 }
 
 // ── Help Panel ──

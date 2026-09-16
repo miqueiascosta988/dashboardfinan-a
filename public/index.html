@@ -563,7 +563,7 @@ svg text { font-family: var(--font-body); }
 // ═══════════════════════════════════════════════════════
 // SUPABASE INIT
 // ═══════════════════════════════════════════════════════
-let supabase = null, currentUser = null, profile = null, appConfig = {};
+let sb = null, currentUser = null, profile = null, appConfig = {};
 
 async function initSupabase() {
   try {
@@ -571,15 +571,15 @@ async function initSupabase() {
     const cfg = await res.json();
     appConfig = cfg;
     if (!cfg.supabaseUrl || !cfg.supabaseAnonKey || cfg.supabaseUrl === 'undefined') throw new Error('No Supabase config');
-    supabase = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
-    const { data: { session } } = await supabase.auth.getSession();
+    sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+    const { data: { session } } = await sb.auth.getSession();
     if (session) {
       currentUser = session.user;
       await loadProfile();
       if (profile && profile.onboarding_done) { showApp(); } else { showOnboarding(); }
       return;
     }
-  } catch(e) { supabase = null; console.warn('Supabase not configured, running in demo mode'); }
+  } catch(e) { sb = null; console.warn('Supabase not configured, running in demo mode'); }
 }
 
 // ═══════════════════════════════════════════════════════
@@ -655,9 +655,9 @@ document.getElementById('btn-login').addEventListener('click', async () => {
   const email = document.getElementById('login-email').value;
   const pass = document.getElementById('login-pass').value;
   if (!email || !pass) return showAuthError('Preencha todos os campos.');
-  if (!supabase) { state.name = email.split('@')[0]; document.getElementById('auth-screen').hidden = true; seedSampleData(); showApp(); return; }
+  if (!sb) { state.name = email.split('@')[0]; document.getElementById('auth-screen').hidden = true; seedSampleData(); showApp(); return; }
   const btn = document.getElementById('btn-login'); btn.disabled = true;
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
   btn.disabled = false;
   if (error) return showAuthError(error.message);
   currentUser = data.user; await loadProfile();
@@ -670,16 +670,16 @@ document.getElementById('btn-signup').addEventListener('click', async () => {
   const pass = document.getElementById('signup-pass').value;
   if (!name || !email || !pass) return showAuthError('Preencha todos os campos.');
   if (pass.length < 6) return showAuthError('Senha deve ter pelo menos 6 caracteres.');
-  if (!supabase) { state.name = name; document.getElementById('auth-screen').hidden = true; showOnboarding(); return; }
+  if (!sb) { state.name = name; document.getElementById('auth-screen').hidden = true; showOnboarding(); return; }
   const btn = document.getElementById('btn-signup'); btn.disabled = true;
-  const { data, error } = await supabase.auth.signUp({ email, password: pass, options: { data: { name } } });
+  const { data, error } = await sb.auth.signUp({ email, password: pass, options: { data: { name } } });
   btn.disabled = false;
   if (error) return showAuthError(error.message);
   currentUser = data.user; state.name = name; showOnboarding();
 });
 
 document.getElementById('btn-logout').addEventListener('click', async () => {
-  if (supabase) await supabase.auth.signOut();
+  if (sb) await sb.auth.signOut();
   currentUser = null; profile = null;
   state = { profile_type: 'PF', currency: 'BRL', name: '', monthlyIncome: 5000, transactions: [], goals: [], debts: [], assets: [], liabilities: [], subscriptions: [], budgets: {}, pj_faturamento_anual: 0, pj_regime: 'MEI' };
   document.getElementById('app-screen').hidden = true; document.getElementById('auth-screen').hidden = false;
@@ -701,8 +701,8 @@ function toggleProfileType(type) {
   if (!availTabs.find(t => t.id === currentTab)) { currentTab = 'dashboard'; }
   renderCurrentTab();
   // Persist to DB
-  if (supabase && currentUser) {
-    supabase.from('profiles').update({ profile_type: type }).eq('id', currentUser.id);
+  if (sb && currentUser) {
+    sb.from('profiles').update({ profile_type: type }).eq('id', currentUser.id);
   }
   showToast(type === 'PJ' ? 'Modo Empresa ativado' : 'Modo Pessoal ativado', 'success');
 }
@@ -747,8 +747,8 @@ function nextOnboard(step) {
 async function finishOnboard() {
   state.monthlyIncome = parseFloat(document.getElementById('onboard-income').value) || 5000;
   document.getElementById('onboarding-screen').hidden = true;
-  if (supabase && currentUser) {
-    await supabase.from('profiles').update({
+  if (sb && currentUser) {
+    await sb.from('profiles').update({
       profile_type: state.profile_type, currency: state.currency,
       monthly_income: state.monthlyIncome, name: state.name || currentUser.email.split('@')[0],
       onboarding_done: true,
@@ -839,8 +839,8 @@ function seedSampleData() {
 // SUPABASE PERSISTENCE
 // ═══════════════════════════════════════════════════════
 async function loadProfile() {
-  if (!supabase || !currentUser) return;
-  const { data } = await supabase.from('profiles').select('*').eq('id', currentUser.id).single();
+  if (!sb || !currentUser) return;
+  const { data } = await sb.from('profiles').select('*').eq('id', currentUser.id).single();
   if (data) {
     profile = data; state.name = data.name; state.profile_type = data.profile_type;
     state.currency = data.currency; state.monthlyIncome = parseFloat(data.monthly_income) || 5000;
@@ -848,15 +848,15 @@ async function loadProfile() {
 }
 
 async function loadAllData() {
-  if (!supabase || !currentUser) return;
+  if (!sb || !currentUser) return;
   const uid = currentUser.id;
   const [tx, goals, debts, assets, liab, subs] = await Promise.all([
-    supabase.from('transactions').select('*').eq('user_id', uid).order('date', { ascending: false }),
-    supabase.from('goals').select('*').eq('user_id', uid),
-    supabase.from('debts').select('*').eq('user_id', uid),
-    supabase.from('assets').select('*').eq('user_id', uid),
-    supabase.from('liabilities').select('*').eq('user_id', uid),
-    supabase.from('subscriptions').select('*').eq('user_id', uid),
+    sb.from('transactions').select('*').eq('user_id', uid).order('date', { ascending: false }),
+    sb.from('goals').select('*').eq('user_id', uid),
+    sb.from('debts').select('*').eq('user_id', uid),
+    sb.from('assets').select('*').eq('user_id', uid),
+    sb.from('liabilities').select('*').eq('user_id', uid),
+    sb.from('subscriptions').select('*').eq('user_id', uid),
   ]);
   state.transactions = (tx.data || []).map(r => ({ id: r.id, date: r.date, desc: r.description, cat: r.category, amount: parseFloat(r.amount), type: r.type, recur: r.recurring }));
   state.goals = (goals.data || []).map(r => ({ id: r.id, icon: r.icon, name: r.name, target: parseFloat(r.target_amount), current: parseFloat(r.current_amount), monthly: parseFloat(r.monthly_contribution) }));
@@ -867,18 +867,18 @@ async function loadAllData() {
 }
 
 async function syncAllToDb() {
-  if (!supabase || !currentUser) return;
+  if (!sb || !currentUser) return;
   const uid = currentUser.id;
-  if (state.transactions.length > 0) { await supabase.from('transactions').upsert(state.transactions.map(t => ({ id: t.id, user_id: uid, type: t.type, description: t.desc, category: t.cat, amount: t.amount, date: `${currentYear()}-${String(currentMonth()+1).padStart(2,'0')}-${t.date.split('/')[0].padStart(2,'0')}`, recurring: t.recur }))); }
-  if (state.goals.length > 0) { await supabase.from('goals').upsert(state.goals.map(g => ({ id: g.id, user_id: uid, name: g.name, icon: g.icon, target_amount: g.target, current_amount: g.current, monthly_contribution: g.monthly }))); }
-  if (state.debts.length > 0) { await supabase.from('debts').upsert(state.debts.map(d => ({ id: d.id, user_id: uid, name: d.name, type: d.type, balance: d.saldo, interest_rate: d.juros, installments: d.parcelas || null, monthly_payment: d.mensal }))); }
-  if (state.assets.length > 0) { await supabase.from('assets').upsert(state.assets.map(a => ({ id: a.id, user_id: uid, name: a.name, category: 'Outros', value: a.value }))); }
-  if (state.liabilities.length > 0) { await supabase.from('liabilities').upsert(state.liabilities.map(l => ({ id: l.id, user_id: uid, name: l.name, value: l.value }))); }
-  if (state.subscriptions.length > 0) { await supabase.from('subscriptions').upsert(state.subscriptions.map(s => ({ id: s.id, user_id: uid, name: s.name, category: s.cat, price: s.price, color: s.color }))); }
+  if (state.transactions.length > 0) { await sb.from('transactions').upsert(state.transactions.map(t => ({ id: t.id, user_id: uid, type: t.type, description: t.desc, category: t.cat, amount: t.amount, date: `${currentYear()}-${String(currentMonth()+1).padStart(2,'0')}-${t.date.split('/')[0].padStart(2,'0')}`, recurring: t.recur }))); }
+  if (state.goals.length > 0) { await sb.from('goals').upsert(state.goals.map(g => ({ id: g.id, user_id: uid, name: g.name, icon: g.icon, target_amount: g.target, current_amount: g.current, monthly_contribution: g.monthly }))); }
+  if (state.debts.length > 0) { await sb.from('debts').upsert(state.debts.map(d => ({ id: d.id, user_id: uid, name: d.name, type: d.type, balance: d.saldo, interest_rate: d.juros, installments: d.parcelas || null, monthly_payment: d.mensal }))); }
+  if (state.assets.length > 0) { await sb.from('assets').upsert(state.assets.map(a => ({ id: a.id, user_id: uid, name: a.name, category: 'Outros', value: a.value }))); }
+  if (state.liabilities.length > 0) { await sb.from('liabilities').upsert(state.liabilities.map(l => ({ id: l.id, user_id: uid, name: l.name, value: l.value }))); }
+  if (state.subscriptions.length > 0) { await sb.from('subscriptions').upsert(state.subscriptions.map(s => ({ id: s.id, user_id: uid, name: s.name, category: s.cat, price: s.price, color: s.color }))); }
 }
 
-async function dbUpsert(table, record) { if (!supabase || !currentUser) return; await supabase.from(table).upsert(record); }
-async function dbDelete(table, id) { if (!supabase || !currentUser) return; await supabase.from(table).delete().eq('id', id); }
+async function dbUpsert(table, record) { if (!sb || !currentUser) return; await sb.from(table).upsert(record); }
+async function dbDelete(table, id) { if (!sb || !currentUser) return; await sb.from(table).delete().eq('id', id); }
 
 // ═══════════════════════════════════════════════════════
 // MODAL
@@ -1378,7 +1378,7 @@ function renderPlano() {
 }
 
 async function startCheckout(priceId) {
-  if (!supabase || !currentUser) return showToast('Faça login para assinar.', 'error');
+  if (!sb || !currentUser) return showToast('Faça login para assinar.', 'error');
   try {
     const res = await fetch('/api/stripe/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ priceId, userId: currentUser.id, email: currentUser.email }) });
     const data = await res.json();

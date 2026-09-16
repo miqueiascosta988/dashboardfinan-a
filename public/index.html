@@ -1213,7 +1213,25 @@ const TOUR_STEPS = [
   { target: '#period-display', title: 'Calendário & Período', desc: 'Clique para abrir o calendário. Selecione meses, dias ou intervalos personalizados. Todas as transações e relatórios serão filtrados pelo período escolhido.', arrow: 'top' },
   { target: '#theme-toggle', title: 'Modo Escuro', desc: 'Alterne entre tema claro e escuro. Sua preferência fica salva automaticamente para próximas sessões.', arrow: 'top' },
   { target: '#notif-btn', title: 'Notificações Inteligentes', desc: 'O sino mostra alertas em tempo real: orçamento alto, dívidas, metas quase atingidas e dicas personalizadas. O badge vermelho indica alertas importantes.', arrow: 'top' },
-  { target: '#nav', title: 'Navegação por Abas', desc: 'Todas as seções do app estão aqui: Receitas, Despesas, Orçamento, Metas, Dívidas, Patrimônio, Projeção, Saúde Financeira, Estratégia e mais. Use as setas para navegar.', arrow: 'top' },
+  { target: '#nav', title: 'Navegação por Abas', desc: 'Aqui ficam todas as seções do app. Vamos conhecer cada uma delas! Use as setas ‹ › ou arraste para navegar entre as abas.', arrow: 'top', action: 'pause-before-tabs' },
+  // ── Abas individuais ──
+  { target: '[data-tab="dashboard"]', title: '📊 Visão Geral', desc: 'Sua central de comando! Mostra saldo patrimonial, KPIs de receitas/despesas, gráfico por categorias, comparativo mensal e score de saúde financeira — tudo num relance.', arrow: 'top', tabHighlight: true },
+  { target: '[data-tab="receitas"]', title: '💰 Receitas', desc: 'Registre tudo que entra: salário, freelance, rendimentos. Adicione valor, categoria, data e recorrência. Filtre e busque lançamentos por período.', arrow: 'top', tabHighlight: true },
+  { target: '[data-tab="despesas"]', title: '💸 Despesas', desc: 'Controle cada gasto com categoria, valor e data. Identifique padrões de consumo e veja para onde seu dinheiro está indo.', arrow: 'top', tabHighlight: true },
+  { target: '[data-tab="documentos"]', title: '📄 Documentos', desc: 'Faça upload de faturas, holerites e extratos bancários. O sistema organiza por tipo e período para consulta rápida.', arrow: 'top', tabHighlight: true },
+  { target: '[data-tab="insights"]', title: '💡 Insights', desc: 'Análises inteligentes dos seus dados: tendências de gastos, alertas de anomalias e sugestões automáticas para otimizar suas finanças.', arrow: 'top', tabHighlight: true },
+  { target: '[data-tab="orcamento"]', title: '📋 Orçamento', desc: 'Defina limites mensais por categoria. Barras de progresso coloridas mostram o consumo em tempo real. Receba alertas ao se aproximar do limite.', arrow: 'top', tabHighlight: true },
+  { target: '[data-tab="metas"]', title: '🎯 Metas', desc: 'Crie objetivos financeiros: viagem, reserva, investimento. Acompanhe com barras de progresso, prazo estimado e contribuições mensais sugeridas.', arrow: 'top', tabHighlight: true },
+  { target: '[data-tab="dividas"]', title: '🏦 Dívidas', desc: 'Cadastre empréstimos, financiamentos e parcelas. Veja juros acumulados, saldo devedor e simule antecipações para economizar.', arrow: 'top', tabHighlight: true },
+  { target: '[data-tab="patrimonio"]', title: '🏠 Patrimônio', desc: 'Registre seus bens: imóveis, veículos, investimentos e outros ativos. Acompanhe a evolução do seu patrimônio líquido ao longo do tempo.', arrow: 'top', tabHighlight: true },
+  { target: '[data-tab="assinaturas"]', title: '🔄 Assinaturas', desc: 'Controle serviços recorrentes: streaming, apps, academias. Veja o custo total mensal e identifique assinaturas que podem ser cortadas.', arrow: 'top', tabHighlight: true },
+  { target: '[data-tab="projecao"]', title: '📈 Projeção', desc: 'Simule cenários futuros baseados nas suas receitas e despesas atuais. Veja projeções de saldo e patrimônio para os próximos meses.', arrow: 'top', tabHighlight: true },
+  { target: '[data-tab="saude"]', title: '💊 Saúde Financeira', desc: 'Score de 0 a 100 baseado em 5 critérios: reserva de emergência, nível de dívidas, taxa de economia, gastos fixos e diversificação de investimentos.', arrow: 'top', tabHighlight: true },
+  { target: '[data-tab="estrategia"]', title: '🧠 Estratégia', desc: 'Consultoria personalizada com plano em fases, dicas contextuais e simulador de cenários. Monte sua estratégia financeira ideal.', arrow: 'top', tabHighlight: true },
+  { target: '[data-tab="openfinance"]', title: '🏛️ Open Finance', desc: 'Conecte suas contas bancárias para importar transações automaticamente. Sincronize dados de múltiplas instituições em um só lugar.', arrow: 'top', tabHighlight: true },
+  { target: '[data-tab="cambio"]', title: '💱 Câmbio', desc: 'Acompanhe cotações de moedas em tempo real. Útil para quem tem rendimentos, despesas ou investimentos em moeda estrangeira.', arrow: 'top', tabHighlight: true },
+  { target: '[data-tab="plano"]', title: '⭐ Plano', desc: 'Gerencie sua assinatura do Finança. Compare os planos Free e Plus, e desbloqueie recursos premium como Open Finance e projeções avançadas.', arrow: 'top', tabHighlight: true },
+  // ── Volta ao geral ──
   { target: '.hero-card', title: 'Visão Geral', desc: 'O card principal mostra seu saldo patrimonial atualizado. Abaixo, os KPIs resumem receitas, despesas, resultado e taxa de economia do período.', arrow: 'bottom' },
   { target: '#btn-export', title: 'Exportar Dados', desc: 'Exporte seus dados a qualquer momento em JSON (backup completo) ou CSV (transações para planilhas).', arrow: 'top' },
   { target: '#help-btn', title: 'Ajuda Sempre Disponível', desc: 'Este botão abre o painel de ajuda com guias de cada funcionalidade. Você também pode refazer este tour a qualquer momento!', arrow: 'top' },
@@ -1239,6 +1257,11 @@ function showTourStep() {
     var el = document.querySelector(step.target);
     if (!el) { tourStep++; if (tourStep < TOUR_STEPS.length) showTourStep(); else endTour(); return; }
 
+    // Scroll tab into view inside nav if it's a tab highlight
+    if (step.tabHighlight) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
+
     var backdrop = document.getElementById('tour-backdrop');
     var spotlight = document.getElementById('tour-spotlight');
     var tooltip = document.getElementById('tour-tooltip');
@@ -1246,6 +1269,23 @@ function showTourStep() {
     backdrop.style.display = 'block';
     spotlight.style.display = 'block';
     tooltip.style.display = 'block';
+
+    // Small delay for tab scroll animation to settle
+    if (step.tabHighlight) {
+      setTimeout(function() { positionTourElements(el, step); }, 350);
+      return;
+    }
+    positionTourElements(el, step);
+  } catch(e) {
+    console.error('Tour error:', e);
+    endTour();
+  }
+}
+
+function positionTourElements(el, step) {
+  try {
+    var spotlight = document.getElementById('tour-spotlight');
+    var tooltip = document.getElementById('tour-tooltip');
 
     // Use getBoundingClientRect (fixed positioning, no scroll offset needed)
     var rect = el.getBoundingClientRect();
@@ -1430,38 +1470,83 @@ function openHelpPanel() {
         '<div class="help-section-title">Funcionalidades</div>' +
 
         '<div class="help-card" onclick="closeHelpPanel();switchTab(\'dashboard\')">' +
-          '<div class="help-card-header"><span class="help-card-icon">📊</span><span class="help-card-title">Visão Geral (Dashboard)</span></div>' +
-          '<div class="help-card-desc">Painel principal com saldo patrimonial, KPIs de receitas/despesas, gráfico de categorias, comparativo mensal e score de saúde financeira.</div>' +
+          '<div class="help-card-header"><span class="help-card-icon">📊</span><span class="help-card-title">Visão Geral</span></div>' +
+          '<div class="help-card-desc">Sua central de comando: saldo patrimonial, KPIs de receitas/despesas, gráfico por categorias, comparativo mensal e score de saúde financeira.</div>' +
         '</div>' +
 
         '<div class="help-card" onclick="closeHelpPanel();switchTab(\'receitas\')">' +
-          '<div class="help-card-header"><span class="help-card-icon">💰</span><span class="help-card-title">Receitas & Despesas</span></div>' +
-          '<div class="help-card-desc">Adicione transações com categoria, valor e recorrência. Use a busca para encontrar lançamentos. Tudo filtrado pelo período do calendário.</div>' +
+          '<div class="help-card-header"><span class="help-card-icon">💰</span><span class="help-card-title">Receitas</span></div>' +
+          '<div class="help-card-desc">Registre salário, freelance e rendimentos. Adicione valor, categoria, data e recorrência. Filtre e busque por período.</div>' +
         '</div>' +
 
-        '<div class="help-card" onclick="closeHelpPanel();switchTab(\'orcamento\')">' +
-          '<div class="help-card-header"><span class="help-card-icon">📋</span><span class="help-card-title">Orçamento</span></div>' +
-          '<div class="help-card-desc">Defina limites por categoria. Barras de progresso mostram quanto já foi gasto. Você recebe alertas quando se aproxima do limite.</div>' +
-        '</div>' +
-
-        '<div class="help-card" onclick="closeHelpPanel();switchTab(\'metas\')">' +
-          '<div class="help-card-header"><span class="help-card-icon">🎯</span><span class="help-card-title">Metas</span></div>' +
-          '<div class="help-card-desc">Crie metas de economia, investimento ou compra. Acompanhe o progresso com barras visuais e prazos estimados.</div>' +
-        '</div>' +
-
-        '<div class="help-card" onclick="closeHelpPanel();switchTab(\'estrategia\')">' +
-          '<div class="help-card-header"><span class="help-card-icon">🧠</span><span class="help-card-title">Estratégia Financeira</span></div>' +
-          '<div class="help-card-desc">Consultoria personalizada com plano em fases, dicas contextuais e simulador interativo de cenários. Planeje seu futuro financeiro.</div>' +
+        '<div class="help-card" onclick="closeHelpPanel();switchTab(\'despesas\')">' +
+          '<div class="help-card-header"><span class="help-card-icon">💸</span><span class="help-card-title">Despesas</span></div>' +
+          '<div class="help-card-desc">Controle cada gasto com categoria, valor e data. Identifique padrões de consumo e descubra para onde o dinheiro vai.</div>' +
         '</div>' +
 
         '<div class="help-card" onclick="closeHelpPanel();switchTab(\'documentos\')">' +
           '<div class="help-card-header"><span class="help-card-icon">📄</span><span class="help-card-title">Documentos</span></div>' +
-          '<div class="help-card-desc">Faça upload de faturas, holerites e extratos. O sistema extrai dados automaticamente e os organiza por tipo e período.</div>' +
+          '<div class="help-card-desc">Faça upload de faturas, holerites e extratos. Organização automática por tipo e período para consulta rápida.</div>' +
+        '</div>' +
+
+        '<div class="help-card" onclick="closeHelpPanel();switchTab(\'insights\')">' +
+          '<div class="help-card-header"><span class="help-card-icon">💡</span><span class="help-card-title">Insights</span></div>' +
+          '<div class="help-card-desc">Análises inteligentes: tendências de gastos, alertas de anomalias e sugestões automáticas para otimizar suas finanças.</div>' +
+        '</div>' +
+
+        '<div class="help-card" onclick="closeHelpPanel();switchTab(\'orcamento\')">' +
+          '<div class="help-card-header"><span class="help-card-icon">📋</span><span class="help-card-title">Orçamento</span></div>' +
+          '<div class="help-card-desc">Defina limites mensais por categoria. Barras de progresso coloridas mostram o consumo. Alertas ao se aproximar do limite.</div>' +
+        '</div>' +
+
+        '<div class="help-card" onclick="closeHelpPanel();switchTab(\'metas\')">' +
+          '<div class="help-card-header"><span class="help-card-icon">🎯</span><span class="help-card-title">Metas</span></div>' +
+          '<div class="help-card-desc">Crie objetivos financeiros com barras de progresso, prazo estimado e contribuições mensais sugeridas.</div>' +
+        '</div>' +
+
+        '<div class="help-card" onclick="closeHelpPanel();switchTab(\'dividas\')">' +
+          '<div class="help-card-header"><span class="help-card-icon">🏦</span><span class="help-card-title">Dívidas</span></div>' +
+          '<div class="help-card-desc">Cadastre empréstimos, financiamentos e parcelas. Veja juros acumulados, saldo devedor e simule antecipações.</div>' +
+        '</div>' +
+
+        '<div class="help-card" onclick="closeHelpPanel();switchTab(\'patrimonio\')">' +
+          '<div class="help-card-header"><span class="help-card-icon">🏠</span><span class="help-card-title">Patrimônio</span></div>' +
+          '<div class="help-card-desc">Registre imóveis, veículos e investimentos. Acompanhe a evolução do seu patrimônio líquido ao longo do tempo.</div>' +
+        '</div>' +
+
+        '<div class="help-card" onclick="closeHelpPanel();switchTab(\'assinaturas\')">' +
+          '<div class="help-card-header"><span class="help-card-icon">🔄</span><span class="help-card-title">Assinaturas</span></div>' +
+          '<div class="help-card-desc">Controle serviços recorrentes: streaming, apps, academias. Veja o custo total mensal e identifique cortes possíveis.</div>' +
+        '</div>' +
+
+        '<div class="help-card" onclick="closeHelpPanel();switchTab(\'projecao\')">' +
+          '<div class="help-card-header"><span class="help-card-icon">📈</span><span class="help-card-title">Projeção</span></div>' +
+          '<div class="help-card-desc">Simule cenários futuros baseados nas receitas e despesas atuais. Projeções de saldo e patrimônio para os próximos meses.</div>' +
         '</div>' +
 
         '<div class="help-card" onclick="closeHelpPanel();switchTab(\'saude\')">' +
           '<div class="help-card-header"><span class="help-card-icon">💊</span><span class="help-card-title">Saúde Financeira</span></div>' +
-          '<div class="help-card-desc">Score de 0 a 100 baseado em 5 critérios: reserva, dívidas, economia, gastos fixos e investimentos. Diagnóstico com recomendações.</div>' +
+          '<div class="help-card-desc">Score de 0 a 100 em 5 critérios: reserva, dívidas, economia, gastos fixos e investimentos. Diagnóstico com recomendações.</div>' +
+        '</div>' +
+
+        '<div class="help-card" onclick="closeHelpPanel();switchTab(\'estrategia\')">' +
+          '<div class="help-card-header"><span class="help-card-icon">🧠</span><span class="help-card-title">Estratégia</span></div>' +
+          '<div class="help-card-desc">Consultoria personalizada com plano em fases, dicas contextuais e simulador de cenários para seu futuro financeiro.</div>' +
+        '</div>' +
+
+        '<div class="help-card" onclick="closeHelpPanel();switchTab(\'openfinance\')">' +
+          '<div class="help-card-header"><span class="help-card-icon">🏛️</span><span class="help-card-title">Open Finance</span></div>' +
+          '<div class="help-card-desc">Conecte contas bancárias para importar transações automaticamente. Sincronize dados de múltiplas instituições.</div>' +
+        '</div>' +
+
+        '<div class="help-card" onclick="closeHelpPanel();switchTab(\'cambio\')">' +
+          '<div class="help-card-header"><span class="help-card-icon">💱</span><span class="help-card-title">Câmbio</span></div>' +
+          '<div class="help-card-desc">Cotações de moedas em tempo real para quem tem rendimentos, despesas ou investimentos em moeda estrangeira.</div>' +
+        '</div>' +
+
+        '<div class="help-card" onclick="closeHelpPanel();switchTab(\'plano\')">' +
+          '<div class="help-card-header"><span class="help-card-icon">⭐</span><span class="help-card-title">Plano</span></div>' +
+          '<div class="help-card-desc">Gerencie sua assinatura, compare Free vs Plus e desbloqueie recursos premium.</div>' +
         '</div>' +
 
         '<div class="help-section-title">Recursos do Header</div>' +

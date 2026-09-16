@@ -243,6 +243,76 @@ body {
 .compare-change { font-size: 12px; font-weight: 600; margin-top: 4px; display: flex; align-items: center; gap: 4px; }
 .compare-change.up { color: var(--income); }
 .compare-change.down { color: var(--expense); }
+
+/* Tour Guiado */
+.tour-overlay { position: fixed; inset: 0; z-index: 9998; pointer-events: none; transition: opacity 0.3s; }
+.tour-overlay.active { pointer-events: auto; }
+.tour-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 9998; transition: opacity 0.3s; }
+.tour-spotlight { position: absolute; z-index: 9999; border-radius: var(--radius); box-shadow: 0 0 0 9999px rgba(0,0,0,0.55), 0 0 20px rgba(0,0,0,0.3); pointer-events: none; transition: all 0.4s ease; }
+.tour-tooltip { position: absolute; z-index: 10000; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-xl); padding: 20px 24px; max-width: 360px; min-width: 280px; animation: tourFadeIn 0.3s ease; }
+@keyframes tourFadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.tour-tooltip::before { content: ''; position: absolute; width: 12px; height: 12px; background: var(--card); border: 1px solid var(--border); transform: rotate(45deg); }
+.tour-tooltip.arrow-top::before { top: -7px; left: 24px; border-right: none; border-bottom: none; }
+.tour-tooltip.arrow-bottom::before { bottom: -7px; left: 24px; border-left: none; border-top: none; }
+.tour-tooltip.arrow-left::before { left: -7px; top: 20px; border-right: none; border-top: none; }
+.tour-step-badge { display: inline-flex; align-items: center; gap: 4px; background: var(--teal-wash); color: var(--teal); font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; margin-bottom: 10px; font-family: var(--font-display); }
+.tour-title { font-family: var(--font-display); font-weight: 700; font-size: 16px; color: var(--ink); margin-bottom: 6px; }
+.tour-desc { font-size: 13px; color: var(--ink-2); line-height: 1.6; margin-bottom: 16px; }
+.tour-actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.tour-btn { padding: 8px 18px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; cursor: pointer; border: none; font-family: var(--font-body); transition: all 0.15s; }
+.tour-btn-primary { background: var(--teal); color: #fff; }
+.tour-btn-primary:hover { background: var(--teal-mid); }
+.tour-btn-secondary { background: var(--card-alt); color: var(--ink-2); border: 1px solid var(--border); }
+.tour-btn-secondary:hover { background: var(--border); color: var(--ink); }
+.tour-btn-skip { background: none; border: none; color: var(--ink-3); font-size: 12px; cursor: pointer; padding: 4px; }
+.tour-btn-skip:hover { color: var(--ink); }
+.tour-progress { display: flex; gap: 4px; align-items: center; }
+.tour-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); transition: all 0.2s; }
+.tour-dot.active { background: var(--teal); width: 20px; border-radius: 4px; }
+.tour-dot.done { background: var(--teal); opacity: 0.5; }
+
+/* Welcome Modal */
+.welcome-overlay { position: fixed; inset: 0; background: var(--modal-bg); z-index: 9990; display: flex; align-items: center; justify-content: center; padding: 16px; animation: tourFadeIn 0.3s ease; }
+.welcome-modal { background: var(--card); border-radius: var(--radius-lg); box-shadow: var(--shadow-xl); max-width: 520px; width: 100%; overflow: hidden; }
+.welcome-header { background: linear-gradient(135deg, var(--teal) 0%, var(--teal-mid) 100%); padding: 32px 28px 24px; color: #fff; text-align: center; }
+.welcome-header h2 { font-family: var(--font-display); font-size: 24px; font-weight: 800; margin-bottom: 8px; }
+.welcome-header p { opacity: 0.9; font-size: 14px; }
+.welcome-slides { padding: 24px 28px; }
+.welcome-slide { display: none; }
+.welcome-slide.active { display: block; }
+.welcome-feature { display: flex; gap: 14px; align-items: flex-start; padding: 14px; background: var(--card-alt); border-radius: var(--radius-sm); margin-bottom: 10px; }
+.welcome-feature-icon { font-size: 28px; flex-shrink: 0; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; background: var(--card); border-radius: var(--radius-sm); box-shadow: var(--shadow); }
+.welcome-feature h4 { font-family: var(--font-display); font-size: 14px; font-weight: 700; color: var(--ink); margin-bottom: 2px; }
+.welcome-feature p { font-size: 12px; color: var(--ink-2); line-height: 1.5; }
+.welcome-footer { padding: 16px 28px 24px; display: flex; justify-content: space-between; align-items: center; }
+.welcome-dots { display: flex; gap: 6px; }
+.welcome-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); transition: all 0.2s; cursor: pointer; }
+.welcome-dot.active { background: var(--teal); width: 20px; border-radius: 4px; }
+
+/* Help Button */
+.help-btn { background: none; border: 1px solid var(--border); width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; font-weight: 700; color: var(--ink-2); font-family: var(--font-display); transition: all 0.2s; }
+.help-btn:hover { border-color: var(--teal); background: var(--teal-wash); color: var(--teal); }
+
+/* Help Panel */
+.help-panel-overlay { position: fixed; inset: 0; background: var(--modal-bg); z-index: 9980; display: none; animation: tourFadeIn 0.2s ease; }
+.help-panel-overlay.open { display: flex; justify-content: flex-end; }
+.help-panel { width: 380px; max-width: 90vw; height: 100%; background: var(--card); box-shadow: var(--shadow-xl); overflow-y: auto; padding: 0; animation: helpSlideIn 0.3s ease; }
+@keyframes helpSlideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+.help-panel-header { padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; background: var(--card); z-index: 1; }
+.help-panel-header h3 { font-family: var(--font-display); font-size: 18px; font-weight: 800; color: var(--ink); }
+.help-panel-close { background: none; border: none; font-size: 20px; color: var(--ink-3); cursor: pointer; padding: 4px; border-radius: var(--radius-sm); transition: all 0.15s; }
+.help-panel-close:hover { background: var(--card-alt); color: var(--ink); }
+.help-panel-body { padding: 16px 24px; }
+.help-card { background: var(--card-alt); border: 1px solid var(--border-subtle); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; cursor: pointer; transition: all 0.2s; }
+.help-card:hover { border-color: var(--teal); background: var(--teal-wash); transform: translateY(-1px); }
+.help-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.help-card-icon { font-size: 22px; }
+.help-card-title { font-family: var(--font-display); font-weight: 700; font-size: 14px; color: var(--ink); }
+.help-card-desc { font-size: 12px; color: var(--ink-2); line-height: 1.5; padding-left: 32px; }
+.help-section-title { font-family: var(--font-display); font-weight: 700; font-size: 12px; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.5px; margin: 16px 0 8px; }
+.help-tour-btn { width: 100%; padding: 12px; background: var(--teal); color: #fff; border: none; border-radius: var(--radius-sm); font-family: var(--font-display); font-weight: 700; font-size: 14px; cursor: pointer; transition: background 0.15s; margin-bottom: 16px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.help-tour-btn:hover { background: var(--teal-mid); }
+.help-kbd { display: inline-flex; align-items: center; padding: 2px 6px; background: var(--card); border: 1px solid var(--border); border-radius: 4px; font-size: 11px; font-family: monospace; color: var(--ink-2); }
 .btn-sm { padding: 7px 14px; font-family: var(--font-body); font-size: 12px; font-weight: 600; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--card); color: var(--ink-2); cursor: pointer; transition: all 0.2s; }
 .btn-sm:hover { border-color: var(--teal); color: var(--teal); transform: translateY(-1px); }
 .btn-add { padding: 7px 14px; font-family: var(--font-body); font-size: 12px; font-weight: 600; border: none; border-radius: var(--radius-sm); background: var(--teal); color: #fff; cursor: pointer; transition: all 0.2s; }
@@ -741,6 +811,7 @@ svg text { font-family: var(--font-body); }
             </div>
           </div>
           <button class="btn-sm" id="btn-logout" title="Sair">Sair</button>
+          <button class="help-btn" id="help-btn" title="Ajuda & Tutorial" onclick="openHelpPanel()">?</button>
           <button class="theme-toggle" id="theme-toggle" title="Alternar tema" onclick="toggleTheme()">🌙</button>
           <div style="position:relative">
             <button class="notif-btn" id="notif-btn" onclick="toggleNotifications()">🔔<span class="notif-badge" id="notif-badge" style="display:none">0</span></button>
@@ -763,6 +834,17 @@ svg text { font-family: var(--font-body); }
 </div>
 
 <!-- MODAL -->
+<!-- WELCOME MODAL -->
+<div id="welcome-overlay" class="welcome-overlay" style="display:none"></div>
+
+<!-- TOUR -->
+<div id="tour-backdrop" class="tour-backdrop" style="display:none"></div>
+<div id="tour-spotlight" class="tour-spotlight" style="display:none"></div>
+<div id="tour-tooltip" class="tour-tooltip" style="display:none"></div>
+
+<!-- HELP PANEL -->
+<div id="help-panel-overlay" class="help-panel-overlay"></div>
+
 <div class="modal-overlay" id="modal-overlay">
   <div class="modal">
     <div class="modal-header">
@@ -1120,6 +1202,277 @@ document.addEventListener('click', function(e) {
       !e.target.closest('#notif-btn') && !e.target.closest('.notif-dropdown') && !e.target.closest('.notif-btn')) {
     closeAllDropdowns();
   }
+});
+
+// ═══════════════════════════════════════════════════════
+// TUTORIAL INTERATIVO & HELP
+// ═══════════════════════════════════════════════════════
+const TOUR_STEPS = [
+  { target: '.logo', title: 'Bem-vindo ao Finança!', desc: 'Seu planejador financeiro completo. Vamos fazer um tour rápido pelas principais funcionalidades.', arrow: 'top' },
+  { target: '#profile-toggle', title: 'Perfil PF ou PJ', desc: 'Alterne entre Pessoa Física e Jurídica. O dashboard se adapta: categorias, relatórios fiscais e terminologia mudam automaticamente.', arrow: 'top' },
+  { target: '#period-display', title: 'Calendário & Período', desc: 'Clique para abrir o calendário. Selecione meses, dias ou intervalos personalizados. Todas as transações e relatórios serão filtrados pelo período escolhido.', arrow: 'top' },
+  { target: '#theme-toggle', title: 'Modo Escuro', desc: 'Alterne entre tema claro e escuro. Sua preferência fica salva automaticamente para próximas sessões.', arrow: 'top' },
+  { target: '#notif-btn', title: 'Notificações Inteligentes', desc: 'O sino mostra alertas em tempo real: orçamento alto, dívidas, metas quase atingidas e dicas personalizadas. O badge vermelho indica alertas importantes.', arrow: 'top' },
+  { target: '#nav', title: 'Navegação por Abas', desc: 'Todas as seções do app estão aqui: Receitas, Despesas, Orçamento, Metas, Dívidas, Patrimônio, Projeção, Saúde Financeira, Estratégia e mais. Use as setas para navegar.', arrow: 'top' },
+  { target: '.hero-card', title: 'Visão Geral', desc: 'O card principal mostra seu saldo patrimonial atualizado. Abaixo, os KPIs resumem receitas, despesas, resultado e taxa de economia do período.', arrow: 'bottom' },
+  { target: '#btn-export', title: 'Exportar Dados', desc: 'Exporte seus dados a qualquer momento em JSON (backup completo) ou CSV (transações para planilhas).', arrow: 'top' },
+  { target: '#help-btn', title: 'Ajuda Sempre Disponível', desc: 'Este botão abre o painel de ajuda com guias de cada funcionalidade. Você também pode refazer este tour a qualquer momento!', arrow: 'top' },
+];
+
+let tourStep = 0;
+let tourActive = false;
+
+function startTour() {
+  closeHelpPanel();
+  tourStep = 0;
+  tourActive = true;
+  showTourStep();
+}
+
+function showTourStep() {
+  if (tourStep >= TOUR_STEPS.length) { endTour(); return; }
+  var step = TOUR_STEPS[tourStep];
+  var el = document.querySelector(step.target);
+  if (!el) { tourStep++; showTourStep(); return; }
+
+  var backdrop = document.getElementById('tour-backdrop');
+  var spotlight = document.getElementById('tour-spotlight');
+  var tooltip = document.getElementById('tour-tooltip');
+
+  backdrop.style.display = 'block';
+  spotlight.style.display = 'block';
+  tooltip.style.display = 'block';
+
+  // Position spotlight
+  var rect = el.getBoundingClientRect();
+  var pad = 8;
+  spotlight.style.left = (rect.left - pad + window.scrollX) + 'px';
+  spotlight.style.top = (rect.top - pad + window.scrollY) + 'px';
+  spotlight.style.width = (rect.width + pad * 2) + 'px';
+  spotlight.style.height = (rect.height + pad * 2) + 'px';
+
+  // Scroll element into view
+  el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+
+  // Build tooltip
+  var totalSteps = TOUR_STEPS.length;
+  var dots = '';
+  for (var i = 0; i < totalSteps; i++) {
+    var cls = i === tourStep ? 'tour-dot active' : (i < tourStep ? 'tour-dot done' : 'tour-dot');
+    dots += '<div class="' + cls + '"></div>';
+  }
+
+  tooltip.className = 'tour-tooltip arrow-' + step.arrow;
+  tooltip.innerHTML =
+    '<div class="tour-step-badge">✨ Passo ' + (tourStep + 1) + ' de ' + totalSteps + '</div>' +
+    '<div class="tour-title">' + step.title + '</div>' +
+    '<div class="tour-desc">' + step.desc + '</div>' +
+    '<div class="tour-actions">' +
+      '<div class="tour-progress">' + dots + '</div>' +
+      '<div style="display:flex;gap:8px;align-items:center">' +
+        (tourStep > 0 ? '<button class="tour-btn tour-btn-secondary" onclick="prevTourStep()">Voltar</button>' : '<button class="tour-btn-skip" onclick="endTour()">Pular tour</button>') +
+        '<button class="tour-btn tour-btn-primary" onclick="nextTourStep()">' + (tourStep === totalSteps - 1 ? 'Concluir ✓' : 'Próximo →') + '</button>' +
+      '</div>' +
+    '</div>';
+
+  // Position tooltip
+  setTimeout(function() {
+    var tRect = tooltip.getBoundingClientRect();
+    if (step.arrow === 'top') {
+      tooltip.style.top = (rect.bottom + pad + 12 + window.scrollY) + 'px';
+      tooltip.style.left = Math.max(16, Math.min(rect.left + window.scrollX, window.innerWidth - tRect.width - 16)) + 'px';
+    } else {
+      tooltip.style.top = (rect.top - tRect.height - pad - 12 + window.scrollY) + 'px';
+      tooltip.style.left = Math.max(16, Math.min(rect.left + window.scrollX, window.innerWidth - tRect.width - 16)) + 'px';
+    }
+  }, 10);
+}
+
+function nextTourStep() { tourStep++; showTourStep(); }
+function prevTourStep() { if (tourStep > 0) { tourStep--; showTourStep(); } }
+
+function endTour() {
+  tourActive = false;
+  document.getElementById('tour-backdrop').style.display = 'none';
+  document.getElementById('tour-spotlight').style.display = 'none';
+  document.getElementById('tour-tooltip').style.display = 'none';
+  try { localStorage.setItem('financa-tour-done', '1'); } catch(e) {}
+  showToast('Tour concluído! Use o botão ? para ajuda a qualquer momento.', 'success');
+}
+
+// ── Welcome Modal ──
+function showWelcomeModal() {
+  var overlay = document.getElementById('welcome-overlay');
+  overlay.style.display = 'flex';
+  var slides = [
+    [
+      { icon: '📊', title: 'Dashboard Completo', desc: 'Visão geral com KPIs, gráficos e saúde financeira em tempo real.' },
+      { icon: '📅', title: 'Calendário Interativo', desc: 'Selecione dias, semanas ou meses para filtrar todos os seus dados.' },
+      { icon: '🌙', title: 'Modo Escuro', desc: 'Interface adaptável para conforto visual em qualquer ambiente.' },
+    ],
+    [
+      { icon: '🔔', title: 'Notificações Inteligentes', desc: 'Alertas automáticos sobre orçamento, dívidas e metas.' },
+      { icon: '🎯', title: 'Metas & Estratégia', desc: 'Defina objetivos, acompanhe progresso e receba consultoria personalizada.' },
+      { icon: '📈', title: 'Projeções & Comparativos', desc: 'Veja projeções futuras e compare meses para entender sua evolução.' },
+    ],
+    [
+      { icon: '📄', title: 'Documentos & Upload', desc: 'Faça upload de faturas, holerites e extratos. Dados extraídos automaticamente.' },
+      { icon: '🏢', title: 'PF & PJ', desc: 'Alterne entre pessoa física e jurídica. Fiscal, fluxo de caixa e mais para empresas.' },
+      { icon: '💱', title: 'Câmbio & Open Finance', desc: 'Cotações em tempo real e integração com Open Finance brasileiro.' },
+    ],
+  ];
+  var currentSlide = 0;
+
+  function renderWelcome() {
+    var dotsHtml = '';
+    for (var i = 0; i < slides.length; i++) {
+      dotsHtml += '<div class="welcome-dot' + (i === currentSlide ? ' active' : '') + '" onclick="document.querySelector(\'[data-wslide]\').dataset.wslide=' + i + ';document.querySelector(\'[data-wslide]\').click()"></div>';
+    }
+    var slidesHtml = '';
+    slides.forEach(function(slide, si) {
+      var feats = '';
+      slide.forEach(function(f) {
+        feats += '<div class="welcome-feature"><div class="welcome-feature-icon">' + f.icon + '</div><div><h4>' + f.title + '</h4><p>' + f.desc + '</p></div></div>';
+      });
+      slidesHtml += '<div class="welcome-slide' + (si === currentSlide ? ' active' : '') + '">' + feats + '</div>';
+    });
+    overlay.innerHTML =
+      '<div class="welcome-modal">' +
+        '<div class="welcome-header">' +
+          '<h2>Bem-vindo ao Finança!</h2>' +
+          '<p>Conheça as funcionalidades que vão transformar sua vida financeira</p>' +
+        '</div>' +
+        '<div class="welcome-slides">' + slidesHtml + '</div>' +
+        '<div class="welcome-footer">' +
+          '<div class="welcome-dots">' + dotsHtml + '</div>' +
+          '<div style="display:flex;gap:8px">' +
+            '<button class="tour-btn tour-btn-secondary" onclick="closeWelcome()" style="' + (currentSlide === slides.length - 1 ? 'display:none' : '') + '">Pular</button>' +
+            '<button class="tour-btn tour-btn-primary" data-wslide="' + currentSlide + '" onclick="advanceWelcome()">' +
+              (currentSlide === slides.length - 1 ? 'Iniciar Tour Guiado →' : 'Próximo →') +
+            '</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+  }
+
+  renderWelcome();
+
+  window.advanceWelcome = function() {
+    currentSlide++;
+    if (currentSlide >= slides.length) {
+      closeWelcome();
+      setTimeout(startTour, 300);
+      return;
+    }
+    renderWelcome();
+  };
+}
+
+function closeWelcome() {
+  document.getElementById('welcome-overlay').style.display = 'none';
+  try { localStorage.setItem('financa-tour-done', '1'); } catch(e) {}
+}
+
+function checkFirstVisit() {
+  try {
+    if (!localStorage.getItem('financa-tour-done')) {
+      setTimeout(showWelcomeModal, 800);
+    }
+  } catch(e) {
+    setTimeout(showWelcomeModal, 800);
+  }
+}
+
+// ── Help Panel ──
+function openHelpPanel() {
+  var overlay = document.getElementById('help-panel-overlay');
+  overlay.classList.add('open');
+  overlay.innerHTML =
+    '<div class="help-panel">' +
+      '<div class="help-panel-header">' +
+        '<h3>Central de Ajuda</h3>' +
+        '<button class="help-panel-close" onclick="closeHelpPanel()">✕</button>' +
+      '</div>' +
+      '<div class="help-panel-body">' +
+        '<button class="help-tour-btn" onclick="closeHelpPanel();setTimeout(startTour,300)">🚀 Refazer Tour Guiado</button>' +
+
+        '<div class="help-section-title">Funcionalidades</div>' +
+
+        '<div class="help-card" onclick="closeHelpPanel();switchTab(\'dashboard\')">' +
+          '<div class="help-card-header"><span class="help-card-icon">📊</span><span class="help-card-title">Visão Geral (Dashboard)</span></div>' +
+          '<div class="help-card-desc">Painel principal com saldo patrimonial, KPIs de receitas/despesas, gráfico de categorias, comparativo mensal e score de saúde financeira.</div>' +
+        '</div>' +
+
+        '<div class="help-card" onclick="closeHelpPanel();switchTab(\'receitas\')">' +
+          '<div class="help-card-header"><span class="help-card-icon">💰</span><span class="help-card-title">Receitas & Despesas</span></div>' +
+          '<div class="help-card-desc">Adicione transações com categoria, valor e recorrência. Use a busca para encontrar lançamentos. Tudo filtrado pelo período do calendário.</div>' +
+        '</div>' +
+
+        '<div class="help-card" onclick="closeHelpPanel();switchTab(\'orcamento\')">' +
+          '<div class="help-card-header"><span class="help-card-icon">📋</span><span class="help-card-title">Orçamento</span></div>' +
+          '<div class="help-card-desc">Defina limites por categoria. Barras de progresso mostram quanto já foi gasto. Você recebe alertas quando se aproxima do limite.</div>' +
+        '</div>' +
+
+        '<div class="help-card" onclick="closeHelpPanel();switchTab(\'metas\')">' +
+          '<div class="help-card-header"><span class="help-card-icon">🎯</span><span class="help-card-title">Metas</span></div>' +
+          '<div class="help-card-desc">Crie metas de economia, investimento ou compra. Acompanhe o progresso com barras visuais e prazos estimados.</div>' +
+        '</div>' +
+
+        '<div class="help-card" onclick="closeHelpPanel();switchTab(\'estrategia\')">' +
+          '<div class="help-card-header"><span class="help-card-icon">🧠</span><span class="help-card-title">Estratégia Financeira</span></div>' +
+          '<div class="help-card-desc">Consultoria personalizada com plano em fases, dicas contextuais e simulador interativo de cenários. Planeje seu futuro financeiro.</div>' +
+        '</div>' +
+
+        '<div class="help-card" onclick="closeHelpPanel();switchTab(\'documentos\')">' +
+          '<div class="help-card-header"><span class="help-card-icon">📄</span><span class="help-card-title">Documentos</span></div>' +
+          '<div class="help-card-desc">Faça upload de faturas, holerites e extratos. O sistema extrai dados automaticamente e os organiza por tipo e período.</div>' +
+        '</div>' +
+
+        '<div class="help-card" onclick="closeHelpPanel();switchTab(\'saude\')">' +
+          '<div class="help-card-header"><span class="help-card-icon">💊</span><span class="help-card-title">Saúde Financeira</span></div>' +
+          '<div class="help-card-desc">Score de 0 a 100 baseado em 5 critérios: reserva, dívidas, economia, gastos fixos e investimentos. Diagnóstico com recomendações.</div>' +
+        '</div>' +
+
+        '<div class="help-section-title">Recursos do Header</div>' +
+
+        '<div class="help-card">' +
+          '<div class="help-card-header"><span class="help-card-icon">📅</span><span class="help-card-title">Calendário</span></div>' +
+          '<div class="help-card-desc">Clique no badge de período (ex: "Set 2026") para abrir. Selecione 1 dia, um intervalo (clique em 2 dias), ou use atalhos como "7 dias", "30 dias" ou "Tudo".</div>' +
+        '</div>' +
+
+        '<div class="help-card">' +
+          '<div class="help-card-header"><span class="help-card-icon">🌙</span><span class="help-card-title">Modo Escuro</span></div>' +
+          '<div class="help-card-desc">O botão lua/sol alterna o tema. Sua preferência fica salva e será lembrada nas próximas visitas.</div>' +
+        '</div>' +
+
+        '<div class="help-card">' +
+          '<div class="help-card-header"><span class="help-card-icon">🔔</span><span class="help-card-title">Notificações</span></div>' +
+          '<div class="help-card-desc">O sino analisa seus dados e gera alertas: orçamento alto, endividamento, economia baixa, metas próximas e dicas. Badge vermelho = atenção.</div>' +
+        '</div>' +
+
+        '<div class="help-card">' +
+          '<div class="help-card-header"><span class="help-card-icon">👤</span><span class="help-card-title">PF / PJ</span></div>' +
+          '<div class="help-card-desc">Alterne entre Pessoa Física e Jurídica. No modo PJ, ganhe abas extras: Fiscal (DAS, impostos) e Fluxo de Caixa, além de terminologia empresarial.</div>' +
+        '</div>' +
+
+        '<div class="help-section-title">Atalhos</div>' +
+
+        '<div class="help-card">' +
+          '<div class="help-card-header"><span class="help-card-icon">📤</span><span class="help-card-title">Exportar</span></div>' +
+          '<div class="help-card-desc">Use o botão "Exportar" para salvar todos os dados em JSON (backup) ou exportar transações em CSV para usar em planilhas.</div>' +
+        '</div>' +
+
+      '</div>' +
+    '</div>';
+}
+
+function closeHelpPanel() {
+  document.getElementById('help-panel-overlay').classList.remove('open');
+}
+
+// Close help panel on overlay click
+document.getElementById('help-panel-overlay').addEventListener('click', function(e) {
+  if (e.target === this) closeHelpPanel();
 });
 
 // ═══════════════════════════════════════════════════════
@@ -2670,6 +3023,7 @@ async function showApp() {
   else if (params.get('payment') === 'cancel') { currentTab = 'plano'; history.replaceState(null, '', '/'); showToast('Pagamento cancelado', 'info'); }
 
   renderCurrentTab();
+  checkFirstVisit();
 
   // Recalculate slider position after render
   requestAnimationFrame(() => updateToggleUI());

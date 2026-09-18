@@ -192,6 +192,7 @@ body {
 .profile-toggle-btn.active { color: #fff; }
 .profile-toggle-slider { position: absolute; top: 3px; left: 3px; height: calc(100% - 6px); border-radius: 16px; background: var(--teal); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 2px 8px rgba(15,118,110,0.3); }
 .profile-toggle.pj .profile-toggle-slider { background: var(--pj-accent); box-shadow: 0 2px 8px rgba(124,58,237,0.3); }
+.profile-toggle.locked .profile-toggle-btn:not(.active) { cursor: not-allowed; opacity: 0.75; }
 
 .period-badge { font-size: 13px; color: var(--ink-2); background: var(--card-alt); padding: 6px 14px; border-radius: 20px; font-weight: 500; border: 1px solid var(--border); cursor: pointer; position: relative; user-select: none; transition: background 0.2s, border-color 0.2s; }
 .period-badge:hover { background: var(--card); border-color: var(--teal); color: var(--ink); }
@@ -1028,6 +1029,7 @@ svg text { font-family: var(--font-body); }
             <div class="dropdown-menu" id="export-menu">
               <button class="dropdown-item" onclick="exportJSON()">JSON</button>
               <button class="dropdown-item" onclick="exportCSV()">CSV (Transações)</button>
+              <button class="dropdown-item" onclick="exportPDF()">PDF (Relatório) 🔒</button>
             </div>
           </div>
           <button class="btn-sm" id="btn-logout" title="Sair">Sair</button>
@@ -2541,6 +2543,12 @@ function showOnboarding() { document.getElementById('auth-screen').hidden = true
 // PF/PJ TOGGLE
 // ═══════════════════════════════════════════════════════
 function toggleProfileType(type) {
+  if (type === state.profile_type) return;
+  if (!isBusinessUser()) {
+    showToast('🔒 Alternar entre Pessoal e Empresa é exclusivo do plano Business', 'info');
+    switchTab('plano');
+    return;
+  }
   state.profile_type = type;
   updateToggleUI();
   updateNavTabs();
@@ -2563,6 +2571,16 @@ function updateToggleUI() {
   const isPJ = state.profile_type === 'PJ';
   toggle.classList.toggle('pj', isPJ);
   document.body.classList.toggle('pj-mode', isPJ);
+  // Fora do plano Business, o toggle fica travado no perfil escolhido no onboarding —
+  // mostra um cadeado no botão inativo em vez de deixar clicar e trocar de perfil.
+  const locked = !isBusinessUser();
+  toggle.classList.toggle('locked', locked);
+  toggle.title = locked ? 'Alternar Pessoal/Empresa é exclusivo do plano Business' : '';
+  btns.forEach(b => {
+    const isInactive = b.dataset.type !== state.profile_type;
+    b.innerHTML = b.dataset.type === 'PF' ? '👤 Pessoal' : '🏢 Empresa';
+    if (locked && isInactive) b.innerHTML += ' <span class="nav-plus-lock" title="Recurso Business">🔒</span>';
+  });
   // Position slider
   const activeBtn = toggle.querySelector(`.profile-toggle-btn[data-type="${state.profile_type}"]`);
   if (activeBtn) {
@@ -2982,20 +3000,20 @@ function renderComparativo(c) {
 // ═══════════════════════════════════════════════════════
 const tabsPF = [
   {id:'dashboard',label:'Visão Geral'},{id:'receitas',label:'Receitas'},{id:'despesas',label:'Despesas'},
-  {id:'documentos',label:'Documentos'},{id:'insights',label:'Insights',plus:true},
+  {id:'documentos',label:'Documentos'},{id:'insights',label:'Insights',plus:true,tier:'plus'},
   {id:'orcamento',label:'Orçamento'},{id:'metas',label:'Metas'},{id:'dividas',label:'Dívidas'},
   {id:'patrimonio',label:'Patrimônio'},{id:'assinaturas',label:'Assinaturas'},
-  {id:'projecao',label:'Projeção',plus:true},{id:'saude',label:'Saúde Financeira'},
-  {id:'estrategia',label:'Estratégia',plus:true},{id:'openfinance',label:'Open Finance',plus:true},{id:'cambio',label:'Câmbio'},{id:'plano',label:'Plano'},
+  {id:'projecao',label:'Projeção',plus:true,tier:'plus'},{id:'saude',label:'Saúde Financeira'},
+  {id:'estrategia',label:'Estratégia',plus:true,tier:'pro'},{id:'openfinance',label:'Open Finance',plus:true,tier:'plus'},{id:'cambio',label:'Câmbio'},{id:'plano',label:'Plano'},
 ];
 const tabsPJ = [
   {id:'dashboard',label:'Visão Geral'},{id:'receitas',label:'Faturamento'},{id:'despesas',label:'Custos'},
-  {id:'documentos',label:'Documentos'},{id:'insights',label:'Insights',plus:true},
-  {id:'orcamento',label:'Orçamento'},{id:'fiscal',label:'Fiscal',pj:true,plus:true},{id:'fluxo',label:'Fluxo de Caixa',pj:true,plus:true},
+  {id:'documentos',label:'Documentos'},{id:'insights',label:'Insights',plus:true,tier:'plus'},
+  {id:'orcamento',label:'Orçamento'},{id:'fiscal',label:'Fiscal',pj:true,plus:true,tier:'business'},{id:'fluxo',label:'Fluxo de Caixa',pj:true,plus:true,tier:'business'},
   {id:'metas',label:'Metas'},{id:'dividas',label:'Dívidas'},{id:'patrimonio',label:'Patrimônio'},
-  {id:'assinaturas',label:'Ferramentas & SaaS'},{id:'projecao',label:'Projeção',plus:true},
-  {id:'saude',label:'Saúde Financeira'},{id:'estrategia',label:'Estratégia',plus:true},
-  {id:'openfinance',label:'Open Finance',plus:true},{id:'cambio',label:'Câmbio'},{id:'plano',label:'Plano'},
+  {id:'assinaturas',label:'Ferramentas & SaaS'},{id:'projecao',label:'Projeção',plus:true,tier:'plus'},
+  {id:'saude',label:'Saúde Financeira'},{id:'estrategia',label:'Estratégia',plus:true,tier:'pro'},
+  {id:'openfinance',label:'Open Finance',plus:true,tier:'plus'},{id:'cambio',label:'Câmbio'},{id:'plano',label:'Plano'},
 ];
 
 function getAvailableTabs() { return state.profile_type === 'PJ' ? tabsPJ : tabsPF; }
@@ -3012,19 +3030,45 @@ var PLAN_LIMITS = {
   maxDocumentsPerMonth: 5,
 };
 
-// Abas inteiramente bloqueadas no Free (mostram uma tela de upgrade em vez do conteúdo)
+// Abas inteiramente bloqueadas por plano (mostram uma tela de upgrade em vez do conteúdo).
+// "tier" é o menor plano que já libera a aba: plus | pro | business.
 var PLUS_ONLY_TABS = {
-  projecao: { label: 'Projeção', desc: 'Simule cenários futuros de saldo e patrimônio com base nas suas receitas e despesas reais.' },
-  estrategia: { label: 'Estratégia', desc: 'Consultoria personalizada em fases, dicas contextuais e simulador de decisões financeiras.' },
-  insights: { label: 'Insights', desc: 'Análises avançadas, detecção de anomalias de gastos e recomendações automáticas baseadas nos seus dados.' },
-  fiscal: { label: 'Fiscal', desc: 'Gestão de impostos, DAS e obrigações fiscais para o seu CNPJ.' },
-  fluxo: { label: 'Fluxo de Caixa', desc: 'Projeção detalhada de entradas e saídas do caixa da sua empresa.' },
+  projecao: { label: 'Projeção', desc: 'Simule cenários futuros de saldo e patrimônio com base nas suas receitas e despesas reais.', tier: 'plus' },
+  estrategia: { label: 'Estratégia & Consultoria', desc: 'Consultoria personalizada em fases, dicas contextuais, simulador de decisões financeiras e recomendações de um especialista virtual — recurso do plano Pro.', tier: 'pro' },
+  insights: { label: 'Insights', desc: 'Análises avançadas, detecção de anomalias de gastos e recomendações automáticas baseadas nos seus dados.', tier: 'plus' },
+  fiscal: { label: 'Fiscal', desc: 'Gestão de impostos, DAS e obrigações fiscais para o seu CNPJ — painel fiscal completo do plano Business.', tier: 'business' },
+  fluxo: { label: 'Fluxo de Caixa', desc: 'Projeção detalhada de entradas e saídas do caixa da sua empresa — recurso do plano Business.', tier: 'business' },
   // Open Finance mantém a própria tela (lista de bancos) e bloqueia só a ação de conectar,
   // pois funciona como vitrine do recurso — ver PLUS_ONLY_TABS não inclui 'openfinance'.
 };
 
+// Ordem hierárquica dos planos — usada para comparar "plano mínimo exigido" x "plano do usuário"
+var PLAN_RANK = { free: 0, plus: 1, pro: 2, business: 3 };
+var PLAN_TIER_META = {
+  plus: { label: 'Plus', price: 'A partir de R$ 19,90/mês' },
+  pro: { label: 'Pro', price: 'A partir de R$ 39,90/mês' },
+  business: { label: 'Business', price: 'A partir de R$ 79,90/mês' },
+};
+
+function currentPlanRank() {
+  return PLAN_RANK[(profile && profile.plan) || 'free'] || 0;
+}
+
 function isPlusUser() {
-  return !!(profile && (profile.plan === 'plus' || profile.plan === 'pro' || profile.plan === 'business'));
+  return currentPlanRank() >= PLAN_RANK.plus;
+}
+
+function isProUser() {
+  return currentPlanRank() >= PLAN_RANK.pro;
+}
+
+function isBusinessUser() {
+  return currentPlanRank() >= PLAN_RANK.business;
+}
+
+// Confere se o usuário atende ao tier mínimo exigido por uma aba/recurso ('plus'|'pro'|'business')
+function meetsTier(tier) {
+  return currentPlanRank() >= (PLAN_RANK[tier] || PLAN_RANK.plus);
 }
 
 // Conta quantos itens de uma lista têm data (DD/MM ou YYYY-MM-DD) dentro do mês corrente
@@ -3054,19 +3098,21 @@ function checkPlanLimit(current, max, message) {
   return true;
 }
 
-function requirePlusFeature(featureLabel) {
-  showToast('🔒 ' + featureLabel + ' é exclusivo do plano Plus', 'info');
+function requirePlusFeature(featureLabel, tier) {
+  const meta = PLAN_TIER_META[tier || 'plus'];
+  showToast('🔒 ' + featureLabel + ' é exclusivo do plano ' + meta.label, 'info');
   switchTab('plano');
 }
 
 function renderPlusPaywall(tabKey) {
-  const info = PLUS_ONLY_TABS[tabKey] || { label: 'Este recurso', desc: 'Disponível no plano Plus.' };
+  const info = PLUS_ONLY_TABS[tabKey] || { label: 'Este recurso', desc: 'Disponível no plano Plus.', tier: 'plus' };
+  const meta = PLAN_TIER_META[info.tier || 'plus'];
   return '<div class="card animate-in" style="text-align:center;padding:56px 24px;max-width:520px;margin:0 auto">' +
     '<div style="font-size:44px;margin-bottom:14px">🔒</div>' +
-    '<div class="card-title" style="font-size:19px;margin-bottom:10px">' + info.label + ' é um recurso Plus</div>' +
+    '<div class="card-title" style="font-size:19px;margin-bottom:10px">' + info.label + ' é um recurso ' + meta.label + '</div>' +
     '<div style="font-size:13.5px;color:var(--ink-2);line-height:1.65;margin-bottom:24px">' + info.desc + '</div>' +
-    '<button class="btn-primary" onclick="switchTab(\'plano\')" style="width:auto;display:inline-block;padding:12px 28px;font-size:14px">⭐ Fazer upgrade para o Plus</button>' +
-    '<div style="font-size:11px;color:var(--ink-3);margin-top:14px">A partir de R$ 19,90/mês · cancele quando quiser</div>' +
+    '<button class="btn-primary" onclick="switchTab(\'plano\')" style="width:auto;display:inline-block;padding:12px 28px;font-size:14px">⭐ Fazer upgrade para o ' + meta.label + '</button>' +
+    '<div style="font-size:11px;color:var(--ink-3);margin-top:14px">' + meta.price + ' · cancele quando quiser</div>' +
   '</div>';
 }
 
@@ -3096,7 +3142,7 @@ function renderCurrentTab() {
     estrategia: () => renderEstrategia(c),
     openfinance: () => renderOpenFinance(c),
   };
-  const isGated = PLUS_ONLY_TABS[currentTab] && !isPlusUser();
+  const isGated = PLUS_ONLY_TABS[currentTab] && !meetsTier(PLUS_ONLY_TABS[currentTab].tier || 'plus');
   main.innerHTML = isGated ? renderPlusPaywall(currentTab) : (renderers[currentTab] ? renderers[currentTab]() : renderers.dashboard());
   updateNotifBadge();
   if (currentTab === 'projecao' && !isGated) bindScenarioPills();
@@ -4135,13 +4181,24 @@ function renderPlano() {
       'Lançamentos, metas e patrimônio ilimitados',
       'Insights avançados e detecção de anomalias',
       'Projeção de cenários futuros',
-      'Estratégia — consultoria e simulador',
       'Open Finance — conecte suas contas bancárias',
       'Notificações avançadas (gasto fora do padrão, risco de saldo negativo)',
       'Suporte prioritário via WhatsApp',
     ], cta: 'Fazer upgrade', hotmartUrl: appConfig.hotmartCheckoutPlus, priceId: appConfig.stripePricePlus, popular: true },
-    { id: 'pro', name: 'Pro', price: 'R$ 39,90', period: '/mês', features: ['Tudo do Plus', 'Relatórios PDF', 'Multi-moeda', 'Controle de patrimônio avançado', 'API de integração'], cta: 'Fazer upgrade', hotmartUrl: appConfig.hotmartCheckoutPro, priceId: appConfig.stripePricePro },
-    { id: 'business', name: 'Business', price: 'R$ 99,90', period: '/mês', features: ['Tudo do Pro', 'Multi-empresa (PJ)', 'Painel Fiscal e Fluxo de Caixa completos', 'Dashboard consolidado', 'Suporte dedicado'], cta: 'Fazer upgrade', hotmartUrl: appConfig.hotmartCheckoutBusiness, priceId: appConfig.stripePriceBusiness },
+    { id: 'pro', name: 'Pro', price: 'R$ 39,90', period: '/mês', features: [
+      'Tudo do Plus',
+      'Estratégia & Consultoria — planos em fases e simulador de decisões',
+      'Relatórios em PDF para download',
+      'Controle de patrimônio avançado',
+      'API de integração (em breve)',
+    ], cta: 'Fazer upgrade', hotmartUrl: appConfig.hotmartCheckoutPro, priceId: appConfig.stripePricePro },
+    { id: 'business', name: 'Business', price: 'R$ 99,90', period: '/mês', features: [
+      'Tudo do Pro',
+      'Alterne livremente entre perfil Pessoal (PF) e Empresa (PJ)',
+      'Painel Fiscal e Fluxo de Caixa completos (PJ)',
+      'Dashboard consolidado PF + PJ',
+      'Suporte dedicado via WhatsApp',
+    ], cta: 'Fazer upgrade', hotmartUrl: appConfig.hotmartCheckoutBusiness, priceId: appConfig.stripePriceBusiness },
   ];
   const manageBtn = profile?.payment_provider === 'hotmart'
     ? `<button class="btn-add" onclick="openHotmartAccount()">Gerenciar compra (Hotmart)</button>`
@@ -4231,6 +4288,49 @@ function exportCSV() {
   showToast('Transações exportadas como CSV', 'success');
 }
 
+// Relatório em PDF — recurso do plano Pro. Monta um documento HTML com resumo financeiro,
+// receitas/despesas e metas, e abre o diálogo de impressão do navegador em "Salvar como PDF"
+// (evita depender de bibliotecas externas de geração de PDF no cliente).
+function exportPDF() {
+  document.getElementById('export-menu')?.classList.remove('show');
+  if (!isProUser()) {
+    requirePlusFeature('Relatórios em PDF', 'pro');
+    return;
+  }
+  const c = compute();
+  const isPJ = state.profile_type === 'PJ';
+  const now = new Date();
+  const win = window.open('', '_blank');
+  if (!win) { showToast('Permita pop-ups para gerar o PDF.', 'error'); return; }
+  const rows = state.transactions.slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+    .slice(0, 60)
+    .map(t => `<tr><td>${t.date || ''}</td><td>${t.type === 'income' ? (isPJ ? 'Faturamento' : 'Receita') : (isPJ ? 'Custo' : 'Despesa')}</td><td>${t.desc || ''}</td><td>${t.cat || ''}</td><td style="text-align:right">${fmt(t.amount || 0)}</td></tr>`).join('');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Relatório Finança</title>
+    <style>
+      body{font-family:Arial,sans-serif;color:#1a1a1a;padding:32px;max-width:820px;margin:0 auto}
+      h1{font-size:20px;margin-bottom:2px} .sub{color:#666;font-size:12px;margin-bottom:24px}
+      .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:28px}
+      .box{border:1px solid #ddd;border-radius:8px;padding:12px}
+      .box .l{font-size:11px;color:#666} .box .v{font-size:17px;font-weight:700;margin-top:4px}
+      table{width:100%;border-collapse:collapse;font-size:12px} th,td{border-bottom:1px solid #eee;padding:6px 8px;text-align:left}
+      th{background:#f5f5f5} @media print{a{display:none}}
+    </style></head><body>
+    <h1>Relatório Financeiro — ${isPJ ? 'Empresa (PJ)' : 'Pessoal (PF)'}</h1>
+    <div class="sub">${state.name || ''} · gerado em ${now.toLocaleDateString('pt-BR')} · Finança (plano Pro)</div>
+    <div class="grid">
+      <div class="box"><div class="l">${isPJ ? 'Faturamento do mês' : 'Receitas do mês'}</div><div class="v">${fmt(c.totalIncome || 0)}</div></div>
+      <div class="box"><div class="l">${isPJ ? 'Custos do mês' : 'Despesas do mês'}</div><div class="v">${fmt(c.totalExpense || 0)}</div></div>
+      <div class="box"><div class="l">Saldo</div><div class="v">${fmt(c.resultado || 0)}</div></div>
+    </div>
+    <h3>Últimos lançamentos</h3>
+    <table><thead><tr><th>Data</th><th>Tipo</th><th>Descrição</th><th>Categoria</th><th style="text-align:right">Valor</th></tr></thead><tbody>${rows || '<tr><td colspan="5">Sem lançamentos.</td></tr>'}</tbody></table>
+    <p style="margin-top:24px"><a href="#" onclick="window.print();return false;">🖨️ Salvar como PDF</a></p>
+    <script>window.onload = () => setTimeout(() => window.print(), 300);</script>
+    </body></html>`);
+  win.document.close();
+  showToast('Relatório aberto — use "Salvar como PDF" na janela de impressão.', 'success');
+}
+
 // ═══════════════════════════════════════════════════════
 // SHOW APP
 // ═══════════════════════════════════════════════════════
@@ -4262,7 +4362,7 @@ async function showApp() {
     btn.className = 'nav-btn' + (t.id === 'dashboard' ? ' active' : '');
     if (t.pj) btn.classList.add('pj-tab', 'show');
     btn.dataset.tab = t.id;
-    btn.innerHTML = t.label + (t.plus && !isPlusUser() ? ' <span class="nav-plus-lock" title="Recurso Plus">🔒</span>' : '');
+    btn.innerHTML = t.label + (t.plus && !meetsTier(t.tier || 'plus') ? ' <span class="nav-plus-lock" title="Recurso ' + (PLAN_TIER_META[t.tier || 'plus'].label) + '">🔒</span>' : '');
     btn.addEventListener('click', () => switchTab(t.id));
     nav.appendChild(btn);
   });

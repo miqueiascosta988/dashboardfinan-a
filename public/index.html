@@ -4325,7 +4325,7 @@ function exportPDF() {
     <h3>Últimos lançamentos</h3>
     <table><thead><tr><th>Data</th><th>Tipo</th><th>Descrição</th><th>Categoria</th><th style="text-align:right">Valor</th></tr></thead><tbody>${rows || '<tr><td colspan="5">Sem lançamentos.</td></tr>'}</tbody></table>
     <p style="margin-top:24px"><a href="#" onclick="window.print();return false;">🖨️ Salvar como PDF</a></p>
-    <script>window.onload = () => setTimeout(() => window.print(), 300);</script>
+    <script>window.onload = () => setTimeout(() => window.print(), 300);<\/script>
     </body></html>`);
   win.document.close();
   showToast('Relatório aberto — use "Salvar como PDF" na janela de impressão.', 'success');

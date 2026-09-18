@@ -249,27 +249,32 @@ body {
 .tour-overlay.active { pointer-events: auto; }
 .tour-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 9998; transition: opacity 0.3s; cursor: pointer; }
 .tour-spotlight { position: fixed; z-index: 9999; border-radius: var(--radius); box-shadow: 0 0 0 9999px rgba(0,0,0,0.55), 0 0 20px rgba(0,0,0,0.3); pointer-events: none; transition: all 0.4s ease; }
-.tour-tooltip { position: fixed; z-index: 10000; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-xl); padding: 20px 24px; max-width: 360px; min-width: 280px; animation: tourFadeIn 0.3s ease; }
+.tour-tooltip { position: fixed; z-index: 10000; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-xl); padding: 18px 20px; width: 340px; max-width: calc(100vw - 24px); box-sizing: border-box; animation: tourFadeIn 0.3s ease; }
 @keyframes tourFadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 .tour-tooltip::before { content: ''; position: absolute; width: 12px; height: 12px; background: var(--card); border: 1px solid var(--border); transform: rotate(45deg); }
-.tour-tooltip.arrow-top::before { top: -7px; left: 24px; border-right: none; border-bottom: none; }
-.tour-tooltip.arrow-bottom::before { bottom: -7px; left: 24px; border-left: none; border-top: none; }
+.tour-tooltip.arrow-top::before { top: -7px; left: var(--arrow-left, 24px); border-right: none; border-bottom: none; }
+.tour-tooltip.arrow-bottom::before { bottom: -7px; left: var(--arrow-left, 24px); border-left: none; border-top: none; }
 .tour-tooltip.arrow-left::before { left: -7px; top: 20px; border-right: none; border-top: none; }
-.tour-step-badge { display: inline-flex; align-items: center; gap: 4px; background: var(--teal-wash); color: var(--teal); font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; margin-bottom: 10px; font-family: var(--font-display); }
-.tour-title { font-family: var(--font-display); font-weight: 700; font-size: 16px; color: var(--ink); margin-bottom: 6px; }
-.tour-desc { font-size: 13px; color: var(--ink-2); line-height: 1.6; margin-bottom: 16px; }
-.tour-actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-.tour-btn { padding: 8px 18px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; cursor: pointer; border: none; font-family: var(--font-body); transition: all 0.15s; }
+.tour-tooltip-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.tour-step-badge { display: inline-flex; align-items: center; gap: 4px; background: var(--teal-wash); color: var(--teal); font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; font-family: var(--font-display); white-space: nowrap; }
+.tour-title { font-family: var(--font-display); font-weight: 700; font-size: 16px; color: var(--ink); margin-bottom: 6px; overflow-wrap: break-word; }
+.tour-desc { font-size: 13px; color: var(--ink-2); line-height: 1.6; margin-bottom: 14px; overflow-wrap: break-word; }
+.tour-progress-track { width: 100%; height: 4px; border-radius: 2px; background: var(--border); overflow: hidden; margin-bottom: 14px; }
+.tour-progress-fill { height: 100%; background: var(--teal); border-radius: 2px; transition: width 0.3s ease; }
+body.pj-mode .tour-progress-fill { background: var(--pj-accent); }
+.tour-actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tour-actions-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.tour-btn { padding: 8px 18px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; cursor: pointer; border: none; font-family: var(--font-body); transition: all 0.15s; white-space: nowrap; flex-shrink: 0; }
 .tour-btn-primary { background: var(--teal); color: #fff; }
 .tour-btn-primary:hover { background: var(--teal-mid); }
+body.pj-mode .tour-btn-primary { background: var(--pj-accent); }
+body.pj-mode .tour-btn-primary:hover { background: var(--pj-accent-mid); }
 .tour-btn-secondary { background: var(--card-alt); color: var(--ink-2); border: 1px solid var(--border); }
 .tour-btn-secondary:hover { background: var(--border); color: var(--ink); }
-.tour-btn-skip { background: none; border: none; color: var(--ink-3); font-size: 12px; cursor: pointer; padding: 4px; }
+.tour-btn-skip { background: none; border: none; color: var(--ink-3); font-size: 12px; cursor: pointer; padding: 4px; white-space: nowrap; flex-shrink: 0; }
 .tour-btn-skip:hover { color: var(--ink); }
-.tour-progress { display: flex; gap: 4px; align-items: center; }
-.tour-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); transition: all 0.2s; }
-.tour-dot.active { background: var(--teal); width: 20px; border-radius: 4px; }
-.tour-dot.done { background: var(--teal); opacity: 0.5; }
+.tour-close-x { background: none; border: none; color: var(--ink-3); font-size: 16px; cursor: pointer; padding: 2px 4px; flex-shrink: 0; line-height: 1; }
+.tour-close-x:hover { color: var(--ink); }
 
 /* Welcome Modal */
 .welcome-overlay { position: fixed; inset: 0; background: var(--modal-bg); z-index: 9990; display: flex; align-items: center; justify-content: center; padding: 16px; animation: tourFadeIn 0.3s ease; }
@@ -317,6 +322,76 @@ body {
 .btn-sm:hover { border-color: var(--teal); color: var(--teal); transform: translateY(-1px); }
 .btn-add { padding: 7px 14px; font-family: var(--font-body); font-size: 12px; font-weight: 600; border: none; border-radius: var(--radius-sm); background: var(--teal); color: #fff; cursor: pointer; transition: all 0.2s; }
 .btn-add:hover { background: var(--teal-mid); transform: translateY(-1px); box-shadow: var(--shadow); }
+
+/* ─── SUPPORT CHATBOT ────────────────────────── */
+.chat-fab { position: fixed; bottom: 24px; right: 24px; width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, var(--teal), var(--teal-mid)); color: #fff; border: none; box-shadow: var(--shadow-xl); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 24px; z-index: 9500; transition: transform 0.2s, box-shadow 0.2s; }
+.chat-fab:hover { transform: scale(1.06); box-shadow: 0 10px 30px rgba(15,118,110,0.35); }
+.chat-fab:active { transform: scale(0.96); }
+.chat-fab .chat-fab-badge { position: absolute; top: -2px; right: -2px; width: 16px; height: 16px; border-radius: 50%; background: var(--expense); border: 2px solid var(--surface); display: none; }
+.chat-fab .chat-fab-badge.show { display: block; }
+body.pj-mode .chat-fab { background: linear-gradient(135deg, var(--pj-accent), var(--pj-accent-mid)); }
+.chat-fab.hide { display: none; }
+
+.chat-window { position: fixed; bottom: 24px; right: 24px; width: 380px; max-width: calc(100vw - 32px); height: 560px; max-height: calc(100vh - 100px); background: var(--card); border-radius: var(--radius-lg); box-shadow: var(--shadow-xl); border: 1px solid var(--border); display: none; flex-direction: column; overflow: hidden; z-index: 9600; animation: chatPopIn 0.25s cubic-bezier(0.34,1.56,0.64,1); }
+.chat-window.open { display: flex; }
+@keyframes chatPopIn { from { opacity: 0; transform: translateY(16px) scale(0.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
+.chat-header { background: linear-gradient(135deg, var(--teal), var(--teal-mid)); color: #fff; padding: 16px 18px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+body.pj-mode .chat-header { background: linear-gradient(135deg, var(--pj-accent), var(--pj-accent-mid)); }
+.chat-header-info { display: flex; align-items: center; gap: 10px; }
+.chat-avatar { width: 34px; height: 34px; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-size: 18px; }
+.chat-header-text .chat-title { font-family: var(--font-display); font-weight: 700; font-size: 14px; }
+.chat-header-text .chat-status { font-size: 11px; opacity: 0.85; display: flex; align-items: center; gap: 4px; }
+.chat-status-dot { width: 6px; height: 6px; border-radius: 50%; background: #4ADE80; display: inline-block; }
+.chat-header-actions { display: flex; gap: 4px; }
+.chat-header-btn { background: rgba(255,255,255,0.15); border: none; color: #fff; width: 28px; height: 28px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; transition: background 0.15s; }
+.chat-header-btn:hover { background: rgba(255,255,255,0.28); }
+.chat-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; background: var(--surface); }
+.chat-msg { display: flex; gap: 8px; max-width: 88%; animation: chatMsgIn 0.2s ease; }
+@keyframes chatMsgIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.chat-msg.bot { align-self: flex-start; }
+.chat-msg.user { align-self: flex-end; flex-direction: row-reverse; }
+.chat-msg-avatar { width: 26px; height: 26px; border-radius: 50%; background: var(--teal-wash); color: var(--teal); display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
+.chat-msg.user .chat-msg-avatar { background: var(--card-alt); color: var(--ink-2); }
+.chat-bubble { padding: 10px 13px; border-radius: 14px; font-size: 13px; line-height: 1.5; color: var(--ink); background: var(--card); border: 1px solid var(--border-subtle); box-shadow: var(--shadow); }
+.chat-msg.bot .chat-bubble { border-bottom-left-radius: 4px; }
+.chat-msg.user .chat-bubble { border-bottom-right-radius: 4px; background: var(--teal); color: #fff; border-color: transparent; }
+body.pj-mode .chat-msg.user .chat-bubble { background: var(--pj-accent); }
+.chat-bubble b, .chat-bubble strong { font-weight: 700; }
+.chat-bubble ul { margin: 6px 0 0 16px; padding: 0; }
+.chat-bubble li { margin-bottom: 3px; }
+.chat-typing { display: flex; gap: 3px; padding: 4px 2px; align-items: center; }
+.chat-typing span { width: 6px; height: 6px; border-radius: 50%; background: var(--ink-3); animation: chatTyping 1.2s infinite ease-in-out; }
+.chat-typing span:nth-child(2) { animation-delay: 0.15s; }
+.chat-typing span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes chatTyping { 0%, 60%, 100% { transform: translateY(0); opacity: 0.4; } 30% { transform: translateY(-4px); opacity: 1; } }
+.chat-suggestions { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 12px; flex-shrink: 0; background: var(--surface); }
+.chat-chip { padding: 6px 12px; background: var(--card); border: 1px solid var(--border); border-radius: 14px; font-size: 11.5px; font-weight: 600; color: var(--teal); cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+.chat-chip:hover { background: var(--teal-wash); border-color: var(--teal); }
+body.pj-mode .chat-chip { color: var(--pj-accent); }
+body.pj-mode .chat-chip:hover { background: var(--pj-accent-wash); border-color: var(--pj-accent); }
+.chat-input-row { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--border); background: var(--card); flex-shrink: 0; }
+.chat-input-row input { flex: 1; padding: 10px 14px; border: 1px solid var(--border); border-radius: 20px; background: var(--surface); color: var(--ink); font-family: var(--font-body); font-size: 13px; transition: all 0.15s; }
+.chat-input-row input:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px var(--teal-wash); }
+.chat-send-btn { width: 38px; height: 38px; border-radius: 50%; border: none; background: var(--teal); color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; transition: all 0.15s; }
+.chat-send-btn:hover { background: var(--teal-mid); transform: scale(1.05); }
+body.pj-mode .chat-send-btn { background: var(--pj-accent); }
+body.pj-mode .chat-send-btn:hover { background: var(--pj-accent-mid); }
+.chat-escalate { margin: 8px 0 0; padding: 10px 12px; background: var(--amber-light); border-radius: var(--radius-sm); font-size: 12px; color: #92400E; }
+.chat-wa-block { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); }
+.chat-wa-label { font-size: 11px; color: var(--ink-3); margin-bottom: 6px; font-weight: 600; }
+.chat-wa-btn { display: flex; align-items: center; gap: 8px; padding: 9px 12px; background: #25D366; color: #fff; border-radius: var(--radius-sm); text-decoration: none; font-size: 12.5px; font-weight: 700; margin-bottom: 6px; transition: filter 0.15s; }
+.chat-wa-btn:hover { filter: brightness(0.95); }
+.chat-wa-btn:last-child { margin-bottom: 0; }
+.chat-wa-icon { font-size: 15px; flex-shrink: 0; }
+
+@media (max-width: 500px) {
+  .chat-window { width: 100vw; max-width: 100vw; height: 100vh; max-height: 100vh; bottom: 0; right: 0; border-radius: 0; }
+  .chat-fab { bottom: 16px; right: 16px; width: 52px; height: 52px; font-size: 22px; }
+}
+@supports (padding: env(safe-area-inset-bottom)) {
+  .chat-fab { bottom: max(24px, calc(env(safe-area-inset-bottom) + 16px)); }
+  .chat-input-row { padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+}
 
 /* ─── NAV ────────────────────────────────────── */
 .nav-wrapper { position: relative; }
@@ -968,6 +1043,32 @@ svg text { font-family: var(--font-body); }
 <!-- HELP PANEL -->
 <div id="help-panel-overlay" class="help-panel-overlay"></div>
 
+<!-- SUPPORT CHATBOT -->
+<button class="chat-fab" id="chat-fab" title="Suporte" onclick="toggleChat()">
+  💬<span class="chat-fab-badge" id="chat-fab-badge"></span>
+</button>
+<div class="chat-window" id="chat-window">
+  <div class="chat-header">
+    <div class="chat-header-info">
+      <div class="chat-avatar">🤖</div>
+      <div class="chat-header-text">
+        <div class="chat-title">Suporte Finança</div>
+        <div class="chat-status"><span class="chat-status-dot"></span>Assistente virtual · online</div>
+      </div>
+    </div>
+    <div class="chat-header-actions">
+      <button class="chat-header-btn" title="Limpar conversa" onclick="chatClear()">🔄</button>
+      <button class="chat-header-btn" title="Fechar" onclick="toggleChat(false)">✕</button>
+    </div>
+  </div>
+  <div class="chat-body" id="chat-body"></div>
+  <div class="chat-suggestions" id="chat-suggestions"></div>
+  <div class="chat-input-row">
+    <input type="text" id="chat-input" placeholder="Digite sua dúvida..." onkeydown="if(event.key==='Enter') chatSend();" autocomplete="off" />
+    <button class="chat-send-btn" onclick="chatSend()" title="Enviar">➤</button>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-overlay">
   <div class="modal">
     <div class="modal-header">
@@ -1420,51 +1521,55 @@ function positionTourElements(el, step) {
 
     // Build tooltip
     var totalSteps = TOUR_STEPS.length;
-    var dots = '';
-    for (var i = 0; i < totalSteps; i++) {
-      var cls = i === tourStep ? 'tour-dot active' : (i < tourStep ? 'tour-dot done' : 'tour-dot');
-      dots += '<div class="' + cls + '"></div>';
-    }
+    var progressPct = Math.round(((tourStep + 1) / totalSteps) * 100);
 
     tooltip.className = 'tour-tooltip arrow-' + step.arrow;
     tooltip.innerHTML =
-      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">' +
+      '<div class="tour-tooltip-head">' +
         '<div class="tour-step-badge">✨ Passo ' + (tourStep + 1) + ' de ' + totalSteps + '</div>' +
-        '<button class="tour-btn-skip" onclick="endTour()" title="Fechar tour (Esc)">✕</button>' +
+        '<button class="tour-close-x" onclick="endTour()" title="Fechar tour (Esc)">✕</button>' +
       '</div>' +
       '<div class="tour-title">' + step.title + '</div>' +
       '<div class="tour-desc">' + step.desc + '</div>' +
+      '<div class="tour-progress-track"><div class="tour-progress-fill" style="width:' + progressPct + '%"></div></div>' +
       '<div class="tour-actions">' +
-        '<div class="tour-progress">' + dots + '</div>' +
-        '<div style="display:flex;gap:8px;align-items:center">' +
+        '<div class="tour-actions-left">' +
           (tourStep > 0 ? '<button class="tour-btn tour-btn-secondary" onclick="prevTourStep()">Voltar</button>' : '<button class="tour-btn-skip" onclick="endTour()">Pular tour</button>') +
-          '<button class="tour-btn tour-btn-primary" onclick="nextTourStep()">' + (tourStep === totalSteps - 1 ? 'Concluir ✓' : 'Próximo →') + '</button>' +
         '</div>' +
+        '<button class="tour-btn tour-btn-primary" onclick="nextTourStep()">' + (tourStep === totalSteps - 1 ? 'Concluir ✓' : 'Próximo →') + '</button>' +
       '</div>';
 
-    // Position tooltip (use fixed coords from rect)
+    // Position tooltip (use fixed coords from rect), always clamped inside the viewport
     requestAnimationFrame(function() {
       var tRect = tooltip.getBoundingClientRect();
-      var tooltipLeft = Math.max(16, Math.min(rect.left, window.innerWidth - tRect.width - 16));
+      var margin = 12;
+      var tooltipLeft = Math.max(margin, Math.min(rect.left, window.innerWidth - tRect.width - margin));
       if (step.arrow === 'top') {
         var topPos = rect.bottom + pad + 12;
         // If tooltip would go off bottom, show above instead
-        if (topPos + tRect.height > window.innerHeight - 16) {
+        if (topPos + tRect.height > window.innerHeight - margin) {
           topPos = rect.top - tRect.height - pad - 12;
           tooltip.className = 'tour-tooltip arrow-bottom';
         }
+        topPos = Math.max(margin, Math.min(topPos, window.innerHeight - tRect.height - margin));
         tooltip.style.top = topPos + 'px';
         tooltip.style.left = tooltipLeft + 'px';
       } else {
         var topPos2 = rect.top - tRect.height - pad - 12;
         // If tooltip would go off top, show below instead
-        if (topPos2 < 16) {
+        if (topPos2 < margin) {
           topPos2 = rect.bottom + pad + 12;
           tooltip.className = 'tour-tooltip arrow-top';
         }
+        topPos2 = Math.max(margin, Math.min(topPos2, window.innerHeight - tRect.height - margin));
         tooltip.style.top = topPos2 + 'px';
         tooltip.style.left = tooltipLeft + 'px';
       }
+      // Point the arrow at the actual center of the highlighted element,
+      // clamped so it never renders outside the tooltip's rounded corners
+      var targetCenter = rect.left + rect.width / 2 - tooltipLeft;
+      var arrowLeft = Math.max(20, Math.min(targetCenter - 6, tRect.width - 32));
+      tooltip.style.setProperty('--arrow-left', arrowLeft + 'px');
     });
   } catch(e) {
     console.error('Tour error:', e);
@@ -1712,6 +1817,404 @@ function closeHelpPanel() {
 // Close help panel on overlay click
 document.getElementById('help-panel-overlay').addEventListener('click', function(e) {
   if (e.target === this) closeHelpPanel();
+});
+
+// ═══════════════════════════════════════════════════════
+// SUPPORT CHATBOT
+// ═══════════════════════════════════════════════════════
+var CHAT_STORAGE_KEY = 'financa-chat-history';
+var chatOpen = false;
+var chatHistory = [];
+
+// Base de conhecimento: cada entrada tem palavras-chave (keywords),
+// uma resposta (answer, em HTML simples) e chips de sugestão relacionados (related).
+// Números de WhatsApp do atendimento humano (formato E.164, sem símbolos)
+var CHAT_WHATSAPP_NUMBERS = [
+  { label: 'WhatsApp Suporte 1', phone: '5511960384846', display: '(11) 96038-4846' },
+  { label: 'WhatsApp Suporte 2', phone: '5511987594995', display: '(11) 98759-4995' },
+];
+
+// Gera o bloco HTML com os botões de WhatsApp, usado sempre que o bot
+// precisa encaminhar o cliente para atendimento humano.
+function chatWhatsAppBlock(intro) {
+  var buttons = CHAT_WHATSAPP_NUMBERS.map(function(n) {
+    var msg = encodeURIComponent('Olá! Preciso de ajuda com o app Finança.');
+    return '<a class="chat-wa-btn" href="https://wa.me/' + n.phone + '?text=' + msg + '" target="_blank" rel="noopener noreferrer">' +
+      '<span class="chat-wa-icon">📱</span> Chamar no WhatsApp — ' + n.display +
+    '</a>';
+  }).join('');
+  return '<div class="chat-wa-block">' +
+    '<div class="chat-wa-label">' + (intro || 'Atendimento humano') + '</div>' +
+    buttons +
+  '</div>';
+}
+
+var CHAT_KB = [
+  {
+    id: 'saudacao',
+    keywords: ['oi','ola','olá','bom dia','boa tarde','boa noite','hey','eae','opa'],
+    answer: 'Olá! 👋 Sou o assistente de suporte do <b>Finança</b>. Posso te ajudar a entender qualquer funcionalidade do app: abas, calendário, orçamento, metas, pagamentos e muito mais. O que você gostaria de saber?',
+    related: ['Como funciona o Orçamento?', 'Planos e pagamento', 'Como uso o calendário?']
+  },
+  {
+    id: 'dashboard',
+    keywords: ['dashboard','visao geral','visão geral','painel','inicio','início','tela inicial'],
+    answer: '<b>📊 Visão Geral</b> é sua central de comando. Nela você encontra: saldo patrimonial atualizado, KPIs de receitas/despesas/resultado/taxa de economia, gráfico de gastos por categoria, comparativo com o mês anterior e seu score de saúde financeira — tudo filtrado pelo período selecionado no calendário.',
+    related: ['Como funciona o comparativo mensal?', 'O que é o score de saúde?']
+  },
+  {
+    id: 'comparativo',
+    keywords: ['comparativo','comparar mes','comparar mês','mes anterior','mês anterior'],
+    answer: 'O <b>Comparativo Mensal</b> (no Dashboard) mostra receitas, despesas, resultado e taxa de economia do período atual lado a lado com o mês anterior, com setas ↑↓ indicando se cada indicador melhorou ou piorou.',
+    related: ['Ver Visão Geral']
+  },
+  {
+    id: 'receitas',
+    keywords: ['receita','receitas','salario','salário','faturamento','entrada de dinheiro','ganhos'],
+    answer: '<b>💰 Receitas</b> (ou "Faturamento" no modo PJ) é onde você registra tudo que entra: salário, freelances, rendimentos etc. Para adicionar: abra a aba, clique em "+ Nova" e preencha valor, categoria, data e recorrência (se for uma entrada mensal fixa, marque como recorrente).',
+    related: ['Como registro uma despesa?', 'Como funciona a recorrência?']
+  },
+  {
+    id: 'despesas',
+    keywords: ['despesa','despesas','gasto','gastos','custo','custos','saida de dinheiro'],
+    answer: '<b>💸 Despesas</b> (ou "Custos" no modo PJ) é onde você lança seus gastos com categoria, valor e data. Use a busca no topo da lista para localizar um lançamento específico rapidamente, e o filtro de período (calendário) para ver apenas um mês, semana ou intervalo.',
+    related: ['Como funciona o Orçamento?', 'Como uso o calendário?']
+  },
+  {
+    id: 'recorrencia',
+    keywords: ['recorrente','recorrencia','recorrência','mensal fixo','repetir lançamento'],
+    answer: 'Ao criar uma receita ou despesa, marque a opção <b>"Recorrente"</b> no formulário. Isso indica que aquele valor se repete todo mês (ex.: aluguel, salário, assinatura de streaming) — útil para projeções e para o cálculo de gastos fixos no seu score de saúde financeira.',
+    related: ['Como registro uma despesa?', 'O que é o score de saúde?']
+  },
+  {
+    id: 'documentos',
+    keywords: ['documento','documentos','fatura','holerite','extrato','upload de arquivo','anexar comprovante'],
+    answer: '<b>📄 Documentos</b> permite fazer upload de faturas, holerites e extratos bancários. O sistema organiza tudo automaticamente por tipo e período, facilitando consultas futuras.',
+    related: ['Como funciona o Orçamento?']
+  },
+  {
+    id: 'insights',
+    keywords: ['insight','insights','analise','análise','tendencia','tendência','sugestao automatica','sugestão automática'],
+    answer: '<b>💡 Insights</b> traz análises automáticas dos seus dados financeiros: tendências de gastos, alertas de anomalias (gastos fora do padrão) e sugestões práticas para melhorar sua saúde financeira.',
+    related: ['O que é o score de saúde?']
+  },
+  {
+    id: 'orcamento',
+    keywords: ['orcamento','orçamento','limite de gasto','budget'],
+    answer: '<b>📋 Orçamento</b> permite definir limites mensais por categoria (ex.: R$ 800 em alimentação). Uma barra de progresso mostra quanto já foi consumido, e você recebe notificações automáticas quando se aproxima ou ultrapassa o limite.',
+    related: ['Como funcionam as notificações?', 'Como registro uma despesa?']
+  },
+  {
+    id: 'metas',
+    keywords: ['meta','metas','objetivo financeiro','poupar para','juntar dinheiro','economizar para'],
+    answer: '<b>🎯 Metas</b> deixa você criar objetivos como viagem, reserva de emergência ou compra de um bem. O app calcula o progresso com base no que você já guardou, estima o prazo para atingir a meta e sugere um valor de contribuição mensal.',
+    related: ['Como funciona a Estratégia?']
+  },
+  {
+    id: 'dividas',
+    keywords: ['divida','dívida','dividas','dívidas','emprestimo','empréstimo','financiamento','parcela'],
+    answer: '<b>🏦 Dívidas</b> é onde você cadastra empréstimos, financiamentos e parcelamentos. O app calcula juros acumulados e saldo devedor, e você pode simular uma antecipação de parcelas para ver quanto economizaria em juros.',
+    related: ['O que é o score de saúde?']
+  },
+  {
+    id: 'patrimonio',
+    keywords: ['patrimonio','patrimônio','bens','imovel','imóvel','veiculo','veículo','ativos'],
+    answer: '<b>🏠 Patrimônio</b> registra seus bens: imóveis, veículos, investimentos e outros ativos. Assim você acompanha a evolução do seu patrimônio líquido (bens menos dívidas) ao longo do tempo.',
+    related: ['Como funcionam as Dívidas?']
+  },
+  {
+    id: 'assinaturas',
+    keywords: ['assinatura','assinaturas','streaming','saas','servico recorrente','serviço recorrente','netflix','spotify'],
+    answer: '<b>🔄 Assinaturas</b> (ou "Ferramentas & SaaS" no modo PJ) organiza seus serviços recorrentes como streaming, apps e academia. Você vê o custo total mensal de tudo somado e consegue identificar assinaturas que talvez valha a pena cancelar.',
+    related: ['Planos e pagamento']
+  },
+  {
+    id: 'projecao',
+    keywords: ['projecao','projeção','simulacao futura','simulação futura','previsao','previsão'],
+    answer: '<b>📈 Projeção</b> simula cenários futuros com base nas suas receitas e despesas atuais, mostrando estimativas de saldo e patrimônio para os próximos meses.',
+    related: ['Como funciona a Estratégia?']
+  },
+  {
+    id: 'saude',
+    keywords: ['saude financeira','saúde financeira','score','pontuacao','pontuação','diagnostico','diagnóstico'],
+    answer: 'A aba <b>💊 Saúde Financeira</b> calcula um score de 0 a 100 com base em 5 critérios: reserva de emergência, nível de dívidas, taxa de economia, gastos fixos e diversificação de investimentos. Você recebe um diagnóstico com recomendações práticas para melhorar sua pontuação.',
+    related: ['Como funciona a Estratégia?']
+  },
+  {
+    id: 'estrategia',
+    keywords: ['estrategia','estratégia','consultoria','plano financeiro','simulador de cenarios','simulador de cenários'],
+    answer: '<b>🧠 Estratégia</b> oferece uma consultoria personalizada com um plano em fases, dicas contextuais baseadas nos seus dados e um simulador interativo de cenários para testar decisões antes de tomá-las.',
+    related: ['O que é o score de saúde?']
+  },
+  {
+    id: 'openfinance',
+    keywords: ['open finance','conectar banco','importar transacoes','importar transações','sincronizar conta'],
+    answer: '<b>🏛️ Open Finance</b> permite conectar suas contas bancárias para importar transações automaticamente, sincronizando dados de múltiplas instituições em um só lugar. Esse recurso é exclusivo do <b>plano Plus</b>.',
+    related: ['Planos e pagamento']
+  },
+  {
+    id: 'cambio',
+    keywords: ['cambio','câmbio','cotacao','cotação','dolar','dólar','euro','moeda estrangeira'],
+    answer: '<b>💱 Câmbio</b> mostra cotações de moedas em tempo real — útil se você tem rendimentos, gastos ou investimentos em moeda estrangeira.',
+    related: ['Planos e pagamento']
+  },
+  // ── PAGAMENTOS / PLANOS ──
+  {
+    id: 'planos',
+    keywords: ['plano','planos','plus','free','gratuito','premium','upgrade','assinar plano','qual plano'],
+    answer: 'O Finança tem 2 planos:<ul><li><b>Free</b> — todas as funcionalidades essenciais: receitas, despesas, orçamento, metas, dívidas, patrimônio e saúde financeira.</li><li><b>Plus</b> — libera recursos avançados como Open Finance (conexão bancária automática), projeções avançadas e relatórios exclusivos.</li></ul>Você pode comparar e fazer upgrade na aba <b>⭐ Plano</b>.',
+    related: ['Como faço o pagamento?', 'Como cancelo minha assinatura?']
+  },
+  {
+    id: 'pagamento',
+    keywords: ['pagamento','pagar','forma de pagamento','cartao','cartão','boleto','pix','cobranca','cobrança','fatura do plano'],
+    answer: '💳 O pagamento do plano Plus pode ser feito via <b>cartão de crédito</b>, <b>Pix</b> ou <b>boleto</b>, direto na aba <b>⭐ Plano</b>. A cobrança do cartão é recorrente mensal ou anual, dependendo do ciclo escolhido no momento da assinatura.',
+    related: ['Como cancelo minha assinatura?', 'Meu pagamento falhou, o que fazer?']
+  },
+  {
+    id: 'pagamento_falhou',
+    keywords: ['pagamento falhou','pagamento recusado','cartao recusado','cartão recusado','nao consegui pagar','não consegui pagar','erro no pagamento'],
+    answer: 'Se o pagamento falhou, verifique: (1) se o cartão tem limite disponível, (2) se os dados (número, validade, CVV) estão corretos, (3) se o banco não bloqueou a transação por segurança. Você pode tentar novamente ou trocar a forma de pagamento na aba <b>⭐ Plano</b>. Se o problema persistir, fale com um atendente humano.',
+    related: ['Falar com atendente', 'Como faço o pagamento?']
+  },
+  {
+    id: 'cancelar',
+    keywords: ['cancelar assinatura','cancelar plano','cancelar pagamento','estornar','reembolso','downgrade'],
+    answer: 'Para cancelar sua assinatura, vá até a aba <b>⭐ Plano</b> e selecione "Cancelar assinatura". Você continua com acesso ao Plus até o fim do período já pago, depois volta automaticamente para o plano Free — seus dados não são perdidos. Para reembolsos, fale com um atendente humano.',
+    related: ['Falar com atendente', 'Planos e pagamento']
+  },
+  {
+    id: 'nota_fiscal',
+    keywords: ['nota fiscal','recibo','comprovante de pagamento','fatura pdf'],
+    answer: 'Recibos e comprovantes de pagamento do plano ficam disponíveis na aba <b>⭐ Plano</b>, na seção de histórico de cobranças. Caso precise de nota fiscal formal, fale com um atendente humano.',
+    related: ['Falar com atendente']
+  },
+  // ── HEADER / RECURSOS GERAIS ──
+  {
+    id: 'calendario',
+    keywords: ['calendario','calendário','periodo','período','filtrar data','filtrar por mes','filtrar por mês'],
+    answer: '📅 Clique no badge de período no topo (ex: "Set 2026") para abrir o calendário. Você pode selecionar um mês inteiro, um dia específico, ou um intervalo personalizado (clique em 2 dias). Também há atalhos rápidos: "7 dias", "30 dias" ou "Tudo". Todas as telas do app respeitam esse filtro.',
+    related: ['Ver Visão Geral']
+  },
+  {
+    id: 'tema',
+    keywords: ['modo escuro','tema escuro','dark mode','tema claro','mudar tema'],
+    answer: '🌙 O botão em forma de lua/sol no topo alterna entre tema claro e escuro. Sua preferência é salva automaticamente e mantida nas próximas visitas.',
+    related: []
+  },
+  {
+    id: 'notificacoes',
+    keywords: ['notificacao','notificação','notificacoes','notificações','sino','alerta','alertas'],
+    answer: '🔔 O sino de notificações mostra alertas em tempo real: orçamento próximo do limite, dívidas vencendo, metas quase atingidas e dicas personalizadas. O badge vermelho indica que há alertas importantes pendentes.',
+    related: ['Como funciona o Orçamento?']
+  },
+  {
+    id: 'perfil',
+    keywords: ['pf','pj','pessoa fisica','pessoa física','pessoa juridica','pessoa jurídica','trocar perfil','mudar perfil'],
+    answer: '👤🏢 No topo do app você alterna entre perfil <b>Pessoal (PF)</b> e <b>Empresa (PJ)</b>. O dashboard se adapta: categorias, terminologia (Receitas vira Faturamento, Despesas vira Custos) e até abas extras como Fiscal e Fluxo de Caixa aparecem no modo PJ.',
+    related: []
+  },
+  {
+    id: 'exportar',
+    keywords: ['exportar','exportacao','exportação','backup','baixar dados','csv','json'],
+    answer: '📤 O botão "Exportar" no topo permite salvar seus dados em <b>JSON</b> (backup completo de tudo) ou <b>CSV</b> (transações, para abrir em planilhas como Excel ou Google Sheets).',
+    related: []
+  },
+  {
+    id: 'tutorial',
+    keywords: ['tutorial','tour','como usar o app','aprender a usar','guia'],
+    answer: 'Você pode refazer o tour guiado a qualquer momento clicando no botão <b>"?"</b> no topo e depois em "Refazer Tour Guiado". Esse tour passa por cada aba e cada funcionalidade principal do app.',
+    related: []
+  },
+  {
+    id: 'seguranca',
+    keywords: ['seguranca','segurança','dados seguros','privacidade','vazamento','senha'],
+    answer: '🔒 Seus dados financeiros ficam armazenados de forma segura e são acessíveis apenas com login na sua conta. Recomendamos usar uma senha forte e não compartilhar suas credenciais. Se suspeitar de acesso indevido, troque sua senha imediatamente e fale com um atendente.',
+    related: ['Falar com atendente']
+  },
+  {
+    id: 'atendente',
+    keywords: ['atendente','humano','falar com pessoa','suporte humano','ajuda humana','nao resolveu','não resolveu','reclamacao','reclamação','whatsapp','zap'],
+    answer: 'Entendido — algumas questões precisam de um atendente humano (ex.: reembolsos, problemas de cobrança específicos, questões de conta). Chame nosso suporte pelo WhatsApp que o atendimento é feito por uma pessoa da equipe:' + chatWhatsAppBlock(),
+    related: []
+  },
+];
+
+// Resposta padrão quando nenhuma keyword bate
+var CHAT_FALLBACK = {
+  answer: 'Hmm, não tenho certeza se entendi 🤔. Posso te ajudar com dúvidas sobre: abas do app (Receitas, Despesas, Orçamento, Metas, Dívidas, Patrimônio, Projeção, Saúde Financeira...), calendário, tema, notificações, exportação de dados e <b>planos/pagamentos</b>. Tente reformular ou escolha um tópico abaixo.',
+  related: ['Ver todas as abas', 'Planos e pagamento', 'Falar com atendente']
+};
+
+var CHAT_QUICK_TOPICS = ['Como funciona o Orçamento?', 'Planos e pagamento', 'Como uso o calendário?', 'Falar com atendente'];
+
+function normalizeChat(str) {
+  return (str || '').toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '') // remove acentos
+    .replace(/[^\w\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function findChatAnswer(userText) {
+  var norm = normalizeChat(userText);
+  if (!norm) return CHAT_FALLBACK;
+  var userWords = norm.split(' ');
+  var best = null, bestScore = 0;
+  for (var i = 0; i < CHAT_KB.length; i++) {
+    var entry = CHAT_KB[i];
+    for (var j = 0; j < entry.keywords.length; j++) {
+      var kw = normalizeChat(entry.keywords[j]);
+      if (!kw) continue;
+      var score = 0;
+      var kwWords = kw.split(' ');
+      if (norm.indexOf(kw) !== -1) {
+        // Match exato da frase (substring) — pontuação alta
+        score = kw.length * 2 + kwWords.length * 5;
+      } else {
+        // Match por palavras: todas as palavras da keyword precisam estar
+        // presentes no texto do usuário, em qualquer ordem. Frases com mais
+        // palavras (mais específicas) pontuam mais que uma única palavra genérica.
+        var allPresent = kwWords.every(function(w) { return userWords.indexOf(w) !== -1; });
+        if (allPresent) score = kw.length + kwWords.length * 10;
+      }
+      if (score > bestScore) { bestScore = score; best = entry; }
+    }
+  }
+  return best || CHAT_FALLBACK;
+}
+
+// Mapa de "sugestões" para reaproveitar o motor de busca por texto
+function chatTopicToQuery(topic) {
+  var map = {
+    'Ver todas as abas': 'tutorial',
+    'Ver Visão Geral': 'dashboard',
+    'Falar com atendente': 'falar com atendente',
+    'Planos e pagamento': 'planos',
+  };
+  return map[topic] || topic;
+}
+
+function toggleChat(force) {
+  var win = document.getElementById('chat-window');
+  var fab = document.getElementById('chat-fab');
+  chatOpen = (typeof force === 'boolean') ? force : !chatOpen;
+  win.classList.toggle('open', chatOpen);
+  if (chatOpen) {
+    fab.classList.add('hide');
+    document.getElementById('chat-fab-badge').classList.remove('show');
+    if (chatHistory.length === 0) {
+      chatBotSay(CHAT_KB[0].answer, CHAT_QUICK_TOPICS);
+    }
+    setTimeout(function() { document.getElementById('chat-input').focus(); }, 200);
+  } else {
+    fab.classList.remove('hide');
+  }
+}
+
+function chatScrollToBottom() {
+  var body = document.getElementById('chat-body');
+  requestAnimationFrame(function() { body.scrollTop = body.scrollHeight; });
+}
+
+function chatRenderSuggestions(list) {
+  var box = document.getElementById('chat-suggestions');
+  if (!list || !list.length) { box.innerHTML = ''; return; }
+  box.innerHTML = list.map(function(t) {
+    return '<div class="chat-chip" onclick="chatChipClick(this)">' + t + '</div>';
+  }).join('');
+}
+
+function chatChipClick(el) {
+  var text = el.textContent;
+  chatUserSay(text);
+  var query = chatTopicToQuery(text);
+  chatBotRespond(query);
+}
+
+function chatUserSay(text) {
+  chatHistory.push({ role: 'user', text: text });
+  var body = document.getElementById('chat-body');
+  var div = document.createElement('div');
+  div.className = 'chat-msg user';
+  div.innerHTML = '<div class="chat-msg-avatar">🙂</div><div class="chat-bubble"></div>';
+  div.querySelector('.chat-bubble').textContent = text;
+  body.appendChild(div);
+  chatRenderSuggestions([]);
+  chatScrollToBottom();
+}
+
+function chatBotSay(html, related) {
+  chatHistory.push({ role: 'bot', text: html });
+  var body = document.getElementById('chat-body');
+  var div = document.createElement('div');
+  div.className = 'chat-msg bot';
+  div.innerHTML = '<div class="chat-msg-avatar">🤖</div><div class="chat-bubble">' + html + '</div>';
+  body.appendChild(div);
+  chatRenderSuggestions(related || []);
+  chatScrollToBottom();
+}
+
+function chatShowTyping() {
+  var body = document.getElementById('chat-body');
+  var div = document.createElement('div');
+  div.className = 'chat-msg bot';
+  div.id = 'chat-typing-indicator';
+  div.innerHTML = '<div class="chat-msg-avatar">🤖</div><div class="chat-bubble"><div class="chat-typing"><span></span><span></span><span></span></div></div>';
+  body.appendChild(div);
+  chatScrollToBottom();
+}
+
+function chatHideTyping() {
+  var el = document.getElementById('chat-typing-indicator');
+  if (el) el.remove();
+}
+
+var chatUnresolvedCount = 0;
+
+function chatBotRespond(userText) {
+  chatShowTyping();
+  setTimeout(function() {
+    chatHideTyping();
+    var entry = findChatAnswer(userText);
+    var answer = entry.answer;
+    var isFallback = (entry === CHAT_FALLBACK);
+    chatUnresolvedCount = isFallback ? (chatUnresolvedCount + 1) : 0;
+
+    // Escalação humana automática se detectar frustração
+    var norm = normalizeChat(userText);
+    var frustration = ['nao funciona','não funciona','isso nao ajudou','isso não ajudou','pessimo','péssimo','horrivel','horrível','quero cancelar tudo','muito ruim','ninguem me ajuda','ninguém me ajuda','preciso de ajuda urgente'];
+    var isFrustrated = frustration.some(function(f) { return norm.indexOf(normalizeChat(f)) !== -1; });
+
+    // Se o cliente já bateu 2x seguidas numa resposta que não achou nada,
+    // ou demonstrou frustração, o bot direciona para o WhatsApp automaticamente.
+    if ((isFrustrated || chatUnresolvedCount >= 2) && entry.id !== 'atendente') {
+      chatUnresolvedCount = 0;
+      answer += '<div class="chat-escalate">😕 Parece que não consegui resolver sua dúvida por aqui. Vou te direcionar para um atendente humano:</div>' + chatWhatsAppBlock('Fale com nosso suporte humano');
+    }
+    chatBotSay(answer, entry.related);
+  }, 500 + Math.random() * 400);
+}
+
+function chatSend() {
+  var input = document.getElementById('chat-input');
+  var text = input.value.trim();
+  if (!text) return;
+  chatUserSay(text);
+  input.value = '';
+  chatBotRespond(text);
+}
+
+function chatClear() {
+  chatHistory = [];
+  document.getElementById('chat-body').innerHTML = '';
+  chatRenderSuggestions([]);
+  chatBotSay(CHAT_KB[0].answer, CHAT_QUICK_TOPICS);
+}
+
+// Fecha o chat com Esc (sem conflitar com tour/welcome/help já existentes)
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape' && chatOpen) toggleChat(false);
 });
 
 // ═══════════════════════════════════════════════════════

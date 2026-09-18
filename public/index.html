@@ -434,6 +434,7 @@ body.pj-mode .chat-send-btn:hover { background: var(--pj-accent-mid); }
 .nav-btn.pj-tab.show { display: inline-flex; }
 .nav-btn.pf-only { display: inline-flex; }
 .nav-btn.pf-only.hide { display: none; }
+.nav-plus-lock { font-size: 10px; opacity: 0.7; }
 
 /* ─── PJ MODE ACCENTS ────────────────────────── */
 body.pj-mode .logo { color: var(--pj-accent); }
@@ -1554,10 +1555,18 @@ function generateNotifications() {
   if (state.transactions.length === 0) notifs.push({ id: 'empty-tx', icon: '✨', title: 'Comece adicionando transações', desc: 'Registre receitas e despesas para análises personalizadas', type: 'info', time: 'Dica', tab: 'receitas' });
   if (state.goals.length === 0 && state.transactions.length > 0) notifs.push({ id: 'empty-goals', icon: '🎯', title: 'Defina suas metas', desc: 'Crie metas financeiras e acompanhe o progresso', type: 'info', time: 'Sugestão', tab: 'metas' });
 
-  // Remove alertas dispensados temporariamente pelo usuário
-  return notifs.filter(function(n) { return !notifIsDismissed(n.id); });
-}
+  // ── Alertas avançados são exclusivos do plano Plus ──
+  const ADVANCED_ALERT_PREFIXES = ['catspike-', 'balance-risk', 'goal-slow-', 'goal-nocontrib-'];
+  let notifsFinal = notifs;
+  if (!isPlusUser()) {
+    const hadAdvanced = notifs.some(function(n) { return ADVANCED_ALERT_PREFIXES.some(function(p) { return n.id.indexOf(p) === 0; }); });
+    notifsFinal = notifs.filter(function(n) { return !ADVANCED_ALERT_PREFIXES.some(function(p) { return n.id.indexOf(p) === 0; }); });
+    if (hadAdvanced) notifsFinal.push({ id: 'advanced-alerts-teaser', icon: '🔒', title: 'Alertas avançados disponíveis', desc: 'Detectamos gastos fora do padrão, riscos de saldo ou metas em atraso. Veja tudo com o plano Plus.', type: 'info', time: 'Plus', tab: 'plano' });
+  }
 
+  // Remove alertas dispensados temporariamente pelo usuário
+  return notifsFinal.filter(function(n) { return !notifIsDismissed(n.id); });
+}
 function toggleNotifications() {
   const dd = document.getElementById('notif-dropdown');
   const wasOpen = dd.classList.contains('open');
@@ -2768,6 +2777,7 @@ function openTransactionModal(type, existing = null) {
     </div>`);
 }
 async function saveTransaction(type, editId) {
+  if (!editId && !checkPlanLimit(countThisMonth(state.transactions, 'date'), PLAN_LIMITS.maxTransactionsPerMonth, 'Plano Free permite até ' + PLAN_LIMITS.maxTransactionsPerMonth + ' lançamentos por mês. Faça upgrade para lançamentos ilimitados.')) return;
   const dateStr = document.getElementById('m-date').value;
   const t = { id: editId || genId(), date: dateStr, desc: document.getElementById('m-desc').value, cat: document.getElementById('m-cat').value, amount: parseFloat(document.getElementById('m-amount').value) || 0, type, recur: document.getElementById('m-recur').value === 'true' };
   if (editId) { const i = state.transactions.findIndex(x => x.id === editId); if (i >= 0) state.transactions[i] = t; } else state.transactions.push(t);
@@ -2790,6 +2800,7 @@ function openGoalModal(existing = null) {
     <div class="modal-actions">${isEdit ? `<button class="btn-danger" onclick="deleteGoal('${existing.id}')">Excluir</button>` : ''}<button class="btn-cancel" onclick="closeModal()">Cancelar</button><button class="btn-save" onclick="saveGoal(${isEdit ? `'${existing.id}'` : 'null'})">Salvar</button></div>`);
 }
 async function saveGoal(editId) {
+  if (!editId && !checkPlanLimit(state.goals.length, PLAN_LIMITS.maxActiveGoals, 'Plano Free permite até ' + PLAN_LIMITS.maxActiveGoals + ' meta ativa. Exclua a atual ou faça upgrade para metas ilimitadas.')) return;
   const g = { id: editId || genId(), icon: document.getElementById('m-icon').value || '🎯', name: document.getElementById('m-gname').value, target: parseFloat(document.getElementById('m-target').value) || 0, current: parseFloat(document.getElementById('m-current').value) || 0, monthly: parseFloat(document.getElementById('m-monthly').value) || 0 };
   if (editId) { const i = state.goals.findIndex(x => x.id === editId); if (i >= 0) state.goals[i] = g; } else state.goals.push(g);
   await dbUpsert('goals', { id: g.id, user_id: currentUser?.id, name: g.name, icon: g.icon, target_amount: g.target, current_amount: g.current, monthly_contribution: g.monthly });
@@ -2829,6 +2840,7 @@ function openAssetModal(listKey, existing = null) {
     <div class="modal-actions">${isEdit ? `<button class="btn-danger" onclick="deleteAsset('${listKey}','${existing.id}')">Excluir</button>` : ''}<button class="btn-cancel" onclick="closeModal()">Cancelar</button><button class="btn-save" onclick="saveAsset('${listKey}',${isEdit ? `'${existing.id}'` : 'null'})">Salvar</button></div>`);
 }
 async function saveAsset(listKey, editId) {
+  if (!editId && listKey === 'assets' && !checkPlanLimit(state.assets.length, PLAN_LIMITS.maxPatrimonioItems, 'Plano Free permite até ' + PLAN_LIMITS.maxPatrimonioItems + ' itens em Patrimônio. Faça upgrade para itens ilimitados.')) return;
   const a = { id: editId || genId(), name: document.getElementById('m-aname').value, value: parseFloat(document.getElementById('m-aval').value) || 0 };
   if (editId) { const i = state[listKey].findIndex(x => x.id === editId); if (i >= 0) state[listKey][i] = a; } else state[listKey].push(a);
   const row = listKey === 'assets' ? { id: a.id, user_id: currentUser?.id, name: a.name, category: 'Outros', value: a.value } : { id: a.id, user_id: currentUser?.id, name: a.name, value: a.value };
@@ -2847,6 +2859,7 @@ function openSubModal(existing = null) {
     <div class="modal-actions">${isEdit ? `<button class="btn-danger" onclick="deleteSub('${existing.id}')">Excluir</button>` : ''}<button class="btn-cancel" onclick="closeModal()">Cancelar</button><button class="btn-save" onclick="saveSub(${isEdit ? `'${existing.id}'` : 'null'})">Salvar</button></div>`);
 }
 async function saveSub(editId) {
+  if (!editId && !checkPlanLimit(state.subscriptions.length, PLAN_LIMITS.maxSubscriptions, 'Plano Free permite monitorar até ' + PLAN_LIMITS.maxSubscriptions + ' assinaturas. Faça upgrade para monitorar todas.')) return;
   const s = { id: editId || genId(), name: document.getElementById('m-sname').value, cat: document.getElementById('m-scat').value, price: parseFloat(document.getElementById('m-sprice').value) || 0, color: document.getElementById('m-scolor').value };
   if (editId) { const i = state.subscriptions.findIndex(x => x.id === editId); if (i >= 0) state.subscriptions[i] = s; } else state.subscriptions.push(s);
   await dbUpsert('subscriptions', { id: s.id, user_id: currentUser?.id, name: s.name, category: s.cat, price: s.price, color: s.color });
@@ -2969,23 +2982,93 @@ function renderComparativo(c) {
 // ═══════════════════════════════════════════════════════
 const tabsPF = [
   {id:'dashboard',label:'Visão Geral'},{id:'receitas',label:'Receitas'},{id:'despesas',label:'Despesas'},
-  {id:'documentos',label:'Documentos'},{id:'insights',label:'Insights'},
+  {id:'documentos',label:'Documentos'},{id:'insights',label:'Insights',plus:true},
   {id:'orcamento',label:'Orçamento'},{id:'metas',label:'Metas'},{id:'dividas',label:'Dívidas'},
   {id:'patrimonio',label:'Patrimônio'},{id:'assinaturas',label:'Assinaturas'},
-  {id:'projecao',label:'Projeção'},{id:'saude',label:'Saúde Financeira'},
-  {id:'estrategia',label:'Estratégia'},{id:'openfinance',label:'Open Finance'},{id:'cambio',label:'Câmbio'},{id:'plano',label:'Plano'},
+  {id:'projecao',label:'Projeção',plus:true},{id:'saude',label:'Saúde Financeira'},
+  {id:'estrategia',label:'Estratégia',plus:true},{id:'openfinance',label:'Open Finance',plus:true},{id:'cambio',label:'Câmbio'},{id:'plano',label:'Plano'},
 ];
 const tabsPJ = [
   {id:'dashboard',label:'Visão Geral'},{id:'receitas',label:'Faturamento'},{id:'despesas',label:'Custos'},
-  {id:'documentos',label:'Documentos'},{id:'insights',label:'Insights'},
-  {id:'orcamento',label:'Orçamento'},{id:'fiscal',label:'Fiscal',pj:true},{id:'fluxo',label:'Fluxo de Caixa',pj:true},
+  {id:'documentos',label:'Documentos'},{id:'insights',label:'Insights',plus:true},
+  {id:'orcamento',label:'Orçamento'},{id:'fiscal',label:'Fiscal',pj:true,plus:true},{id:'fluxo',label:'Fluxo de Caixa',pj:true,plus:true},
   {id:'metas',label:'Metas'},{id:'dividas',label:'Dívidas'},{id:'patrimonio',label:'Patrimônio'},
-  {id:'assinaturas',label:'Ferramentas & SaaS'},{id:'projecao',label:'Projeção'},
-  {id:'saude',label:'Saúde Financeira'},{id:'estrategia',label:'Estratégia'},
-  {id:'openfinance',label:'Open Finance'},{id:'cambio',label:'Câmbio'},{id:'plano',label:'Plano'},
+  {id:'assinaturas',label:'Ferramentas & SaaS'},{id:'projecao',label:'Projeção',plus:true},
+  {id:'saude',label:'Saúde Financeira'},{id:'estrategia',label:'Estratégia',plus:true},
+  {id:'openfinance',label:'Open Finance',plus:true},{id:'cambio',label:'Câmbio'},{id:'plano',label:'Plano'},
 ];
 
 function getAvailableTabs() { return state.profile_type === 'PJ' ? tabsPJ : tabsPF; }
+
+// ═══════════════════════════════════════════════════════
+// PLANOS — FREE vs PLUS: limites e bloqueios (fonte única da verdade)
+// ═══════════════════════════════════════════════════════
+var PLAN_LIMITS = {
+  maxTransactionsPerMonth: 40,
+  maxActiveGoals: 1,
+  maxBudgetCategories: 3,
+  maxPatrimonioItems: 3,
+  maxSubscriptions: 3,
+  maxDocumentsPerMonth: 5,
+};
+
+// Abas inteiramente bloqueadas no Free (mostram uma tela de upgrade em vez do conteúdo)
+var PLUS_ONLY_TABS = {
+  projecao: { label: 'Projeção', desc: 'Simule cenários futuros de saldo e patrimônio com base nas suas receitas e despesas reais.' },
+  estrategia: { label: 'Estratégia', desc: 'Consultoria personalizada em fases, dicas contextuais e simulador de decisões financeiras.' },
+  insights: { label: 'Insights', desc: 'Análises avançadas, detecção de anomalias de gastos e recomendações automáticas baseadas nos seus dados.' },
+  fiscal: { label: 'Fiscal', desc: 'Gestão de impostos, DAS e obrigações fiscais para o seu CNPJ.' },
+  fluxo: { label: 'Fluxo de Caixa', desc: 'Projeção detalhada de entradas e saídas do caixa da sua empresa.' },
+  // Open Finance mantém a própria tela (lista de bancos) e bloqueia só a ação de conectar,
+  // pois funciona como vitrine do recurso — ver PLUS_ONLY_TABS não inclui 'openfinance'.
+};
+
+function isPlusUser() {
+  return !!(profile && (profile.plan === 'plus' || profile.plan === 'pro' || profile.plan === 'business'));
+}
+
+// Conta quantos itens de uma lista têm data (DD/MM ou YYYY-MM-DD) dentro do mês corrente
+function countThisMonth(list, dateField) {
+  const now = new Date();
+  return list.filter(function(item) {
+    const raw = item[dateField];
+    if (!raw) return false;
+    let d;
+    if (typeof raw === 'string' && raw.includes('-')) d = new Date(raw + 'T00:00:00');
+    else if (typeof raw === 'string' && raw.includes('/')) {
+      const parts = raw.split('/');
+      d = new Date(now.getFullYear(), (parseInt(parts[1]) || (now.getMonth() + 1)) - 1, parseInt(parts[0]) || 1);
+    } else return false;
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  }).length;
+}
+
+// Chame antes de criar um novo item; retorna false (e mostra upsell) se o limite Free foi atingido
+function checkPlanLimit(current, max, message) {
+  if (isPlusUser()) return true;
+  if (current >= max) {
+    showToast('🔒 ' + message, 'info');
+    setTimeout(function() { switchTab('plano'); }, 900);
+    return false;
+  }
+  return true;
+}
+
+function requirePlusFeature(featureLabel) {
+  showToast('🔒 ' + featureLabel + ' é exclusivo do plano Plus', 'info');
+  switchTab('plano');
+}
+
+function renderPlusPaywall(tabKey) {
+  const info = PLUS_ONLY_TABS[tabKey] || { label: 'Este recurso', desc: 'Disponível no plano Plus.' };
+  return '<div class="card animate-in" style="text-align:center;padding:56px 24px;max-width:520px;margin:0 auto">' +
+    '<div style="font-size:44px;margin-bottom:14px">🔒</div>' +
+    '<div class="card-title" style="font-size:19px;margin-bottom:10px">' + info.label + ' é um recurso Plus</div>' +
+    '<div style="font-size:13.5px;color:var(--ink-2);line-height:1.65;margin-bottom:24px">' + info.desc + '</div>' +
+    '<button class="btn-primary" onclick="switchTab(\'plano\')" style="width:auto;display:inline-block;padding:12px 28px;font-size:14px">⭐ Fazer upgrade para o Plus</button>' +
+    '<div style="font-size:11px;color:var(--ink-3);margin-top:14px">A partir de R$ 19,90/mês · cancele quando quiser</div>' +
+  '</div>';
+}
 
 let currentTab = 'dashboard';
 let searchQuery = '';
@@ -3013,12 +3096,13 @@ function renderCurrentTab() {
     estrategia: () => renderEstrategia(c),
     openfinance: () => renderOpenFinance(c),
   };
-  main.innerHTML = renderers[currentTab] ? renderers[currentTab]() : renderers.dashboard();
+  const isGated = PLUS_ONLY_TABS[currentTab] && !isPlusUser();
+  main.innerHTML = isGated ? renderPlusPaywall(currentTab) : (renderers[currentTab] ? renderers[currentTab]() : renderers.dashboard());
   updateNotifBadge();
-  if (currentTab === 'projecao') bindScenarioPills();
+  if (currentTab === 'projecao' && !isGated) bindScenarioPills();
   if (currentTab === 'cambio') bindConverter();
   if (currentTab === 'documentos') bindUploadZone();
-  if (currentTab === 'estrategia') bindSimulator();
+  if (currentTab === 'estrategia' && !isGated) bindSimulator();
   // Bind search
   const searchInput = document.getElementById('tx-search');
   if (searchInput) {
@@ -3096,9 +3180,19 @@ function openBudgetModal() {
 
 function saveBudgets() {
   const cats = getCatsExpense();
+  let entered = [];
   cats.forEach(cat => {
     const val = parseFloat(document.getElementById('budget-' + cat.replace(/[^a-zA-Z]/g, ''))?.value) || 0;
-    if (val > 0) state.budgets[cat] = val; else delete state.budgets[cat];
+    if (val > 0) entered.push({ cat, val });
+  });
+  if (!isPlusUser() && entered.length > PLAN_LIMITS.maxBudgetCategories) {
+    showToast('🔒 Plano Free permite orçamento em até ' + PLAN_LIMITS.maxBudgetCategories + ' categorias — as demais não foram salvas. Faça upgrade para categorias ilimitadas.', 'info');
+    entered = entered.slice(0, PLAN_LIMITS.maxBudgetCategories);
+  }
+  const enteredCats = entered.map(e => e.cat);
+  cats.forEach(cat => {
+    if (enteredCats.includes(cat)) state.budgets[cat] = entered.find(e => e.cat === cat).val;
+    else delete state.budgets[cat];
   });
   // Persist budgets to Supabase
   if (sb && currentUser) {
@@ -3323,7 +3417,20 @@ function bindUploadZone() {
 
 function processUploadedFiles(files) {
   const isPJ = state.profile_type === 'PJ';
-  Array.from(files).forEach(file => {
+  let fileArray = Array.from(files);
+  if (!isPlusUser()) {
+    const remaining = PLAN_LIMITS.maxDocumentsPerMonth - countThisMonth(state.documents, 'date');
+    if (remaining <= 0) {
+      showToast('🔒 Plano Free permite até ' + PLAN_LIMITS.maxDocumentsPerMonth + ' documentos por mês. Faça upgrade para enviar mais.', 'info');
+      setTimeout(function() { switchTab('plano'); }, 900);
+      return;
+    }
+    if (fileArray.length > remaining) {
+      showToast('Apenas ' + remaining + ' documento(s) processado(s) — limite mensal do plano Free atingido.', 'info');
+      fileArray = fileArray.slice(0, remaining);
+    }
+  }
+  fileArray.forEach(file => {
     const doc = {
       id: genId(),
       name: file.name,
@@ -3344,7 +3451,7 @@ function processUploadedFiles(files) {
     dbUpsert('documents', { id: doc.id, user_id: currentUser?.id, name: doc.name, type: doc.type, category: doc.category, amount: doc.amount, date: doc.date, status: doc.status, file_size: doc.fileSize, mime_type: doc.mimeType, extracted_data: doc.extractedData });
   });
   renderCurrentTab();
-  showToast(`${files.length} documento(s) processado(s)`, 'success');
+  showToast(`${fileArray.length} documento(s) processado(s)`, 'success');
 }
 
 function autoDetectCategory(filename, isPJ) {
@@ -3400,6 +3507,7 @@ function pickDocType(el) {
 }
 
 function saveManualDoc() {
+  if (!checkPlanLimit(countThisMonth(state.documents, 'date'), PLAN_LIMITS.maxDocumentsPerMonth, 'Plano Free permite até ' + PLAN_LIMITS.maxDocumentsPerMonth + ' documentos por mês. Faça upgrade para enviar mais.')) return;
   const selectedType = document.querySelector('#doc-type-pick .doc-type-btn.selected')?.dataset.dtype || 'outro';
   const doc = {
     id: genId(),
@@ -3559,19 +3667,123 @@ function generateInsights(c, isPJ) {
 // ═══════════════════════════════════════════════════════
 // OPEN FINANCE
 // ═══════════════════════════════════════════════════════
+// Lista de instituições parceiras do Open Finance Brasil suportadas pelo Finança
+const OPENFINANCE_BANKS = [
+  { icon: '🟣', name: 'Nubank', status: 'Disponível' },
+  { icon: '🟠', name: 'Itaú', status: 'Disponível' },
+  { icon: '🔴', name: 'Bradesco', status: 'Disponível' },
+  { icon: '🔵', name: 'Banco do Brasil', status: 'Disponível' },
+  { icon: '🟡', name: 'Caixa Econômica', status: 'Disponível' },
+  { icon: '⚪', name: 'Santander', status: 'Disponível' },
+  { icon: '🟡', name: 'Banco Inter', status: 'Disponível' },
+  { icon: '🟤', name: 'C6 Bank', status: 'Disponível' },
+  { icon: '🟢', name: 'Sicredi', status: 'Disponível' },
+  { icon: '🔵', name: 'Sicoob', status: 'Disponível' },
+  { icon: '🟢', name: 'PicPay', status: 'Disponível' },
+  { icon: '🔵', name: 'Mercado Pago', status: 'Disponível' },
+  { icon: '⚫', name: 'Neon', status: 'Disponível' },
+  { icon: '🟠', name: 'PagBank', status: 'Disponível' },
+  { icon: '⚪', name: 'Will Bank', status: 'Disponível' },
+  { icon: '⚫', name: 'BTG Pactual', status: 'Disponível' },
+  { icon: '🔷', name: 'XP Investimentos', status: 'Em breve' },
+  { icon: '🟣', name: 'Banco Original', status: 'Em breve' },
+];
+
+// Contas conectadas ficam salvas localmente (demonstração — integração real via
+// agregador Open Finance como Pluggy/Belvo é um projeto de backend à parte)
+function ofGetAccounts() { try { return JSON.parse(localStorage.getItem('financa-of-accounts') || '[]'); } catch(e) { return []; } }
+function ofSaveAccounts(list) { try { localStorage.setItem('financa-of-accounts', JSON.stringify(list)); } catch(e) {} }
+
+function openBankConnectModal(bankName, icon) {
+  if (!isPlusUser()) { requirePlusFeature('Open Finance'); return; }
+  const accounts = ofGetAccounts();
+  if (accounts.find(function(a) { return a.bankName === bankName; })) { showToast(bankName + ' já está conectado.', 'info'); return; }
+  openModal('Conectar ' + bankName, `
+    <div style="text-align:center;padding:8px 0 16px">
+      <div style="font-size:40px;margin-bottom:12px">${icon}</div>
+      <div style="font-size:13px;color:var(--ink-2);line-height:1.6">Você será redirecionado ao ambiente oficial do <b>${bankName}</b> para autorizar o compartilhamento de dados via Open Finance Brasil. O Finança nunca solicita sua senha do banco diretamente.</div>
+      <div style="margin-top:14px;padding:10px 14px;background:var(--amber-light);border-radius:var(--radius-sm);font-size:11.5px;color:#92400E;text-align:left">⚠️ <b>Ambiente de demonstração:</b> a integração oficial com o Open Finance Brasil está em desenvolvimento. Esta simulação importa transações de exemplo para você já sentir como a experiência final vai funcionar.</div>
+    </div>
+    <div class="modal-actions"><button class="btn-cancel" onclick="closeModal()">Cancelar</button><button class="btn-save" onclick="simulateBankConnect('${bankName}','${icon}')">Simular autorização</button></div>
+  `);
+}
+
+function simulateBankConnect(bankName, icon) {
+  closeModal();
+  showToast('Conectando com ' + bankName + '…', 'info');
+  setTimeout(function() {
+    const accounts = ofGetAccounts();
+    if (accounts.find(function(a) { return a.bankName === bankName; })) return;
+    const importedCount = importSampleBankTransactions(bankName);
+    accounts.push({ id: genId(), bankName: bankName, icon: icon, connectedAt: new Date().toISOString(), lastSync: new Date().toISOString(), txCount: importedCount });
+    ofSaveAccounts(accounts);
+    renderCurrentTab();
+    showToast('✅ ' + bankName + ' conectado — ' + importedCount + ' transações importadas', 'success');
+  }, 1200);
+}
+
+function confirmDisconnectBank(bankName) {
+  openModal('Desconectar ' + bankName, `<div style="font-size:13px;color:var(--ink-2);line-height:1.6">Tem certeza que deseja desconectar <b>${bankName}</b>? As transações já importadas continuam no seu histórico, mas a sincronização automática para.</div>
+  <div class="modal-actions"><button class="btn-cancel" onclick="closeModal()">Cancelar</button><button class="btn-danger" style="margin-right:0" onclick="disconnectBank('${bankName}')">Desconectar</button></div>`);
+}
+
+function disconnectBank(bankName) {
+  const accounts = ofGetAccounts().filter(function(a) { return a.bankName !== bankName; });
+  ofSaveAccounts(accounts);
+  closeModal();
+  renderCurrentTab();
+  showToast(bankName + ' desconectado', 'info');
+}
+
+function syncBankAccount(bankName, icon) {
+  showToast('Sincronizando ' + bankName + '…', 'info');
+  setTimeout(function() {
+    const accounts = ofGetAccounts();
+    const acc = accounts.find(function(a) { return a.bankName === bankName; });
+    if (!acc) return;
+    const newCount = importSampleBankTransactions(bankName);
+    acc.lastSync = new Date().toISOString();
+    acc.txCount = (acc.txCount || 0) + newCount;
+    ofSaveAccounts(accounts);
+    renderCurrentTab();
+    showToast('🔄 ' + bankName + ' sincronizado — ' + newCount + ' novas transações', 'success');
+  }, 900);
+}
+
+// Gera transações de exemplo realistas para simular a importação via Open Finance
+function importSampleBankTransactions(bankName) {
+  const isPJ = state.profile_type === 'PJ';
+  const expCats = getCatsExpense(), incCats = getCatsIncome();
+  const sampleExpenses = [
+    { desc: 'Supermercado', min: 80, max: 450 }, { desc: 'Uber', min: 12, max: 60 },
+    { desc: 'Restaurante', min: 25, max: 180 }, { desc: 'Farmácia', min: 20, max: 150 },
+    { desc: 'Posto de gasolina', min: 100, max: 300 }, { desc: 'Streaming', min: 20, max: 55 },
+  ];
+  const sampleIncomes = [ { desc: 'Transferência recebida', min: 200, max: 3000 }, { desc: 'PIX recebido', min: 50, max: 1500 } ];
+  const count = 4 + Math.floor(Math.random() * 5); // 4 a 8 transações
+  let added = 0;
+  for (let i = 0; i < count; i++) {
+    const isIncome = Math.random() < 0.25;
+    const pool = isIncome ? sampleIncomes : sampleExpenses;
+    const pick = pool[Math.floor(Math.random() * pool.length)];
+    const amount = Math.round((pick.min + Math.random() * (pick.max - pick.min)) * 100) / 100;
+    const daysAgo = Math.floor(Math.random() * 28);
+    const d = new Date(); d.setDate(d.getDate() - daysAgo);
+    const dateStr = String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0');
+    const cat = isIncome ? incCats[0] : expCats[Math.floor(Math.random() * expCats.length)];
+    const t = { id: genId(), date: dateStr, desc: pick.desc + ' · via ' + bankName, cat: cat, amount: amount, type: isIncome ? 'income' : 'expense', recur: false };
+    state.transactions.push(t);
+    dbUpsert('transactions', { id: t.id, user_id: currentUser?.id, type: t.type, description: t.desc, category: t.cat, amount: t.amount, date: `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`, recurring: false });
+    added++;
+  }
+  return added;
+}
+
 function renderOpenFinance(c) {
   const isPJ = state.profile_type === 'PJ';
-  const banks = [
-    { icon: '🟣', name: 'Nubank', status: 'Disponível' },
-    { icon: '🟠', name: 'Itaú', status: 'Disponível' },
-    { icon: '🔴', name: 'Bradesco', status: 'Disponível' },
-    { icon: '🔵', name: 'Banco do Brasil', status: 'Disponível' },
-    { icon: '🟢', name: 'Sicredi', status: 'Em breve' },
-    { icon: '🟡', name: 'Inter', status: 'Disponível' },
-    { icon: '🟤', name: 'C6 Bank', status: 'Disponível' },
-    { icon: '⚫', name: 'BTG Pactual', status: 'Em breve' },
-  ];
-  const isActive = profile?.plan === 'plus' || profile?.plan === 'pro' || profile?.plan === 'business';
+  const banks = OPENFINANCE_BANKS;
+  const isActive = isPlusUser();
+  const connected = ofGetAccounts();
 
   return `<div class="openfi-hero animate-in">
     <div class="openfi-badge">✨ Open Finance Brasil</div>
@@ -3580,15 +3792,44 @@ function renderOpenFinance(c) {
   </div>
 
   <div class="kpi-grid mb-24 animate-in stagger-1">${[
-    { label: 'Bancos suportados', value: '250+', cls: '' },
-    { label: 'Atualização', value: 'Tempo real', cls: 'teal' },
+    { label: 'Bancos suportados', value: banks.length + '+', cls: '' },
+    { label: 'Contas conectadas', value: String(connected.length), cls: 'teal' },
     { label: 'Categorização', value: 'Automática', cls: 'income' },
     { label: 'Segurança', value: 'Criptografia E2E', cls: '' },
   ].map((k, i) => `<div class="kpi animate-in stagger-${i + 1}"><div class="kpi-label">${k.label}</div><div class="kpi-value ${k.cls}" style="font-size:20px">${k.value}</div></div>`).join('')}</div>
 
+  ${connected.length > 0 ? `<div class="card mb-24 animate-in stagger-2">
+    <div class="card-header"><div><div class="card-title">Contas conectadas</div><div class="card-subtitle">Sincronize a qualquer momento ou desconecte quando quiser</div></div></div>
+    ${connected.map(function(a) {
+      return `<div class="notif-item" style="cursor:default">
+        <div class="notif-icon">${a.icon}</div>
+        <div class="notif-content">
+          <div class="notif-title">${a.bankName} <span style="font-size:10px;background:var(--income-light);color:var(--income);padding:2px 8px;border-radius:10px;font-weight:700">Conectado</span></div>
+          <div class="notif-desc">${a.txCount || 0} transações importadas · última sincronização ${new Date(a.lastSync).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })}</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <button class="btn-sm" onclick="syncBankAccount('${a.bankName}','${a.icon}')">🔄 Sincronizar</button>
+          <button class="btn-sm" onclick="confirmDisconnectBank('${a.bankName}')" style="color:var(--expense)">Desconectar</button>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>` : ''}
+
   <div class="card mb-24 animate-in stagger-3">
     <div class="card-header"><div><div class="card-title">Bancos parceiros</div><div class="card-subtitle">Selecione seu banco para iniciar a conexão</div></div></div>
-    <div class="bank-grid">${banks.map((b, i) => `<div class="bank-card animate-in stagger-${(i % 4) + 1}" onclick="${isActive ? `showToast('Conexão com ${b.name} em breve!','info')` : `showToast('Disponível no plano Plus ou superior','info')`}"><div class="bank-card-icon">${b.icon}</div><div class="bank-card-name">${b.name}</div><div class="bank-card-status">${b.status}</div></div>`).join('')}</div>
+    <div class="bank-grid">${banks.map((b, i) => {
+      const isConnected = connected.find(function(a) { return a.bankName === b.name; });
+      const disabled = b.status === 'Em breve';
+      let action;
+      if (disabled) action = `showToast('${b.name} chega em breve!','info')`;
+      else if (isConnected) action = `showToast('${b.name} já está conectado. Use Sincronizar ou Desconectar acima.','info')`;
+      else action = `openBankConnectModal('${b.name}','${b.icon}')`;
+      return `<div class="bank-card animate-in stagger-${(i % 4) + 1}" style="${disabled ? 'opacity:0.55' : ''}" onclick="${action}">
+        <div class="bank-card-icon">${b.icon}</div>
+        <div class="bank-card-name">${b.name}</div>
+        <div class="bank-card-status">${isConnected ? '✅ Conectado' : b.status}</div>
+      </div>`;
+    }).join('')}</div>
     ${!isActive ? `<div class="premium-lock" onclick="switchTab('plano')">🔒 Upgrade para Plus — Desbloquear Open Finance</div>` : ''}
   </div>
 
@@ -3596,7 +3837,7 @@ function renderOpenFinance(c) {
     <div class="card-header"><div><div class="card-title">Como funciona</div></div></div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;padding-top:8px">
       ${[
-        { step: '1', icon: '🏦', title: 'Selecione o banco', desc: 'Escolha entre 250+ instituições financeiras.' },
+        { step: '1', icon: '🏦', title: 'Selecione o banco', desc: 'Escolha entre ' + banks.length + '+ instituições financeiras.' },
         { step: '2', icon: '🔐', title: 'Autorize o acesso', desc: 'Autentique-se com segurança no app do seu banco.' },
         { step: '3', icon: '📊', title: 'Dados importados', desc: 'Transações categorizadas automaticamente no seu dashboard.' },
         { step: '4', icon: '🤖', title: 'Insights em tempo real', desc: 'Alertas e sugestões baseados nos seus gastos reais.' },
@@ -3878,23 +4119,64 @@ function bindConverter() {
 function renderPlano() {
   const cur = profile?.plan || 'free';
   const status = profile?.plan_status || 'active';
+  const L = PLAN_LIMITS;
   const plans = [
-    { id: 'free', name: 'Free', price: 'R$ 0', period: '/mês', features: ['Até 50 transações/mês', '1 meta financeira', 'Dashboard básico', 'Exportar dados'], cta: 'Plano atual', priceId: null },
-    { id: 'plus', name: 'Plus', price: 'R$ 19,90', period: '/mês', features: ['Transações ilimitadas', 'Metas ilimitadas', 'Projeções avançadas', 'Saúde financeira', 'Suporte prioritário'], cta: 'Fazer upgrade', priceId: appConfig.stripePricePlus, popular: true },
-    { id: 'pro', name: 'Pro', price: 'R$ 39,90', period: '/mês', features: ['Tudo do Plus', 'Relatórios PDF', 'Multi-moeda', 'Controle de patrimônio avançado', 'API de integração'], cta: 'Fazer upgrade', priceId: appConfig.stripePricePro },
-    { id: 'business', name: 'Business', price: 'R$ 99,90', period: '/mês', features: ['Tudo do Pro', 'Multi-empresa (PJ)', 'Dashboard consolidado', 'Painel fiscal completo', 'Suporte dedicado'], cta: 'Fazer upgrade', priceId: appConfig.stripePriceBusiness },
+    { id: 'free', name: 'Free', price: 'R$ 0', period: '/mês', features: [
+      'Até ' + L.maxTransactionsPerMonth + ' lançamentos/mês',
+      'Até ' + L.maxActiveGoals + ' meta ativa',
+      'Orçamento em até ' + L.maxBudgetCategories + ' categorias',
+      'Até ' + L.maxPatrimonioItems + ' itens em Patrimônio',
+      'Até ' + L.maxSubscriptions + ' assinaturas monitoradas',
+      'Até ' + L.maxDocumentsPerMonth + ' documentos/mês',
+      'Dívidas ilimitadas e Saúde Financeira básica',
+      'Exportar dados (JSON/CSV)',
+    ], cta: 'Plano atual', priceId: null },
+    { id: 'plus', name: 'Plus', price: 'R$ 19,90', period: '/mês', features: [
+      'Lançamentos, metas e patrimônio ilimitados',
+      'Insights avançados e detecção de anomalias',
+      'Projeção de cenários futuros',
+      'Estratégia — consultoria e simulador',
+      'Open Finance — conecte suas contas bancárias',
+      'Notificações avançadas (gasto fora do padrão, risco de saldo negativo)',
+      'Suporte prioritário via WhatsApp',
+    ], cta: 'Fazer upgrade', hotmartUrl: appConfig.hotmartCheckoutPlus, priceId: appConfig.stripePricePlus, popular: true },
+    { id: 'pro', name: 'Pro', price: 'R$ 39,90', period: '/mês', features: ['Tudo do Plus', 'Relatórios PDF', 'Multi-moeda', 'Controle de patrimônio avançado', 'API de integração'], cta: 'Fazer upgrade', hotmartUrl: appConfig.hotmartCheckoutPro, priceId: appConfig.stripePricePro },
+    { id: 'business', name: 'Business', price: 'R$ 99,90', period: '/mês', features: ['Tudo do Pro', 'Multi-empresa (PJ)', 'Painel Fiscal e Fluxo de Caixa completos', 'Dashboard consolidado', 'Suporte dedicado'], cta: 'Fazer upgrade', hotmartUrl: appConfig.hotmartCheckoutBusiness, priceId: appConfig.stripePriceBusiness },
   ];
-  return `<div class="section-header animate-in"><div><div class="section-title">Seu Plano</div><div class="section-desc">Plano atual: <strong>${plans.find(p => p.id === cur)?.name || 'Free'}</strong>${status !== 'active' ? ' — ' + status : ''}</div></div>${profile?.stripe_customer_id ? `<button class="btn-add" onclick="openBillingPortal()">Gerenciar assinatura</button>` : ''}</div>
+  const manageBtn = profile?.payment_provider === 'hotmart'
+    ? `<button class="btn-add" onclick="openHotmartAccount()">Gerenciar compra (Hotmart)</button>`
+    : profile?.stripe_customer_id
+      ? `<button class="btn-add" onclick="openBillingPortal()">Gerenciar assinatura</button>`
+      : '';
+  return `<div class="section-header animate-in"><div><div class="section-title">Seu Plano</div><div class="section-desc">Plano atual: <strong>${plans.find(p => p.id === cur)?.name || 'Free'}</strong>${status !== 'active' ? ' — ' + status : ''}</div></div>${manageBtn}</div>
   <div class="pricing-grid">${plans.map((p, i) => {
     const isCurrent = p.id === cur;
+    let ctaHtml;
+    if (isCurrent) {
+      ctaHtml = `<button class="btn-pricing current" disabled>Plano atual</button>`;
+    } else if (p.hotmartUrl) {
+      const email = currentUser?.email ? encodeURIComponent(currentUser.email) : '';
+      ctaHtml = `<a class="btn-pricing" style="display:block;text-align:center;text-decoration:none;box-sizing:border-box" href="${p.hotmartUrl}${email ? '?email=' + email : ''}" target="_blank" rel="noopener noreferrer">Comprar na Hotmart</a>` +
+        (p.priceId ? `<button class="btn-sm" style="width:100%;margin-top:8px" onclick="startCheckout('${p.priceId}')">ou cartão internacional (Stripe)</button>` : '');
+    } else if (p.priceId) {
+      ctaHtml = `<button class="btn-pricing" onclick="startCheckout('${p.priceId}')">Fazer upgrade</button>`;
+    } else {
+      ctaHtml = `<button class="btn-pricing" disabled title="Configure o link de checkout">Em breve</button>`;
+    }
     return `<div class="pricing-card${p.popular ? ' popular' : ''}${isCurrent ? ' current' : ''} animate-in stagger-${i + 1}">
       ${p.popular ? '<div class="pricing-popular">Mais popular</div>' : ''}
       <div class="pricing-name">${p.name}</div>
       <div class="pricing-price">${p.price}<span class="pricing-period">${p.period}</span></div>
       <ul class="pricing-features">${p.features.map(f => `<li>✓ ${f}</li>`).join('')}</ul>
-      ${isCurrent ? `<button class="btn-pricing current" disabled>Plano atual</button>` : p.priceId ? `<button class="btn-pricing" onclick="startCheckout('${p.priceId}')">Fazer upgrade</button>` : `<button class="btn-pricing" disabled>—</button>`}
+      ${ctaHtml}
     </div>`;
-  }).join('')}</div>`;
+  }).join('')}</div>
+  <div style="text-align:center;font-size:11.5px;color:var(--ink-3);margin-top:16px">Pagamento processado com segurança via Hotmart · compra protegida e garantia conforme política da plataforma</div>`;
+}
+
+function openHotmartAccount() {
+  window.open('https://sso.hotmart.com/', '_blank', 'noopener,noreferrer');
+  showToast('Acesse com o e-mail usado na compra para ver ou cancelar sua assinatura.', 'info');
 }
 
 async function startCheckout(priceId) {
@@ -3979,7 +4261,8 @@ async function showApp() {
     const btn = document.createElement('button');
     btn.className = 'nav-btn' + (t.id === 'dashboard' ? ' active' : '');
     if (t.pj) btn.classList.add('pj-tab', 'show');
-    btn.textContent = t.label; btn.dataset.tab = t.id;
+    btn.dataset.tab = t.id;
+    btn.innerHTML = t.label + (t.plus && !isPlusUser() ? ' <span class="nav-plus-lock" title="Recurso Plus">🔒</span>' : '');
     btn.addEventListener('click', () => switchTab(t.id));
     nav.appendChild(btn);
   });

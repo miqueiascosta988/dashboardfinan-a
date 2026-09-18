@@ -118,13 +118,25 @@ body {
 .stagger-6 { animation-delay: 0.30s; }
 
 /* ─── TOAST ──────────────────────────────────── */
-.toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+.toast-container { position: fixed; bottom: 96px; right: 24px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
 .toast { pointer-events: auto; display: flex; align-items: center; gap: 10px; padding: 12px 18px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-xl); font-size: 13px; font-weight: 500; color: var(--ink); animation: toastIn 0.3s ease both; max-width: 360px; }
 .toast.removing { animation: toastOut 0.25s ease both; }
 .toast-icon { font-size: 18px; flex-shrink: 0; }
 .toast-success .toast-icon { color: var(--income); }
 .toast-error .toast-icon { color: var(--expense); }
 .toast-info .toast-icon { color: var(--teal); }
+.toast-warning .toast-icon { color: var(--amber); }
+.toast-clickable { cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; }
+.toast-clickable:hover { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(26,25,23,0.18); }
+.toast-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.toast-body strong { font-size: 13px; }
+.toast-body span { font-size: 11.5px; color: var(--ink-3); }
+.toast-close { background: none; border: none; color: var(--ink-3); font-size: 13px; cursor: pointer; padding: 2px; margin-left: 4px; flex-shrink: 0; }
+.toast-close:hover { color: var(--ink); }
+@media (max-width: 500px) {
+  .toast-container { bottom: 82px; right: 12px; left: 12px; }
+  .toast { max-width: 100%; }
+}
 
 /* ─── AUTH SCREEN ─────────────────────────────── */
 #auth-screen { min-height: 100dvh; display: flex; align-items: center; justify-content: center; background: linear-gradient(145deg, var(--surface) 0%, var(--teal-wash) 100%); }
@@ -224,15 +236,24 @@ body {
 .notif-dropdown { position: absolute; top: 100%; right: 0; margin-top: 8px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-xl); z-index: 999; width: 340px; max-height: 400px; overflow-y: auto; display: none; }
 .notif-dropdown.open { display: block; }
 .notif-header { padding: 12px 16px; border-bottom: 1px solid var(--border); font-family: var(--font-display); font-weight: 700; font-size: 14px; display: flex; justify-content: space-between; align-items: center; }
+.notif-header-clear { font-family: var(--font-body); font-weight: 600; font-size: 11px; color: var(--ink-3); background: none; border: none; cursor: pointer; padding: 4px 6px; border-radius: 6px; transition: all 0.15s; }
+.notif-header-clear:hover { color: var(--teal); background: var(--teal-wash); }
 .notif-clear { font-size: 11px; color: var(--teal); cursor: pointer; font-weight: 500; background: none; border: none; font-family: var(--font-body); }
-.notif-item { padding: 12px 16px; border-bottom: 1px solid var(--border-subtle); display: flex; gap: 10px; align-items: flex-start; transition: background 0.15s; }
+.notif-item { padding: 12px 16px; border-bottom: 1px solid var(--border-subtle); display: flex; gap: 10px; align-items: flex-start; transition: background 0.15s; cursor: pointer; position: relative; }
 .notif-item:hover { background: var(--card-alt); }
+.notif-item:hover .notif-dismiss { opacity: 1; }
 .notif-item:last-child { border-bottom: none; }
+.notif-item.unread { background: var(--teal-wash); }
+.notif-item.unread:hover { background: var(--teal-wash); filter: brightness(0.97); }
 .notif-icon { font-size: 20px; flex-shrink: 0; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: var(--card-alt); }
-.notif-content { flex: 1; min-width: 0; }
-.notif-title { font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 2px; }
+.notif-content { flex: 1; min-width: 0; padding-right: 18px; }
+.notif-title { font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 2px; display: flex; align-items: center; gap: 6px; }
+.notif-unread-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--teal); flex-shrink: 0; }
 .notif-desc { font-size: 12px; color: var(--ink-3); line-height: 1.4; }
-.notif-time { font-size: 10px; color: var(--ink-3); margin-top: 4px; }
+.notif-time { font-size: 10px; color: var(--ink-3); margin-top: 4px; display: flex; align-items: center; gap: 4px; }
+.notif-cta { font-size: 10px; color: var(--teal); font-weight: 700; }
+.notif-dismiss { position: absolute; top: 10px; right: 10px; width: 20px; height: 20px; border-radius: 50%; border: none; background: var(--card); color: var(--ink-3); font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0; transition: all 0.15s; box-shadow: var(--shadow); }
+.notif-dismiss:hover { background: var(--expense-light); color: var(--expense); }
 .notif-empty { padding: 32px 16px; text-align: center; color: var(--ink-3); font-size: 13px; }
 
 /* Comparativo Mensal */
@@ -1351,68 +1372,288 @@ initTheme();
 // ═══════════════════════════════════════════════════════
 // NOTIFICATIONS
 // ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
+// NOTIFICAÇÕES — PERSISTÊNCIA (lido/dispensado)
+// ═══════════════════════════════════════════════════════
+var NOTIF_SEEN_KEY = 'financa-notif-seen';       // ids já vistos (abriu o sino) -> true
+var NOTIF_DISMISSED_KEY = 'financa-notif-dismissed'; // ids dispensados -> timestamp de expiração
+var NOTIF_TOASTED_KEY = 'financa-notif-toasted';  // ids que já dispararam toast -> true
+var NOTIF_DISMISS_DAYS = 7;
+
+function notifStorageGet(key) {
+  try { return JSON.parse(localStorage.getItem(key) || '{}'); } catch(e) { return {}; }
+}
+function notifStorageSet(key, obj) {
+  try { localStorage.setItem(key, JSON.stringify(obj)); } catch(e) {}
+}
+
+function notifIsDismissed(id) {
+  var dismissed = notifStorageGet(NOTIF_DISMISSED_KEY);
+  var until = dismissed[id];
+  if (!until) return false;
+  if (Date.now() > until) { delete dismissed[id]; notifStorageSet(NOTIF_DISMISSED_KEY, dismissed); return false; }
+  return true;
+}
+
+function dismissNotif(id, evt) {
+  if (evt) evt.stopPropagation();
+  var dismissed = notifStorageGet(NOTIF_DISMISSED_KEY);
+  dismissed[id] = Date.now() + (NOTIF_DISMISS_DAYS * 24 * 60 * 60 * 1000);
+  notifStorageSet(NOTIF_DISMISSED_KEY, dismissed);
+  renderNotifications();
+  updateNotifBadge();
+}
+
+function notifClearAllDismissed() {
+  notifStorageSet(NOTIF_DISMISSED_KEY, {});
+  renderNotifications();
+  updateNotifBadge();
+  showToast('Alertas dispensados foram restaurados', 'info');
+}
+
+// Clique num alerta: marca como lido, fecha o dropdown e leva à aba relacionada
+function notifGoToAction(id, tab) {
+  var seen = notifStorageGet(NOTIF_SEEN_KEY);
+  seen[id] = true;
+  notifStorageSet(NOTIF_SEEN_KEY, seen);
+  closeAllDropdowns();
+  if (tab) switchTab(tab);
+  updateNotifBadge();
+}
+
+// ═══════════════════════════════════════════════════════
+// NOTIFICAÇÕES — HELPERS DE ANÁLISE
+// ═══════════════════════════════════════════════════════
+function parseTxDate(t) {
+  if (!t.date) return null;
+  if (typeof t.date === 'string' && t.date.includes('-')) return new Date(t.date + 'T00:00:00');
+  return null;
+}
+
+// Total de despesas por categoria em um mês específico (monthsAgo=0 é o mês atual)
+function getMonthCategoryTotals(monthsAgo) {
+  const ref = new Date();
+  ref.setMonth(ref.getMonth() - monthsAgo);
+  const m = ref.getMonth(), y = ref.getFullYear();
+  const map = {};
+  state.transactions.forEach(function(t) {
+    if (t.type !== 'expense') return;
+    const dt = parseTxDate(t);
+    if (!dt || dt.getMonth() !== m || dt.getFullYear() !== y) return;
+    map[t.cat] = (map[t.cat] || 0) + t.amount;
+  });
+  return map;
+}
+
+// Fluxo de caixa líquido médio diário dos últimos N dias (para projeção de saldo)
+function getRecentDailyNet(days) {
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - days);
+  let inc = 0, exp = 0;
+  state.transactions.forEach(function(t) {
+    const dt = parseTxDate(t);
+    if (!dt || dt < cutoff) return;
+    if (t.type === 'income') inc += t.amount; else if (t.type === 'expense') exp += t.amount;
+  });
+  return (inc - exp) / days;
+}
+
 function generateNotifications() {
   const notifs = [];
   const today = new Date();
   const isPJ = state.profile_type === 'PJ';
-  // Budget alerts
   const c = compute();
+
+  // ── Orçamento ──
   if (c.totalExpense > 0 && c.totalIncome > 0) {
     const usedPct = (c.totalExpense / c.totalIncome * 100);
-    if (usedPct >= 90) notifs.push({ icon: '🚨', title: 'Orçamento crítico', desc: Math.round(usedPct) + '% da renda já gasta este mês', type: 'danger', time: 'Agora' });
-    else if (usedPct >= 75) notifs.push({ icon: '⚠️', title: 'Orçamento alto', desc: Math.round(usedPct) + '% da renda comprometida', type: 'warning', time: 'Agora' });
+    if (usedPct >= 90) notifs.push({ id: 'budget-critical', icon: '🚨', title: 'Orçamento crítico', desc: Math.round(usedPct) + '% da renda já gasta este mês', type: 'danger', time: 'Agora', tab: 'orcamento' });
+    else if (usedPct >= 75) notifs.push({ id: 'budget-high', icon: '⚠️', title: 'Orçamento alto', desc: Math.round(usedPct) + '% da renda comprometida', type: 'warning', time: 'Agora', tab: 'orcamento' });
   }
-  // Debt alerts
-  if (c.debtPct > 30) notifs.push({ icon: '💳', title: 'Endividamento alto', desc: 'Dívidas representam ' + pct(c.debtPct) + ' da renda', type: 'warning', time: 'Análise' });
-  // Savings alert
-  if (c.taxaEconomia < 10 && c.totalIncome > 0) notifs.push({ icon: '📉', title: 'Economia baixa', desc: 'Você está economizando apenas ' + pct(c.taxaEconomia) + '. Ideal: > 20%', type: 'info', time: 'Dica' });
-  // Goals progress
+
+  // ── Endividamento ──
+  if (c.debtPct > 30) notifs.push({ id: 'debt-high', icon: '💳', title: 'Endividamento alto', desc: 'Dívidas representam ' + pct(c.debtPct) + ' da renda mensal — acima do recomendado (30%)', type: 'warning', time: 'Análise', tab: 'dividas' });
+
+  // ── Economia baixa (consultoria) ──
+  if (c.taxaEconomia < 10 && c.totalIncome > 0) notifs.push({ id: 'savings-low', icon: '📉', title: 'Economia baixa', desc: 'Você está economizando apenas ' + pct(c.taxaEconomia) + '. Ideal: acima de 20%. Veja um plano personalizado.', type: 'info', time: 'Dica', tab: 'insights' });
+
+  // ── Metas: progresso ──
   state.goals.forEach(function(g) {
-    const progress = g.current / g.target * 100;
-    if (progress >= 90 && progress < 100) notifs.push({ icon: '🎯', title: 'Meta quase atingida!', desc: g.name + ' — ' + Math.round(progress) + '% completa', type: 'success', time: 'Progresso' });
-    if (progress >= 100) notifs.push({ icon: '🏆', title: 'Meta atingida!', desc: g.name + ' — Parabéns!', type: 'success', time: 'Conquista' });
+    const progress = g.target > 0 ? (g.current / g.target * 100) : 0;
+    if (progress >= 90 && progress < 100) notifs.push({ id: 'goal-almost-' + g.id, icon: '🎯', title: 'Meta quase atingida!', desc: g.name + ' — ' + Math.round(progress) + '% completa', type: 'success', time: 'Progresso', tab: 'metas' });
+    else if (progress >= 100) notifs.push({ id: 'goal-done-' + g.id, icon: '🏆', title: 'Meta atingida!', desc: g.name + ' — Parabéns!', type: 'success', time: 'Conquista', tab: 'metas' });
+    else if (!g.monthly || g.monthly <= 0) notifs.push({ id: 'goal-nocontrib-' + g.id, icon: '⏳', title: 'Meta sem contribuição definida', desc: g.name + ' — sem um valor mensal, essa meta não vai avançar', type: 'warning', time: 'Meta em risco', tab: 'metas' });
+    else {
+      const monthsNeeded = (g.target - g.current) / g.monthly;
+      if (monthsNeeded > 48) notifs.push({ id: 'goal-slow-' + g.id, icon: '🐢', title: 'Meta em ritmo lento', desc: g.name + ' — no ritmo atual, levará mais de ' + Math.ceil(monthsNeeded / 12) + ' anos para concluir', type: 'warning', time: 'Meta em risco', tab: 'metas' });
+    }
   });
-  // Subscription alerts
+
+  // ── Assinaturas ──
   if (c.totalSubs > 0) {
     const subsPct = c.totalIncome > 0 ? (c.totalSubs / c.totalIncome * 100) : 0;
-    if (subsPct > 15) notifs.push({ icon: '📱', title: (isPJ ? 'SaaS elevado' : 'Assinaturas altas'), desc: fmtD(c.totalSubs) + '/mês (' + pct(subsPct) + ' da renda)', type: 'warning', time: 'Análise' });
+    if (subsPct > 15) notifs.push({ id: 'subs-high', icon: '📱', title: (isPJ ? 'SaaS elevado' : 'Assinaturas altas'), desc: fmtD(c.totalSubs) + '/mês (' + pct(subsPct) + ' da renda)', type: 'warning', time: 'Análise', tab: 'assinaturas' });
   }
-  // Health score
-  if (c.healthTotal < 50) notifs.push({ icon: '💊', title: 'Saúde financeira precisa de atenção', desc: 'Score atual: ' + c.healthTotal + '/100', type: 'danger', time: 'Diagnóstico' });
-  // Empty state tips
-  if (state.transactions.length === 0) notifs.push({ icon: '✨', title: 'Comece adicionando transações', desc: 'Registre receitas e despesas para análises personalizadas', type: 'info', time: 'Dica' });
-  if (state.goals.length === 0 && state.transactions.length > 0) notifs.push({ icon: '🎯', title: 'Defina suas metas', desc: 'Crie metas financeiras e acompanhe o progresso', type: 'info', time: 'Sugestão' });
-  return notifs;
+
+  // ── Saúde financeira → direciona para Insights (consultoria) ──
+  if (c.healthTotal < 50) notifs.push({ id: 'health-low', icon: '💊', title: 'Saúde financeira precisa de atenção', desc: 'Score atual: ' + c.healthTotal + '/100. Veja uma análise completa e recomendações personalizadas.', type: 'danger', time: 'Diagnóstico', tab: 'insights' });
+  else if (c.healthTotal >= 85) notifs.push({ id: 'health-great', icon: '🌟', title: 'Saúde financeira excelente!', desc: 'Score atual: ' + c.healthTotal + '/100. Continue assim — veja insights para otimizar ainda mais.', type: 'success', time: 'Diagnóstico', tab: 'insights' });
+
+  // ── Contas/dívidas vencendo (despesas recorrentes com dia do mês próximo) ──
+  const todayDay = today.getDate();
+  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+  const seenDueKeys = {};
+  state.transactions.filter(function(t) { return t.type === 'expense' && t.recur; }).forEach(function(t) {
+    const dt = parseTxDate(t);
+    if (!dt) return;
+    const day = dt.getDate();
+    const key = (t.desc || t.cat) + '-' + day;
+    if (seenDueKeys[key]) return;
+    seenDueKeys[key] = true;
+    let diff = day - todayDay;
+    if (diff < 0) diff += daysInMonth; // já passou este mês, considera o próximo ciclo
+    if (diff <= 3) {
+      const when = diff === 0 ? 'vence hoje!' : (diff === 1 ? 'vence amanhã' : 'vence em ' + diff + ' dias');
+      notifs.push({ id: 'due-' + key, icon: '📆', title: 'Conta vencendo em breve', desc: (t.desc || t.cat) + ' — ' + when + ' (dia ' + day + ')', type: diff === 0 ? 'danger' : 'warning', time: 'Vencimento', tab: 'despesas' });
+    }
+  });
+  // Parcelas de dívidas perto do fim do mês
+  const daysLeftInMonth = daysInMonth - todayDay;
+  if (daysLeftInMonth <= 5) {
+    state.debts.filter(function(d) { return d.mensal > 0; }).forEach(function(d) {
+      notifs.push({ id: 'debtdue-' + d.id, icon: '🏦', title: 'Parcela de dívida vencendo', desc: d.name + ' — parcela de ' + fmtD(d.mensal) + ' vence até o fim do mês', type: 'warning', time: 'Vencimento', tab: 'dividas' });
+    });
+  }
+
+  // ── Gasto fora do padrão (categoria muito acima da média dos últimos 3 meses) ──
+  const currentCatTotals = getMonthCategoryTotals(0);
+  const histMonths = [getMonthCategoryTotals(1), getMonthCategoryTotals(2), getMonthCategoryTotals(3)];
+  Object.keys(currentCatTotals).forEach(function(cat) {
+    const current = currentCatTotals[cat];
+    const histValues = histMonths.map(function(m) { return m[cat] || 0; }).filter(function(v) { return v > 0; });
+    if (histValues.length < 2) return; // precisa de histórico mínimo para não gerar ruído
+    const avg = histValues.reduce(function(s, v) { return s + v; }, 0) / histValues.length;
+    if (avg > 0 && current > avg * 1.6 && (current - avg) > 100) {
+      const increase = Math.round(((current - avg) / avg) * 100);
+      notifs.push({ id: 'catspike-' + cat, icon: '📊', title: 'Gasto fora do padrão', desc: '"' + cat + '" está ' + increase + '% acima da média dos últimos meses', type: 'warning', time: 'Anomalia', tab: 'despesas' });
+    }
+  });
+
+  // ── Projeção de saldo negativo ──
+  const dailyNet = getRecentDailyNet(30);
+  if (dailyNet < 0) {
+    const liquid = state.assets.reduce(function(s, a) { return s + a.value; }, 0);
+    if (liquid <= 0) {
+      notifs.push({ id: 'balance-risk-zero', icon: '📉', title: 'Fluxo de caixa negativo', desc: 'Suas despesas recentes superam as receitas. Revise seu orçamento com urgência.', type: 'danger', time: 'Projeção', tab: 'projecao' });
+    } else {
+      const daysToZero = Math.floor(liquid / Math.abs(dailyNet));
+      if (daysToZero <= 30) notifs.push({ id: 'balance-risk-' + daysToZero, icon: '📉', title: 'Projeção de saldo negativo', desc: 'No ritmo atual de gastos, seu saldo pode zerar em cerca de ' + daysToZero + ' dias', type: 'danger', time: 'Projeção', tab: 'projecao' });
+    }
+  }
+
+  // ── Dicas de início ──
+  if (state.transactions.length === 0) notifs.push({ id: 'empty-tx', icon: '✨', title: 'Comece adicionando transações', desc: 'Registre receitas e despesas para análises personalizadas', type: 'info', time: 'Dica', tab: 'receitas' });
+  if (state.goals.length === 0 && state.transactions.length > 0) notifs.push({ id: 'empty-goals', icon: '🎯', title: 'Defina suas metas', desc: 'Crie metas financeiras e acompanhe o progresso', type: 'info', time: 'Sugestão', tab: 'metas' });
+
+  // Remove alertas dispensados temporariamente pelo usuário
+  return notifs.filter(function(n) { return !notifIsDismissed(n.id); });
 }
 
 function toggleNotifications() {
   const dd = document.getElementById('notif-dropdown');
   const wasOpen = dd.classList.contains('open');
   closeAllDropdowns();
-  if (!wasOpen) { renderNotifications(); dd.classList.add('open'); }
+  if (!wasOpen) {
+    renderNotifications();
+    dd.classList.add('open');
+    // Abrir o sino marca tudo como visto (zera contagem de "novos")
+    const notifs = generateNotifications();
+    const seen = notifStorageGet(NOTIF_SEEN_KEY);
+    notifs.forEach(function(n) { seen[n.id] = true; });
+    notifStorageSet(NOTIF_SEEN_KEY, seen);
+    setTimeout(updateNotifBadge, 300);
+  }
 }
 
 function renderNotifications() {
   const notifs = generateNotifications();
+  const seen = notifStorageGet(NOTIF_SEEN_KEY);
   const dd = document.getElementById('notif-dropdown');
   if (notifs.length === 0) {
     dd.innerHTML = '<div class="notif-header"><span>Notificações</span></div><div class="notif-empty">🔔 Nenhuma notificação no momento</div>';
     return;
   }
-  let html = '<div class="notif-header"><span>Notificações (' + notifs.length + ')</span></div>';
+  let html = '<div class="notif-header"><span>Notificações (' + notifs.length + ')</span><button class="notif-header-clear" onclick="notifClearAllDismissed()" title="Restaurar alertas dispensados">Restaurar</button></div>';
   notifs.forEach(function(n) {
-    html += '<div class="notif-item"><div class="notif-icon">' + n.icon + '</div><div class="notif-content"><div class="notif-title">' + n.title + '</div><div class="notif-desc">' + n.desc + '</div><div class="notif-time">' + n.time + '</div></div></div>';
+    const isUnread = !seen[n.id];
+    html += '<div class="notif-item' + (isUnread ? ' unread' : '') + '" onclick="notifGoToAction(\'' + n.id + '\', \'' + (n.tab || '') + '\')">' +
+      '<div class="notif-icon">' + n.icon + '</div>' +
+      '<div class="notif-content">' +
+        '<div class="notif-title">' + (isUnread ? '<span class="notif-unread-dot"></span>' : '') + n.title + '</div>' +
+        '<div class="notif-desc">' + n.desc + '</div>' +
+        '<div class="notif-time">' + n.time + (n.tab ? ' <span class="notif-cta">· Ver →</span>' : '') + '</div>' +
+      '</div>' +
+      '<button class="notif-dismiss" onclick="dismissNotif(\'' + n.id + '\', event)" title="Dispensar por 7 dias">✕</button>' +
+    '</div>';
   });
   dd.innerHTML = html;
 }
 
 function updateNotifBadge() {
   const notifs = generateNotifications();
+  const seen = notifStorageGet(NOTIF_SEEN_KEY);
   const badge = document.getElementById('notif-badge');
-  if (!badge) return;
-  const count = notifs.filter(function(n){ return n.type === 'danger' || n.type === 'warning'; }).length;
-  badge.textContent = count;
-  badge.style.display = count > 0 ? 'flex' : 'none';
+  if (badge) {
+    const unreadCount = notifs.filter(function(n) { return !seen[n.id]; }).length;
+    badge.textContent = unreadCount;
+    badge.style.display = unreadCount > 0 ? 'flex' : 'none';
+  }
+  checkForNewNotifToasts(notifs);
+}
+
+// Dispara um toast automático assim que uma condição de alerta aparece pela
+// primeira vez (ex.: orçamento acabou de estourar), sem precisar abrir o sino.
+var NOTIF_MAX_TOASTS_AT_ONCE = 3;
+
+function checkForNewNotifToasts(notifs) {
+  const toasted = notifStorageGet(NOTIF_TOASTED_KEY);
+  const activeIds = {};
+  const severity = { danger: 0, warning: 1, success: 2, info: 3 };
+  const newOnes = [];
+  notifs.forEach(function(n) {
+    activeIds[n.id] = true;
+    if (!toasted[n.id] && (n.type === 'danger' || n.type === 'warning')) newOnes.push(n);
+  });
+  // Libera para notificar de novo caso a condição desapareça e volte a ocorrer no futuro
+  Object.keys(toasted).forEach(function(id) { if (!activeIds[id]) delete toasted[id]; });
+
+  if (newOnes.length > 0) {
+    newOnes.sort(function(a, b) { return severity[a.type] - severity[b.type]; });
+    const toShow = newOnes.slice(0, NOTIF_MAX_TOASTS_AT_ONCE);
+    toShow.forEach(function(n) { showNotifToast(n); });
+    if (newOnes.length > NOTIF_MAX_TOASTS_AT_ONCE) {
+      const extra = newOnes.length - NOTIF_MAX_TOASTS_AT_ONCE;
+      showNotifToast({ id: 'summary', icon: '🔔', title: '+' + extra + ' outro' + (extra > 1 ? 's' : '') + ' alerta' + (extra > 1 ? 's' : ''), desc: 'Abra o sino de notificações para ver tudo', type: 'info', tab: null });
+    }
+    newOnes.forEach(function(n) { toasted[n.id] = true; });
+  }
+  notifStorageSet(NOTIF_TOASTED_KEY, toasted);
+}
+
+function showNotifToast(n) {
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+  const toast = document.createElement('div');
+  toast.className = 'toast toast-' + (n.type === 'danger' ? 'error' : n.type === 'success' ? 'success' : n.type === 'warning' ? 'warning' : 'info') + ' toast-clickable';
+  toast.innerHTML = '<span class="toast-icon">' + n.icon + '</span>' +
+    '<div class="toast-body"><strong>' + n.title + '</strong><span>' + n.desc + '</span></div>' +
+    '<button class="toast-close" title="Fechar">✕</button>';
+  toast.querySelector('.toast-close').addEventListener('click', function(e) { e.stopPropagation(); toast.classList.add('removing'); setTimeout(function() { toast.remove(); }, 250); });
+  toast.addEventListener('click', function() {
+    if (n.id === 'summary') { toggleNotifications(); } else { notifGoToAction(n.id, n.tab); }
+    toast.remove();
+  });
+  container.appendChild(toast);
+  setTimeout(function() { if (toast.parentNode) { toast.classList.add('removing'); setTimeout(function() { toast.remove(); }, 250); } }, 7000);
 }
 
 function closeAllDropdowns() {
@@ -3720,6 +3961,9 @@ async function showApp() {
   updatePeriodDisplay();
   updateThemeIcon();
   updateNotifBadge();
+  // Reavalia os alertas periodicamente para pegar mudanças (ex.: virada de mês,
+  // conta vencendo se aproximando) mesmo sem o usuário navegar entre abas.
+  if (!window._notifWatcher) window._notifWatcher = setInterval(updateNotifBadge, 5 * 60 * 1000);
 
   // Build nav with all tabs
   const nav = document.getElementById('nav'); nav.innerHTML = '';

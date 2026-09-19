@@ -3146,6 +3146,19 @@ var PLAN_LIMITS = {
   maxDebts: 3,
 };
 
+// Limites que escalonam entre planos pagos (Plus recebe menos, Pro/Business recebem "premium")
+var TIER_LIMITS = {
+  plus:     { maxOFAccounts: 1,       projectionYears: 3 },
+  pro:      { maxOFAccounts: Infinity, projectionYears: 5 },
+  business: { maxOFAccounts: Infinity, projectionYears: 5 },
+};
+
+function tierLimit(key) {
+  if (!isPlusUser()) return 0;
+  var tier = isBusinessUser() ? 'business' : isProUser() ? 'pro' : 'plus';
+  return TIER_LIMITS[tier][key];
+}
+
 // Abas inteiramente bloqueadas por plano (mostram uma tela de upgrade em vez do conteúdo).
 // "tier" é o menor plano que já libera a aba: plus | pro | business.
 var PLUS_ONLY_TABS = {
@@ -3419,10 +3432,14 @@ function renderAssinaturas(c) {
 // ─── PROJEÇÃO ───────────────────────────────────
 function renderProjecao(c) {
   const sobra = c.resultado, proj = {};
-  ['conservador','base','otimista'].forEach(s => { const rate = s === 'conservador' ? 0.03 : s === 'base' ? 0.06 : 0.10, mr = Math.pow(1+rate,1/12)-1; let acc = c.netWorth; proj[s] = []; for (let yr=0; yr<5; yr++) { for (let mo=0; mo<12; mo++) acc = acc*(1+mr)+sobra; proj[s].push(Math.round(acc)); } });
-  return `<div class="section-header animate-in"><div><div class="section-title">Projeção Financeira</div><div class="section-desc">Baseada no resultado mensal de ${fmt(sobra)} + rendimentos compostos.</div></div></div>
+  const maxYears = tierLimit('projectionYears') || 5;
+  ['conservador','base','otimista'].forEach(s => { const rate = s === 'conservador' ? 0.03 : s === 'base' ? 0.06 : 0.10, mr = Math.pow(1+rate,1/12)-1; let acc = c.netWorth; proj[s] = []; for (let yr=0; yr<maxYears; yr++) { for (let mo=0; mo<12; mo++) acc = acc*(1+mr)+sobra; proj[s].push(Math.round(acc)); } });
+  const years = Array.from({length: maxYears}, (_,i) => i+1);
+  // Se o usuário é Plus (não Pro), oferece upsell pra ver os 5 anos completos
+  const upsell = (!isProUser() && isPlusUser()) ? '<div class="card animate-in stagger-2" style="text-align:center;padding:20px;margin-top:16px;border:1px dashed var(--border);background:var(--card-alt)"><div style="font-size:13.5px;color:var(--ink-2);margin-bottom:10px">🔒 Você está vendo <strong>3 anos</strong> de projeção. Faça upgrade para o <strong>Pro</strong> e veja até <strong>5 anos</strong> à frente.</div><button class="btn-sm" onclick="switchTab(\'plano\')">Ver plano Pro</button></div>' : '';
+  return `<div class="section-header animate-in"><div><div class="section-title">Projeção Financeira</div><div class="section-desc">Baseada no resultado mensal de ${fmt(sobra)} + rendimentos compostos${maxYears < 5 ? ' · <strong>' + maxYears + ' anos</strong> (Plus)' : ''}.</div></div></div>
   <div class="card mb-24 animate-in stagger-1"><div class="card-header"><div><div class="card-title">Patrimônio projetado</div></div></div><div class="scenario-pills" id="scenario-pills"><button class="scenario-pill" data-s="conservador">Conservador (3% a.a.)</button><button class="scenario-pill active" data-s="base">Base (6% a.a.)</button><button class="scenario-pill" data-s="otimista">Otimista (10% a.a.)</button></div>
-  <div class="overflow-x"><table class="data-table"><thead><tr><th>Ano</th><th class="text-right">Conservador</th><th class="text-right">Base</th><th class="text-right">Otimista</th></tr></thead><tbody>${[1,2,3,4,5].map((yr,i)=>`<tr><td style="font-weight:600">${currentYear()+yr}</td><td class="amount">${fmt(proj.conservador[i])}</td><td class="amount" style="color:var(--teal);font-weight:700">${fmt(proj.base[i])}</td><td class="amount">${fmt(proj.otimista[i])}</td></tr>`).join('')}</tbody></table></div></div>`;
+  <div class="overflow-x"><table class="data-table"><thead><tr><th>Ano</th><th class="text-right">Conservador</th><th class="text-right">Base</th><th class="text-right">Otimista</th></tr></thead><tbody>${years.map((yr,i)=>`<tr><td style="font-weight:600">${currentYear()+yr}</td><td class="amount">${fmt(proj.conservador[i])}</td><td class="amount" style="color:var(--teal);font-weight:700">${fmt(proj.base[i])}</td><td class="amount">${fmt(proj.otimista[i])}</td></tr>`).join('')}</tbody></table></div></div>${upsell}`;
 }
 
 // ─── SAÚDE FINANCEIRA ───────────────────────────
@@ -3873,6 +3890,13 @@ function openBankConnectModal(bankName, icon) {
 
 function simulateBankConnect(bankName, icon) {
   closeModal();
+  const existing = ofGetAccounts();
+  const cap = tierLimit('maxOFAccounts');
+  if (existing.length >= cap && cap !== Infinity) {
+    showToast('🔒 Seu plano Plus permite até ' + cap + ' contas conectadas. Faça upgrade para o Pro para conectar quantas quiser.', 'info');
+    setTimeout(function() { switchTab('plano'); }, 900);
+    return;
+  }
   showToast('Conectando com ' + bankName + '…', 'info');
   setTimeout(function() {
     const accounts = ofGetAccounts();
@@ -4295,19 +4319,23 @@ function renderPlano() {
       'Exportar dados (JSON/CSV)',
     ], cta: 'Plano atual', priceId: null },
     { id: 'plus', name: 'Plus', price: 'R$ 19,90', period: '/mês', features: [
-      'Lançamentos, metas e patrimônio ilimitados',
+      'Lançamentos, metas, dívidas e patrimônio ilimitados',
+      'Histórico completo (sem limite de meses)',
       'Insights avançados e detecção de anomalias',
-      'Projeção de cenários futuros',
-      'Open Finance — conecte suas contas bancárias',
+      'Projeção de cenários futuros (até 3 anos)',
+      'Open Finance — 1 conta bancária conectada',
+      'Câmbio multi-moeda',
       'Notificações avançadas (gasto fora do padrão, risco de saldo negativo)',
+      'Exportação sem marca d\'água (CSV/JSON)',
       'Suporte prioritário via WhatsApp',
     ], cta: 'Fazer upgrade', hotmartUrl: appConfig.hotmartCheckoutPlus, priceId: appConfig.stripePricePlus, popular: true },
     { id: 'pro', name: 'Pro', price: 'R$ 39,90', period: '/mês', features: [
       'Tudo do Plus',
       'Estratégia & Consultoria — planos em fases e simulador de decisões',
-      'Relatórios em PDF para download',
+      'Projeção estendida (até 5 anos)',
+      'Open Finance ilimitado (quantas contas quiser)',
+      'Relatórios completos em PDF para download',
       'Controle de patrimônio avançado',
-      'API de integração (em breve)',
     ], cta: 'Fazer upgrade', hotmartUrl: appConfig.hotmartCheckoutPro, priceId: appConfig.stripePricePro },
     { id: 'business', name: 'Business', price: 'R$ 99,90', period: '/mês', features: [
       'Tudo do Pro',

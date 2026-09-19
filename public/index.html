@@ -162,6 +162,27 @@ body {
 .auth-footer { text-align: center; margin-top: 20px; font-size: 13px; color: var(--ink-3); }
 .auth-footer a { color: var(--teal); text-decoration: none; font-weight: 600; }
 .auth-error { color: var(--expense); font-size: 13px; margin-bottom: 12px; display: none; padding: 10px 14px; background: var(--expense-light); border-radius: var(--radius-sm); animation: slideDown 0.2s ease; }
+.pass-wrap { position: relative; }
+.pass-wrap .pass-input { padding-right: 42px; }
+.pass-eye { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: transparent; border: none; cursor: pointer; padding: 6px 8px; font-size: 16px; line-height: 1; color: var(--ink-2); border-radius: 6px; }
+.pass-eye:hover { background: var(--card-alt); }
+.pass-strength { margin-top: 10px; font-size: 12px; }
+.pass-strength-bar { height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; margin-bottom: 6px; }
+.pass-strength-fill { height: 100%; width: 0%; background: var(--expense); border-radius: 3px; transition: width 0.25s ease, background 0.25s ease; }
+.pass-strength-fill.s1 { width: 20%; background: #ef4444; }
+.pass-strength-fill.s2 { width: 40%; background: #f97316; }
+.pass-strength-fill.s3 { width: 60%; background: #eab308; }
+.pass-strength-fill.s4 { width: 80%; background: #22c55e; }
+.pass-strength-fill.s5 { width: 100%; background: #16a34a; }
+.pass-strength-label { color: var(--ink-2); font-weight: 600; margin-bottom: 8px; }
+.pass-req { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: 1fr; gap: 3px; }
+.pass-req li { position: relative; padding-left: 20px; color: var(--ink-3); font-size: 11.5px; line-height: 1.5; transition: color 0.2s; }
+.pass-req li::before { content: '○'; position: absolute; left: 4px; top: 0; color: var(--ink-3); font-weight: 700; }
+.pass-req li.ok { color: #16a34a; }
+.pass-req li.ok::before { content: '✓'; color: #16a34a; }
+.pass-match { font-size: 12px; margin-top: 6px; min-height: 16px; }
+.pass-match.ok { color: #16a34a; }
+.pass-match.err { color: var(--expense); }
 
 /* ─── ONBOARDING ─────────────────────────────── */
 #onboarding-screen { min-height: 100dvh; display: flex; align-items: center; justify-content: center; }
@@ -956,18 +977,44 @@ svg text { font-family: var(--font-body); }
       <div id="auth-error" class="auth-error"></div>
       <div id="auth-form-login">
         <div class="form-group"><label class="form-label">E-mail</label>
-          <input class="form-input" type="email" id="login-email" placeholder="seu@email.com" /></div>
+          <input class="form-input" type="email" id="login-email" placeholder="seu@email.com" autocomplete="email" /></div>
         <div class="form-group"><label class="form-label">Senha</label>
-          <input class="form-input" type="password" id="login-pass" placeholder="••••••••" /></div>
+          <div class="pass-wrap">
+            <input class="form-input pass-input" type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password" />
+            <button type="button" class="pass-eye" aria-label="Mostrar senha" onclick="togglePassEye('login-pass', this)">👁️</button>
+          </div>
+        </div>
         <button class="btn-primary" id="btn-login">Entrar</button>
       </div>
       <div id="auth-form-signup" hidden>
         <div class="form-group"><label class="form-label">Nome completo</label>
-          <input class="form-input" type="text" id="signup-name" placeholder="Seu nome" /></div>
+          <input class="form-input" type="text" id="signup-name" placeholder="Seu nome" autocomplete="name" /></div>
         <div class="form-group"><label class="form-label">E-mail</label>
-          <input class="form-input" type="email" id="signup-email" placeholder="seu@email.com" /></div>
+          <input class="form-input" type="email" id="signup-email" placeholder="seu@email.com" autocomplete="email" /></div>
         <div class="form-group"><label class="form-label">Senha</label>
-          <input class="form-input" type="password" id="signup-pass" placeholder="Mínimo 6 caracteres" /></div>
+          <div class="pass-wrap">
+            <input class="form-input pass-input" type="password" id="signup-pass" placeholder="Mínimo 8 caracteres" autocomplete="new-password" oninput="onPassInput()" />
+            <button type="button" class="pass-eye" aria-label="Mostrar senha" onclick="togglePassEye('signup-pass', this)">👁️</button>
+          </div>
+          <div class="pass-strength" id="pass-strength" aria-live="polite">
+            <div class="pass-strength-bar"><div class="pass-strength-fill" id="pass-strength-fill"></div></div>
+            <div class="pass-strength-label" id="pass-strength-label">Força da senha</div>
+            <ul class="pass-req" id="pass-req">
+              <li data-req="len">Pelo menos 8 caracteres</li>
+              <li data-req="upper">Uma letra maiúscula (A-Z)</li>
+              <li data-req="lower">Uma letra minúscula (a-z)</li>
+              <li data-req="num">Um número (0-9)</li>
+              <li data-req="sym">Um caractere especial (!@#$...)</li>
+            </ul>
+          </div>
+        </div>
+        <div class="form-group"><label class="form-label">Confirmar senha</label>
+          <div class="pass-wrap">
+            <input class="form-input pass-input" type="password" id="signup-pass2" placeholder="Digite a senha de novo" autocomplete="new-password" oninput="onPassMatchInput()" />
+            <button type="button" class="pass-eye" aria-label="Mostrar senha" onclick="togglePassEye('signup-pass2', this)">👁️</button>
+          </div>
+          <div class="pass-match" id="pass-match"></div>
+        </div>
         <button class="btn-primary" id="btn-signup">Criar minha conta</button>
       </div>
       <div class="auth-footer">Ao continuar, você concorda com nossos <a href="#">Termos</a> e <a href="#">Privacidade</a>.</div>
@@ -2514,12 +2561,64 @@ document.getElementById('btn-login').addEventListener('click', async () => {
   if (profile && profile.onboarding_done) { showApp(); } else { showOnboarding(); }
 });
 
+// ─── Segurança de senha (visualizador + medidor + confirmação) ─────────
+function togglePassEye(inputId, btn) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  const showing = input.type === 'text';
+  input.type = showing ? 'password' : 'text';
+  btn.textContent = showing ? '👁️' : '🙈';
+  btn.setAttribute('aria-label', showing ? 'Mostrar senha' : 'Ocultar senha');
+}
+
+function checkPassStrength(pw) {
+  return {
+    len: pw.length >= 8,
+    upper: /[A-Z]/.test(pw),
+    lower: /[a-z]/.test(pw),
+    num: /[0-9]/.test(pw),
+    sym: /[^A-Za-z0-9]/.test(pw),
+  };
+}
+
+function passIsStrong(pw) {
+  const c = checkPassStrength(pw);
+  return c.len && c.upper && c.lower && c.num && c.sym;
+}
+
+function onPassInput() {
+  const pw = document.getElementById('signup-pass').value;
+  const checks = checkPassStrength(pw);
+  const score = Object.values(checks).filter(Boolean).length;
+  const fill = document.getElementById('pass-strength-fill');
+  const label = document.getElementById('pass-strength-label');
+  fill.className = 'pass-strength-fill' + (pw ? ' s' + score : '');
+  const labels = ['Força da senha', 'Muito fraca', 'Fraca', 'Média', 'Boa', 'Forte'];
+  label.textContent = pw ? labels[score] : labels[0];
+  document.querySelectorAll('#pass-req li').forEach(function(li) {
+    li.classList.toggle('ok', !!checks[li.dataset.req]);
+  });
+  // Reavalia também a confirmação se o campo já tem algo digitado
+  if (document.getElementById('signup-pass2').value) onPassMatchInput();
+}
+
+function onPassMatchInput() {
+  const pw = document.getElementById('signup-pass').value;
+  const pw2 = document.getElementById('signup-pass2').value;
+  const el = document.getElementById('pass-match');
+  if (!pw2) { el.textContent = ''; el.className = 'pass-match'; return; }
+  if (pw === pw2) { el.textContent = '✓ Senhas coincidem'; el.className = 'pass-match ok'; }
+  else { el.textContent = '✗ As senhas não são iguais'; el.className = 'pass-match err'; }
+}
+
 document.getElementById('btn-signup').addEventListener('click', async () => {
-  const name = document.getElementById('signup-name').value;
-  const email = document.getElementById('signup-email').value;
+  const name = document.getElementById('signup-name').value.trim();
+  const email = document.getElementById('signup-email').value.trim();
   const pass = document.getElementById('signup-pass').value;
-  if (!name || !email || !pass) return showAuthError('Preencha todos os campos.');
-  if (pass.length < 6) return showAuthError('Senha deve ter pelo menos 6 caracteres.');
+  const pass2 = document.getElementById('signup-pass2').value;
+  if (!name || !email || !pass || !pass2) return showAuthError('Preencha todos os campos.');
+  if (!passIsStrong(pass)) return showAuthError('A senha precisa ter 8+ caracteres, com letras maiúsculas, minúsculas, números e caracteres especiais.');
+  if (pass !== pass2) return showAuthError('As senhas não coincidem.');
   if (!sb) { state.name = name; document.getElementById('auth-screen').hidden = true; showOnboarding(); return; }
   const btn = document.getElementById('btn-signup'); btn.disabled = true;
   const { data, error } = await sb.auth.signUp({ email, password: pass, options: { data: { name } } });

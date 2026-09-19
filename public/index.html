@@ -1344,6 +1344,12 @@ function calPrev() { calViewMonth--; if (calViewMonth < 0) { calViewMonth = 11; 
 function calNext() { calViewMonth++; if (calViewMonth > 11) { calViewMonth = 0; calViewYear++; } renderCalendar(); }
 
 function calPickMonth(m) {
+  // Gate: Basic só pode selecionar o mês atual
+  if (!isPlusUser() && !(m === currentMonth() && calViewYear === currentYear())) {
+    document.getElementById('calendar-dropdown').classList.remove('open');
+    requirePlusFeature('Consultar outros meses e anos', 'plus');
+    return;
+  }
   selectedPeriod.month = m; selectedPeriod.year = calViewYear;
   selectedPeriod.mode = 'month'; selectedPeriod.startDate = null; selectedPeriod.endDate = null;
   calViewMonth = m; calViewMode = 'days';
@@ -1351,6 +1357,12 @@ function calPickMonth(m) {
 }
 
 function calSelectDay(day) {
+  // Gate: Basic não pode montar intervalo personalizado
+  if (!isPlusUser()) {
+    document.getElementById('calendar-dropdown').classList.remove('open');
+    requirePlusFeature('Intervalos de datas personalizados', 'plus');
+    return;
+  }
   const clicked = new Date(calViewYear, calViewMonth, day);
   if (!calRangeStart) {
     calRangeStart = clicked;
@@ -1372,6 +1384,7 @@ function calSelectCurrentMonth() {
   updatePeriodDisplay(); document.getElementById('calendar-dropdown').classList.remove('open'); renderCurrentTab();
 }
 function calSelectLastMonth() {
+  if (!isPlusUser()) { document.getElementById('calendar-dropdown').classList.remove('open'); requirePlusFeature('Ver meses anteriores', 'plus'); return; }
   let m = currentMonth() - 1, y = currentYear(); if (m < 0) { m = 11; y--; }
   selectedPeriod.month = m; selectedPeriod.year = y; selectedPeriod.mode = 'month';
   selectedPeriod.startDate = null; selectedPeriod.endDate = null;
@@ -1384,11 +1397,13 @@ function calSelectLast7() {
   updatePeriodDisplay(); document.getElementById('calendar-dropdown').classList.remove('open'); renderCurrentTab();
 }
 function calSelectLast30() {
+  if (!isPlusUser()) { document.getElementById('calendar-dropdown').classList.remove('open'); requirePlusFeature('Períodos personalizados (últimos 30 dias, intervalos, meses anteriores)', 'plus'); return; }
   const end = new Date(), start = new Date(); start.setDate(start.getDate() - 29);
   selectedPeriod.mode = 'range'; selectedPeriod.startDate = start; selectedPeriod.endDate = end; calRangeStart = null;
   updatePeriodDisplay(); document.getElementById('calendar-dropdown').classList.remove('open'); renderCurrentTab();
 }
 function calSelectAll() {
+  if (!isPlusUser()) { document.getElementById('calendar-dropdown').classList.remove('open'); requirePlusFeature('Ver todo o histórico', 'plus'); return; }
   selectedPeriod.mode = 'all'; selectedPeriod.startDate = null; selectedPeriod.endDate = null; calRangeStart = null;
   updatePeriodDisplay(); document.getElementById('calendar-dropdown').classList.remove('open'); renderCurrentTab();
 }
@@ -2938,6 +2953,7 @@ function openDebtModal(existing = null) {
     <div class="modal-actions">${isEdit ? `<button class="btn-danger" onclick="deleteDebt('${existing.id}')">Excluir</button>` : ''}<button class="btn-cancel" onclick="closeModal()">Cancelar</button><button class="btn-save" onclick="saveDebt(${isEdit ? `'${existing.id}'` : 'null'})">Salvar</button></div>`);
 }
 async function saveDebt(editId) {
+  if (!editId && !checkPlanLimit(state.debts.length, PLAN_LIMITS.maxDebts, 'Plano Basic permite registrar até ' + PLAN_LIMITS.maxDebts + ' dívidas. Faça upgrade para o Plus (ilimitado).')) return;
   const d = { id: editId || genId(), name: document.getElementById('m-dname').value, type: document.getElementById('m-dtype').value, saldo: parseFloat(document.getElementById('m-dsaldo').value) || 0, juros: parseFloat(document.getElementById('m-djuros').value) || 0, parcelas: parseInt(document.getElementById('m-dparcelas').value) || 0, mensal: parseFloat(document.getElementById('m-dmensal').value) || 0 };
   if (editId) { const i = state.debts.findIndex(x => x.id === editId); if (i >= 0) state.debts[i] = d; } else state.debts.push(d);
   await dbUpsert('debts', { id: d.id, user_id: currentUser?.id, name: d.name, type: d.type, balance: d.saldo, interest_rate: d.juros, installments: d.parcelas || null, monthly_payment: d.mensal });
@@ -3103,7 +3119,7 @@ const tabsPF = [
   {id:'orcamento',label:'Orçamento'},{id:'metas',label:'Metas'},{id:'dividas',label:'Dívidas'},
   {id:'patrimonio',label:'Patrimônio'},{id:'assinaturas',label:'Assinaturas'},
   {id:'projecao',label:'Projeção',plus:true,tier:'plus'},{id:'saude',label:'Saúde Financeira'},
-  {id:'estrategia',label:'Estratégia',plus:true,tier:'pro'},{id:'openfinance',label:'Open Finance',plus:true,tier:'plus'},{id:'cambio',label:'Câmbio'},{id:'plano',label:'Plano'},
+  {id:'estrategia',label:'Estratégia',plus:true,tier:'pro'},{id:'openfinance',label:'Open Finance',plus:true,tier:'plus'},{id:'cambio',label:'Câmbio',plus:true,tier:'plus'},{id:'plano',label:'Plano'},
 ];
 const tabsPJ = [
   {id:'dashboard',label:'Visão Geral'},{id:'receitas',label:'Faturamento'},{id:'despesas',label:'Custos'},
@@ -3112,7 +3128,7 @@ const tabsPJ = [
   {id:'metas',label:'Metas'},{id:'dividas',label:'Dívidas'},{id:'patrimonio',label:'Patrimônio'},
   {id:'assinaturas',label:'Ferramentas & SaaS'},{id:'projecao',label:'Projeção',plus:true,tier:'plus'},
   {id:'saude',label:'Saúde Financeira'},{id:'estrategia',label:'Estratégia',plus:true,tier:'pro'},
-  {id:'openfinance',label:'Open Finance',plus:true,tier:'plus'},{id:'cambio',label:'Câmbio'},{id:'plano',label:'Plano'},
+  {id:'openfinance',label:'Open Finance',plus:true,tier:'plus'},{id:'cambio',label:'Câmbio',plus:true,tier:'plus'},{id:'plano',label:'Plano'},
 ];
 
 function getAvailableTabs() { return state.profile_type === 'PJ' ? tabsPJ : tabsPF; }
@@ -3121,12 +3137,13 @@ function getAvailableTabs() { return state.profile_type === 'PJ' ? tabsPJ : tabs
 // PLANOS — FREE vs PLUS: limites e bloqueios (fonte única da verdade)
 // ═══════════════════════════════════════════════════════
 var PLAN_LIMITS = {
-  maxTransactionsPerMonth: 40,
+  maxTransactionsPerMonth: 20,
   maxActiveGoals: 1,
-  maxBudgetCategories: 3,
-  maxPatrimonioItems: 3,
-  maxSubscriptions: 3,
-  maxDocumentsPerMonth: 5,
+  maxBudgetCategories: 2,
+  maxPatrimonioItems: 2,
+  maxSubscriptions: 2,
+  maxDocumentsPerMonth: 3,
+  maxDebts: 3,
 };
 
 // Abas inteiramente bloqueadas por plano (mostram uma tela de upgrade em vez do conteúdo).
@@ -3137,6 +3154,7 @@ var PLUS_ONLY_TABS = {
   insights: { label: 'Insights', desc: 'Análises avançadas, detecção de anomalias de gastos e recomendações automáticas baseadas nos seus dados.', tier: 'plus' },
   fiscal: { label: 'Fiscal', desc: 'Gestão de impostos, DAS e obrigações fiscais para o seu CNPJ — painel fiscal completo do plano Business.', tier: 'business' },
   fluxo: { label: 'Fluxo de Caixa', desc: 'Projeção detalhada de entradas e saídas do caixa da sua empresa — recurso do plano Business.', tier: 'business' },
+  cambio: { label: 'Câmbio Multi-moeda', desc: 'Conversor de moedas em tempo real (USD, EUR, GBP, JPY, ARS e mais) para viagens, investimentos internacionais e importações.', tier: 'plus' },
   // Open Finance mantém a própria tela (lista de bancos) e bloqueia só a ação de conectar,
   // pois funciona como vitrine do recurso — ver PLUS_ONLY_TABS não inclui 'openfinance'.
 };
@@ -4266,7 +4284,7 @@ function renderPlano() {
   const status = profile?.plan_status || 'active';
   const L = PLAN_LIMITS;
   const plans = [
-    { id: 'free', name: 'Free', price: 'R$ 0', period: '/mês', features: [
+    { id: 'free', name: 'Basic', price: 'R$ 8', period: '/semana', hotmartUrl: appConfig.hotmartCheckoutBasic, features: [
       'Até ' + L.maxTransactionsPerMonth + ' lançamentos/mês',
       'Até ' + L.maxActiveGoals + ' meta ativa',
       'Orçamento em até ' + L.maxBudgetCategories + ' categorias',
@@ -4366,7 +4384,20 @@ document.addEventListener('click', (e) => {
 });
 
 function exportJSON() {
-  const data = JSON.stringify(state, null, 2);
+  // Basic: limita a exportação aos últimos 30 dias e adiciona marca d'água
+  var stateToExport = state;
+  if (!isPlusUser()) {
+    var cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 30);
+    stateToExport = Object.assign({}, state, {
+      transactions: state.transactions.filter(function(t) {
+        var d = t.date ? new Date(t.date + 'T00:00:00') : null;
+        return d && d >= cutoff;
+      }),
+      _watermark: 'Exportado pela versão Basic — inclui apenas os últimos 30 dias. Assine o plano Plus para exportar todo o histórico.',
+    });
+    showToast('📄 Basic exporta apenas os últimos 30 dias. Upgrade para Plus libera o histórico completo.', 'info');
+  }
+  const data = JSON.stringify(stateToExport, null, 2);
   const blob = new Blob([data], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a'); a.href = url; a.download = 'financa-dados.json'; a.click();
@@ -4377,8 +4408,16 @@ function exportJSON() {
 
 function exportCSV() {
   const headers = ['Data', 'Tipo', 'Descrição', 'Categoria', 'Valor', 'Recorrente'];
-  const rows = state.transactions.map(t => [t.date, t.type === 'income' ? 'Receita' : 'Despesa', `"${t.desc}"`, t.cat, t.amount, t.recur ? 'Sim' : 'Não']);
-  const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+  var txs = state.transactions;
+  var footer = '';
+  if (!isPlusUser()) {
+    var cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 30);
+    txs = txs.filter(function(t) { var d = t.date ? new Date(t.date + 'T00:00:00') : null; return d && d >= cutoff; });
+    footer = '\n\n"Exportado pela versão Basic — últimos 30 dias apenas. Assine o Plus para exportar todo o histórico."';
+    showToast('📄 Basic exporta apenas os últimos 30 dias. Upgrade para Plus libera o histórico completo.', 'info');
+  }
+  const rows = txs.map(t => [t.date, t.type === 'income' ? 'Receita' : 'Despesa', `"${t.desc}"`, t.cat, t.amount, t.recur ? 'Sim' : 'Não']);
+  const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n') + footer;
   const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a'); a.href = url; a.download = 'financa-transacoes.csv'; a.click();
@@ -4437,8 +4476,8 @@ async function showApp() {
   document.getElementById('auth-screen').hidden = true;
   document.getElementById('onboarding-screen').hidden = true;
   document.getElementById('app-screen').hidden = false;
-  const planNames = { free: 'Free', plus: 'Plus', pro: 'Pro', business: 'Business' };
-  document.getElementById('plan-badge').textContent = planNames[profile?.plan] || (state.profile_type === 'PJ' ? 'Business' : 'Free');
+  const planNames = { free: 'Basic', plus: 'Plus', pro: 'Pro', business: 'Business' };
+  document.getElementById('plan-badge').textContent = planNames[profile?.plan] || (state.profile_type === 'PJ' ? 'Business' : 'Basic');
   updatePeriodDisplay();
   updateThemeIcon();
   updateNotifBadge();

@@ -48,6 +48,7 @@ app.get('/api/config', (req, res) => {
     supabaseUrl: process.env.SUPABASE_URL,
     supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
     // Hotmart — forma de pagamento principal (Brasil)
+    hotmartCheckoutBasic: process.env.HOTMART_CHECKOUT_BASIC || null,
     hotmartCheckoutPlus: process.env.HOTMART_CHECKOUT_PLUS || null,
     hotmartCheckoutPro: process.env.HOTMART_CHECKOUT_PRO || null,
     hotmartCheckoutBusiness: process.env.HOTMART_CHECKOUT_BUSINESS || null,

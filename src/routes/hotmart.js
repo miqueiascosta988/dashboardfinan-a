@@ -10,15 +10,33 @@ function getSupabaseAdmin() {
   );
 }
 
-// Mapeia o ID do produto/oferta cadastrado na Hotmart para o plano interno do Finança.
-// Configure HOTMART_PRODUCT_PLUS (e opcionalmente _PRO / _BUSINESS) com o "Product ID"
-// que aparece no painel da Hotmart (Produtos > seu produto > Detalhes).
-function resolvePlanFromProduct(productId) {
-  const id = String(productId || '');
-  if (process.env.HOTMART_PRODUCT_BUSINESS && id === process.env.HOTMART_PRODUCT_BUSINESS) return 'business';
-  if (process.env.HOTMART_PRODUCT_PRO && id === process.env.HOTMART_PRODUCT_PRO) return 'pro';
-  if (process.env.HOTMART_PRODUCT_PLUS && id === process.env.HOTMART_PRODUCT_PLUS) return 'plus';
-  // Fallback: se só existe um produto configurado (o mais comum no começo), assume Plus.
+// Mapeia o ID do plano/produto da Hotmart para o plano interno do Finança.
+// Suporta os dois modelos de venda da Hotmart:
+//   1) Produtos separados (um produto por plano): configure HOTMART_PRODUCT_PLUS/PRO/BUSINESS
+//      com o "Product ID" que aparece no painel da Hotmart.
+//   2) Um produto com vários planos de assinatura (mais comum): configure
+//      HOTMART_PLAN_PLUS/PRO/BUSINESS com o "Plan ID" (aparece em
+//      data.subscription.plan.id no payload do webhook).
+// O código confere primeiro o plan.id, depois cai pro product.id como backup.
+function resolvePlan(planId, productId) {
+  const pl = String(planId || '');
+  const pr = String(productId || '');
+  // Confere plan.id (modelo assinatura — um produto, várias ofertas)
+  if (pl) {
+    if (process.env.HOTMART_PLAN_BUSINESS && pl === process.env.HOTMART_PLAN_BUSINESS) return 'business';
+    if (process.env.HOTMART_PLAN_PRO && pl === process.env.HOTMART_PLAN_PRO) return 'pro';
+    if (process.env.HOTMART_PLAN_PLUS && pl === process.env.HOTMART_PLAN_PLUS) return 'plus';
+    // "Basic" na Hotmart = tier "free" no sistema (plano de entrada acessível).
+    if (process.env.HOTMART_PLAN_BASIC && pl === process.env.HOTMART_PLAN_BASIC) return 'free';
+  }
+  // Confere product.id (modelo de produtos separados)
+  if (pr) {
+    if (process.env.HOTMART_PRODUCT_BUSINESS && pr === process.env.HOTMART_PRODUCT_BUSINESS) return 'business';
+    if (process.env.HOTMART_PRODUCT_PRO && pr === process.env.HOTMART_PRODUCT_PRO) return 'pro';
+    if (process.env.HOTMART_PRODUCT_PLUS && pr === process.env.HOTMART_PRODUCT_PLUS) return 'plus';
+    if (process.env.HOTMART_PRODUCT_BASIC && pr === process.env.HOTMART_PRODUCT_BASIC) return 'free';
+  }
+  // Fallback: começo do projeto normalmente só tem o Plus configurado.
   return 'plus';
 }
 
@@ -46,7 +64,8 @@ router.post('/webhook', express.json(), async (req, res) => {
   const data = body.data || {};
   const buyerEmail = data.buyer?.email || data.subscriber?.email;
   const productId = data.product?.id;
-  const subscriberCode = data.subscription?.subscriber?.code || data.purchase?.subscription?.subscriber?.code;
+  const planId = data.subscription?.plan?.id || data.purchase?.subscription?.plan?.id;
+  const subscriberCode = data.subscriber?.code || data.subscription?.subscriber?.code || data.purchase?.subscription?.subscriber?.code;
   const transactionId = data.purchase?.transaction || data.transaction;
 
   if (!buyerEmail) {
@@ -58,7 +77,7 @@ router.post('/webhook', express.json(), async (req, res) => {
 
   try {
     if (UPGRADE_EVENTS.includes(event)) {
-      const plan = resolvePlanFromProduct(productId);
+      const plan = resolvePlan(planId, productId);
       const { data: updated, error } = await supabase
         .from('profiles')
         .update({

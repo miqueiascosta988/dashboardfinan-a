@@ -235,7 +235,9 @@ body {
 /* ─── SIDEBAR ─────────────────────────────────── */
 .sidebar { width: 236px; flex-shrink: 0; position: sticky; top: 0; height: 100dvh; display: flex; flex-direction: column; background: var(--card); border-right: 1px solid var(--border); padding: 20px 14px 16px; }
 .sidebar-logo { display: flex; align-items: flex-start; gap: 9px; padding: 4px 8px 16px; font-family: var(--font-display); color: var(--teal); border-bottom: 1px solid var(--border-subtle); margin-bottom: 14px; }
-.sidebar-logo img { width: 24px; height: auto; flex-shrink: 0; margin-top: 2px; }
+.sidebar-logo img { width: 24px; height: auto; flex-shrink: 0; margin-top: 2px; transition: filter 0.2s; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .sidebar-logo img { filter: brightness(0) invert(1); } }
+:root[data-theme="dark"] .sidebar-logo img { filter: brightness(0) invert(1); }
 .sidebar-logo-col { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .sidebar-logo-name { font-weight: 800; font-size: 15px; line-height: 1.2; }
 .sidebar-badges { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }

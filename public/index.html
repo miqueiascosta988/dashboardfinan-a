@@ -196,8 +196,9 @@ body {
 .auth-error { color: var(--expense); font-size: 13px; margin-bottom: 12px; display: none; padding: 10px 14px; background: var(--expense-light); border-radius: var(--radius-sm); animation: slideDown 0.2s ease; }
 .pass-wrap { position: relative; }
 .pass-wrap .pass-input { padding-right: 42px; }
-.pass-eye { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: transparent; border: none; cursor: pointer; padding: 6px 8px; font-size: 16px; line-height: 1; color: var(--ink-2); border-radius: 6px; }
-.pass-eye:hover { background: var(--card-alt); }
+.pass-eye { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: transparent; border: none; cursor: pointer; padding: 6px; line-height: 1; color: var(--ink-2); border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+.pass-eye:hover { background: var(--card-alt); color: var(--ink); }
+.pass-eye svg { width: 18px; height: 18px; display: block; }
 .pass-strength { margin-top: 10px; font-size: 12px; }
 .pass-strength-bar { height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; margin-bottom: 6px; }
 .pass-strength-fill { height: 100%; width: 0%; background: var(--expense); border-radius: 3px; transition: width 0.25s ease, background 0.25s ease; }
@@ -1122,7 +1123,7 @@ svg text { font-family: var(--font-body); }
         <div class="form-group"><label class="form-label">Senha</label>
           <div class="pass-wrap">
             <input class="form-input pass-input" type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password" />
-            <button type="button" class="pass-eye" aria-label="Mostrar senha" onclick="togglePassEye('login-pass', this)">👁️</button>
+            <button type="button" class="pass-eye" aria-label="Mostrar senha" onclick="togglePassEye('login-pass', this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
           </div>
         </div>
         <button class="btn-primary" id="btn-login">Entrar</button>
@@ -1135,7 +1136,7 @@ svg text { font-family: var(--font-body); }
         <div class="form-group"><label class="form-label">Senha</label>
           <div class="pass-wrap">
             <input class="form-input pass-input" type="password" id="signup-pass" placeholder="Mínimo 8 caracteres" autocomplete="new-password" oninput="onPassInput()" />
-            <button type="button" class="pass-eye" aria-label="Mostrar senha" onclick="togglePassEye('signup-pass', this)">👁️</button>
+            <button type="button" class="pass-eye" aria-label="Mostrar senha" onclick="togglePassEye('signup-pass', this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
           </div>
           <div class="pass-strength" id="pass-strength" aria-live="polite">
             <div class="pass-strength-bar"><div class="pass-strength-fill" id="pass-strength-fill"></div></div>
@@ -1152,7 +1153,7 @@ svg text { font-family: var(--font-body); }
         <div class="form-group"><label class="form-label">Confirmar senha</label>
           <div class="pass-wrap">
             <input class="form-input pass-input" type="password" id="signup-pass2" placeholder="Digite a senha de novo" autocomplete="new-password" oninput="onPassMatchInput()" />
-            <button type="button" class="pass-eye" aria-label="Mostrar senha" onclick="togglePassEye('signup-pass2', this)">👁️</button>
+            <button type="button" class="pass-eye" aria-label="Mostrar senha" onclick="togglePassEye('signup-pass2', this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
           </div>
           <div class="pass-match" id="pass-match"></div>
         </div>
@@ -2736,12 +2737,14 @@ document.getElementById('btn-login').addEventListener('click', async () => {
 });
 
 // ─── Segurança de senha (visualizador + medidor + confirmação) ─────────
+const EYE_OPEN_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg>';
+const EYE_CLOSED_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 7 11 7a18.5 18.5 0 0 1-2.16 3.19M6.61 6.61C3.64 8.36 1 12 1 12s4 7 11 7a10.9 10.9 0 0 0 5.39-1.61"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
 function togglePassEye(inputId, btn) {
   const input = document.getElementById(inputId);
   if (!input) return;
   const showing = input.type === 'text';
   input.type = showing ? 'password' : 'text';
-  btn.textContent = showing ? '👁️' : '🙈';
+  btn.innerHTML = showing ? EYE_OPEN_SVG : EYE_CLOSED_SVG;
   btn.setAttribute('aria-label', showing ? 'Mostrar senha' : 'Ocultar senha');
 }
 

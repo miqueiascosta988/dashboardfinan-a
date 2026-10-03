@@ -10,7 +10,7 @@ function getSupabaseAdmin() {
   );
 }
 
-// Mapeia o ID do plano/produto da Hotmart para o plano interno do Finança.
+// Mapeia o ID do plano/produto da Hotmart para o plano interno do SM Financial.
 // Suporta os dois modelos de venda da Hotmart:
 //   1) Produtos separados (um produto por plano): configure HOTMART_PRODUCT_PLUS/PRO/BUSINESS
 //      com o "Product ID" que aparece no painel da Hotmart.
@@ -91,7 +91,7 @@ router.post('/webhook', express.json(), async (req, res) => {
         .select('id');
       if (error) throw error;
       if (!updated || updated.length === 0) {
-        // Comprador ainda não tem conta no Finança com esse e-mail — comum quando a
+        // Comprador ainda não tem conta no SM Financial com esse e-mail — comum quando a
         // compra acontece antes do cadastro. Guardamos como "compra pendente" para
         // ativar automaticamente assim que essa pessoa criar a conta com o mesmo e-mail.
         await supabase.from('pending_purchases').upsert({

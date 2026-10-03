@@ -70,7 +70,7 @@ app.get('*', (req, res) => {
 // ─── Start ──────────────────────────────────────────
 if (require.main === module) {
   app.listen(PORT, () => {
-    console.log(`Finança running on port ${PORT}`);
+    console.log(`SM Financial running on port ${PORT}`);
   });
 }
 

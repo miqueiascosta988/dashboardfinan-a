@@ -1,7 +1,7 @@
 {
   "name": "financa-app",
   "version": "1.0.0",
-  "description": "Finança — Planejador Financeiro Pessoal e Empresarial",
+  "description": "SM Financial — Planejador Financeiro Pessoal e Empresarial",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",

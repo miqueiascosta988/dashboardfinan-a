@@ -272,6 +272,7 @@ body.pj-mode .sidebar .nav-btn.active { border-left-color: var(--pj-accent); }
   .sidebar .nav { flex-direction: row; overflow-x: auto; }
   .sidebar .nav-btn { width: auto; text-align: center; border-left: none; border-bottom: 3px solid transparent; }
   .sidebar .nav-btn.active { border-left-color: transparent; border-bottom-color: var(--gold); }
+  .nav-section-label { display: none; }
   .sidebar-footer { flex-direction: row; order: 2; border-top: none; margin-top: 0; padding-top: 0; flex: 0 0 auto; width: auto; }
   .sidebar-footer .profile-toggle, .sidebar-footer .btn-sm { width: auto; }
   .app { padding: 20px 16px 48px; }
@@ -522,11 +523,9 @@ body.pj-mode .chat-send-btn:hover { background: var(--pj-accent-mid); }
 .nav-btn { font-family: var(--font-body); font-size: 13px; font-weight: 500; padding: 8px 16px; border: none; background: transparent; color: var(--ink-3); cursor: pointer; border-radius: 8px; white-space: nowrap; transition: all 0.2s; position: relative; }
 .nav-btn:hover { color: var(--ink-2); background: var(--teal-wash); }
 .nav-btn.active { color: var(--teal); background: var(--teal-wash); font-weight: 600; }
-.nav-btn.pj-tab { display: none; }
-.nav-btn.pj-tab.show { display: inline-flex; }
-.nav-btn.pf-only { display: inline-flex; }
-.nav-btn.pf-only.hide { display: none; }
 .nav-plus-lock { font-size: 10px; opacity: 0.7; }
+.nav-section-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-3); padding: 14px 12px 6px; }
+.nav-section-label:first-child { padding-top: 2px; }
 
 /* ─── PJ MODE ACCENTS ────────────────────────── */
 body.pj-mode .sidebar-logo { color: var(--pj-accent); }
@@ -2818,9 +2817,8 @@ function updateToggleUI() {
 }
 
 function updateNavTabs() {
-  const isPJ = state.profile_type === 'PJ';
-  document.querySelectorAll('.nav-btn.pj-tab').forEach(b => b.classList.toggle('show', isPJ));
-  document.querySelectorAll('.nav-btn.pf-only').forEach(b => b.classList.toggle('hide', isPJ));
+  // Reconstrói a nav inteira (rótulos e itens mudam entre PF e PJ — ver renderNav()).
+  renderNav();
 }
 
 // ═══════════════════════════════════════════════════════
@@ -3040,7 +3038,7 @@ async function deleteTransaction(id) { state.transactions = state.transactions.f
 function openGoalModal(existing = null) {
   const isEdit = !!existing;
   openModal(isEdit ? 'Editar meta' : 'Nova meta', `
-    <div class="form-row"><div class="form-group"><label class="form-label">Emoji</label><input class="form-input" type="text" id="m-icon" value="${existing?.icon || '🎯'}" maxlength="4" /></div><div class="form-group"><label class="form-label">Nome</label><input class="form-input" type="text" id="m-gname" value="${existing?.name || ''}" placeholder="Ex: ${state.profile_type==='PJ'?'Expandir equipe':'Comprar carro'}" /></div></div>
+    <div class="form-row"><div class="form-group"><label class="form-label">Emoji</label><input class="form-input" type="text" id="m-icon" value="${existing?.icon || (state.profile_type==='PJ' ? '💼' : '🎯')}" maxlength="4" /></div><div class="form-group"><label class="form-label">Nome</label><input class="form-input" type="text" id="m-gname" value="${existing?.name || ''}" placeholder="Ex: ${state.profile_type==='PJ'?'Reserva de capital de giro':'Comprar carro'}" /></div></div>
     <div class="form-row"><div class="form-group"><label class="form-label">Valor total</label><input class="form-input" type="number" id="m-target" value="${existing?.target || ''}" step="0.01" /></div><div class="form-group"><label class="form-label">Já acumulado</label><input class="form-input" type="number" id="m-current" value="${existing?.current || ''}" step="0.01" /></div></div>
     <div class="form-group"><label class="form-label">Aporte mensal</label><input class="form-input" type="number" id="m-monthly" value="${existing?.monthly || ''}" step="0.01" /></div>
     <div class="modal-actions">${isEdit ? `<button class="btn-danger" onclick="deleteGoal('${existing.id}')">Excluir</button>` : ''}<button class="btn-cancel" onclick="closeModal()">Cancelar</button><button class="btn-save" onclick="saveGoal(${isEdit ? `'${existing.id}'` : 'null'})">Salvar</button></div>`);
@@ -3229,24 +3227,49 @@ function renderComparativo(c) {
 // TABS & RENDERING
 // ═══════════════════════════════════════════════════════
 const tabsPF = [
-  {id:'dashboard',label:'Visão Geral'},{id:'receitas',label:'Renda'},{id:'despesas',label:'Despesas'},
-  {id:'documentos',label:'Documentos'},{id:'insights',label:'Insights',plus:true,tier:'plus'},
-  {id:'orcamento',label:'Orçamento'},{id:'metas',label:'Metas'},{id:'dividas',label:'Dívidas'},
-  {id:'patrimonio',label:'Patrimônio'},{id:'assinaturas',label:'Assinaturas'},
-  {id:'projecao',label:'Projeção',plus:true,tier:'plus'},{id:'saude',label:'Saúde Financeira'},
-  {id:'estrategia',label:'Estratégia',plus:true,tier:'pro'},{id:'openfinance',label:'Open Finance',plus:true,tier:'plus'},{id:'cambio',label:'Câmbio',plus:true,tier:'plus'},{id:'plano',label:'Plano'},
+  {id:'dashboard',label:'Visão Geral',section:'Operação'},{id:'receitas',label:'Renda',section:'Operação'},{id:'despesas',label:'Despesas',section:'Operação'},{id:'documentos',label:'Documentos',section:'Operação'},
+  {id:'orcamento',label:'Orçamento',section:'Planejamento'},{id:'metas',label:'Metas',section:'Planejamento'},{id:'projecao',label:'Projeção',plus:true,tier:'plus',section:'Planejamento'},{id:'estrategia',label:'Estratégia',plus:true,tier:'pro',section:'Planejamento'},
+  {id:'patrimonio',label:'Patrimônio',section:'Patrimônio & Dívidas'},{id:'dividas',label:'Dívidas',section:'Patrimônio & Dívidas'},
+  {id:'insights',label:'Insights',plus:true,tier:'plus',section:'Ferramentas'},{id:'assinaturas',label:'Assinaturas',section:'Ferramentas'},{id:'openfinance',label:'Open Finance',plus:true,tier:'plus',section:'Ferramentas'},{id:'cambio',label:'Câmbio',plus:true,tier:'plus',section:'Ferramentas'},
+  {id:'saude',label:'Saúde Financeira',section:'Conta'},{id:'plano',label:'Plano',section:'Conta'},
 ];
 const tabsPJ = [
-  {id:'dashboard',label:'Visão Geral'},{id:'receitas',label:'Faturamento'},{id:'despesas',label:'Custos'},
-  {id:'documentos',label:'Documentos'},{id:'insights',label:'Insights',plus:true,tier:'plus'},
-  {id:'orcamento',label:'Orçamento'},{id:'fiscal',label:'Fiscal',pj:true,plus:true,tier:'business'},{id:'fluxo',label:'Fluxo de Caixa',pj:true,plus:true,tier:'business'},
-  {id:'metas',label:'Metas'},{id:'dividas',label:'Dívidas'},{id:'patrimonio',label:'Patrimônio'},
-  {id:'assinaturas',label:'Ferramentas & SaaS'},{id:'projecao',label:'Projeção',plus:true,tier:'plus'},
-  {id:'saude',label:'Saúde Financeira'},{id:'estrategia',label:'Estratégia',plus:true,tier:'pro'},
-  {id:'openfinance',label:'Open Finance',plus:true,tier:'plus'},{id:'cambio',label:'Câmbio',plus:true,tier:'plus'},{id:'plano',label:'Plano'},
+  {id:'dashboard',label:'Visão Geral',section:'Operação'},{id:'receitas',label:'Faturamento',section:'Operação'},{id:'despesas',label:'Custos',section:'Operação'},{id:'documentos',label:'Documentos',section:'Operação'},
+  {id:'orcamento',label:'Orçamento',section:'Planejamento'},{id:'metas',label:'Metas',section:'Planejamento'},{id:'projecao',label:'Projeção',plus:true,tier:'plus',section:'Planejamento'},{id:'estrategia',label:'Estratégia',plus:true,tier:'pro',section:'Planejamento'},
+  {id:'patrimonio',label:'Patrimônio',section:'Patrimônio & Dívidas'},{id:'dividas',label:'Dívidas',section:'Patrimônio & Dívidas'},
+  {id:'fiscal',label:'Fiscal',pj:true,plus:true,tier:'business',section:'Fiscal & Caixa'},{id:'fluxo',label:'Fluxo de Caixa',pj:true,plus:true,tier:'business',section:'Fiscal & Caixa'},
+  {id:'insights',label:'Insights',plus:true,tier:'plus',section:'Ferramentas'},{id:'assinaturas',label:'Ferramentas & SaaS',section:'Ferramentas'},{id:'openfinance',label:'Open Finance',plus:true,tier:'plus',section:'Ferramentas'},{id:'cambio',label:'Câmbio',plus:true,tier:'plus',section:'Ferramentas'},
+  {id:'saude',label:'Saúde Financeira',section:'Conta'},{id:'plano',label:'Plano',section:'Conta'},
 ];
 
 function getAvailableTabs() { return state.profile_type === 'PJ' ? tabsPJ : tabsPF; }
+
+// Reconstrói a navegação lateral do zero a cada chamada — necessário porque os
+// rótulos (ex.: "Renda" vs "Faturamento") e os itens exclusivos de PJ (Fiscal,
+// Fluxo de Caixa) mudam conforme o perfil ativo, não dá pra só esconder/mostrar
+// botões existentes.
+function renderNav() {
+  const nav = document.getElementById('nav');
+  if (!nav) return;
+  nav.innerHTML = '';
+  const tabs = getAvailableTabs();
+  let lastSection = null;
+  tabs.forEach(t => {
+    if (t.section && t.section !== lastSection) {
+      const label = document.createElement('div');
+      label.className = 'nav-section-label';
+      label.textContent = t.section;
+      nav.appendChild(label);
+      lastSection = t.section;
+    }
+    const btn = document.createElement('button');
+    btn.className = 'nav-btn' + (t.id === currentTab ? ' active' : '');
+    btn.dataset.tab = t.id;
+    btn.innerHTML = t.label + (t.plus && !meetsTier(t.tier || 'plus') ? ' <span class="nav-plus-lock" title="Recurso ' + (PLAN_TIER_META[t.tier || 'plus'].label) + '">🔒</span>' : '');
+    btn.addEventListener('click', () => switchTab(t.id));
+    nav.appendChild(btn);
+  });
+}
 
 // ═══════════════════════════════════════════════════════
 // PLANOS — FREE vs PLUS: limites e bloqueios (fonte única da verdade)
@@ -3442,7 +3465,7 @@ function renderTransactionList(type, c) {
   ].map((k,i) => `<div class="kpi animate-in stagger-${i+1}"><div class="kpi-label">${k.label}</div><div class="kpi-value ${k.cls||''}">${k.value}</div></div>`).join('')}</div>
   <div class="search-bar animate-in stagger-3"><input type="text" id="tx-search" placeholder="Buscar por descrição ou categoria..." /></div>
   ${items.length===0?`<div class="card animate-in stagger-4"><div class="empty-state"><div class="empty-icon">${type==='income'?'💰':'🧾'}</div><div class="empty-title">Nenhum lançamento</div><div class="empty-desc">${searchQuery?'Nenhum resultado para a busca.':'Clique em "+ Novo" para adicionar.'}</div></div></div>`:
-  `<div class="card overflow-x animate-in stagger-4"><table class="data-table"><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Recorrente</th><th class="text-right">Valor</th>${type==='expense'?'<th></th>':''}</tr></thead><tbody>${items.map(t=>`<tr><td onclick='openTransactionModal("${type}",${JSON.stringify(t).replace(/'/g,"&#39;")})' style="cursor:pointer">${t.date}</td><td onclick='openTransactionModal("${type}",${JSON.stringify(t).replace(/'/g,"&#39;")})' style="font-weight:500;cursor:pointer">${t.desc}</td><td onclick='openTransactionModal("${type}",${JSON.stringify(t).replace(/'/g,"&#39;")})' style="cursor:pointer"><span class="cat-badge"><span class="cat-dot" style="background:${CAT_COLORS[t.cat]||'var(--ink-3)'}"></span>${t.cat}</span></td><td onclick='openTransactionModal("${type}",${JSON.stringify(t).replace(/'/g,"&#39;")})' style="cursor:pointer">${t.recur?'<span class="recur">Sim</span>':'<span style="color:var(--ink-3);font-size:12px">—</span>'}</td><td class="amount ${type}" onclick='openTransactionModal("${type}",${JSON.stringify(t).replace(/'/g,"&#39;")})' style="cursor:pointer">${type==='income'?'+':'-'} ${fmt(t.amount)}</td>${type==='expense'?`<td><button class="btn-sm" onclick="openSplitExpense('${t.id}')" title="Dividir despesa">🔀</button></td>`:''}</tr>`).join('')}</tbody></table></div>`}`;
+  `<div class="card overflow-x animate-in stagger-4"><table class="data-table"><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Recorrente</th><th class="text-right">Valor</th>${type==='expense'&&!isPJ?'<th></th>':''}</tr></thead><tbody>${items.map(t=>`<tr><td onclick='openTransactionModal("${type}",${JSON.stringify(t).replace(/'/g,"&#39;")})' style="cursor:pointer">${t.date}</td><td onclick='openTransactionModal("${type}",${JSON.stringify(t).replace(/'/g,"&#39;")})' style="font-weight:500;cursor:pointer">${t.desc}</td><td onclick='openTransactionModal("${type}",${JSON.stringify(t).replace(/'/g,"&#39;")})' style="cursor:pointer"><span class="cat-badge"><span class="cat-dot" style="background:${CAT_COLORS[t.cat]||'var(--ink-3)'}"></span>${t.cat}</span></td><td onclick='openTransactionModal("${type}",${JSON.stringify(t).replace(/'/g,"&#39;")})' style="cursor:pointer">${t.recur?'<span class="recur">Sim</span>':'<span style="color:var(--ink-3);font-size:12px">—</span>'}</td><td class="amount ${type}" onclick='openTransactionModal("${type}",${JSON.stringify(t).replace(/'/g,"&#39;")})' style="cursor:pointer">${type==='income'?'+':'-'} ${fmt(t.amount)}</td>${type==='expense'&&!isPJ?`<td><button class="btn-sm" onclick="openSplitExpense('${t.id}')" title="Dividir despesa">🔀</button></td>`:''}</tr>`).join('')}</tbody></table></div>`}`;
 }
 
 // ─── ORÇAMENTO POR CATEGORIA ────────────────────
@@ -3503,8 +3526,14 @@ function saveBudgets() {
 
 // ─── METAS ──────────────────────────────────────
 function renderMetas() {
-  return `<div class="section-header animate-in"><div><div class="section-title">Metas Financeiras</div><div class="section-desc">Acompanhe e gerencie seus objetivos.</div></div><button class="btn-add" onclick="openGoalModal()">+ Nova meta</button></div>
-  ${state.goals.length===0?`<div class="card animate-in stagger-1"><div class="empty-state"><div class="empty-icon">🎯</div><div class="empty-title">Nenhuma meta</div><div class="empty-desc">Defina seus objetivos financeiros.</div><button class="btn-add" onclick="openGoalModal()">+ Criar meta</button></div></div>`:
+  const isPJ = state.profile_type === 'PJ';
+  const title = isPJ ? 'Metas da Empresa' : 'Metas Financeiras';
+  const desc = isPJ ? 'Reserva de capital de giro, equipamentos, expansão e outros objetivos do negócio.' : 'Acompanhe e gerencie seus objetivos.';
+  const emptyIcon = isPJ ? '💼' : '🎯';
+  const emptyTitle = isPJ ? 'Nenhuma meta cadastrada' : 'Nenhuma meta';
+  const emptyDesc = isPJ ? 'Defina objetivos como reserva de caixa, novo equipamento ou expansão.' : 'Defina seus objetivos financeiros.';
+  return `<div class="section-header animate-in"><div><div class="section-title">${title}</div><div class="section-desc">${desc}</div></div><button class="btn-add" onclick="openGoalModal()">+ Nova meta</button></div>
+  ${state.goals.length===0?`<div class="card animate-in stagger-1"><div class="empty-state"><div class="empty-icon">${emptyIcon}</div><div class="empty-title">${emptyTitle}</div><div class="empty-desc">${emptyDesc}</div><button class="btn-add" onclick="openGoalModal()">+ Criar meta</button></div></div>`:
   `<div class="goals-grid">${state.goals.map((g,i)=>{const pctDone=g.target>0?(g.current/g.target*100):0,remaining=g.target-g.current,monthsLeft=g.monthly>0?Math.ceil(remaining/g.monthly):0,eta=g.monthly>0?(()=>{const d=new Date();d.setMonth(d.getMonth()+monthsLeft);return MONTHS[d.getMonth()]+' '+d.getFullYear();})():'—';
     const milestones = [25,50,75,100];
     const milestonesHtml = isPlusUser() ? '<div style="display:flex;gap:6px;margin-bottom:12px">' + milestones.map(function(m){const reached=pctDone>=m;return '<div style="flex:1;text-align:center;padding:4px 2px;border-radius:6px;font-size:10px;font-weight:700;background:'+(reached?'var(--income-light)':'var(--card-alt)')+';color:'+(reached?'var(--income)':'var(--ink-3)')+'">'+(reached?'✓ ':'')+m+'%</div>';}).join('') + '</div>' : '';
@@ -4019,6 +4048,7 @@ function renderCrisisBanner(c) {
 // ─── 8. SPLIT DE DESPESA (Plus) ─────────────────────────
 function openSplitExpense(txId) {
   if (!isPlusUser()) { requirePlusFeature('Dividir despesa', 'plus'); return; }
+  if (state.profile_type === 'PJ') return; // recurso só faz sentido pra despesa pessoal dividida entre pessoas
   const t = state.transactions.find(function(x) { return x.id === txId; });
   if (!t) return;
   openModal('Dividir despesa', '<div class="form-group"><label class="form-label">Dividir "' + t.desc + '" (' + fmt(t.amount) + ') entre quantas pessoas?</label><input class="form-input" type="number" id="split-people" value="2" min="2" oninput="renderSplitResult(\'' + txId + '\')" /></div><div id="split-result" style="margin-top:12px"></div>');
@@ -4049,7 +4079,10 @@ function copySplitMsg() {
 // ─── 4. BENCHMARK DE MERCADO (Pro) ──────────────────────
 // Referência de distribuição típica de gastos por categoria (dados de mercado,
 // não são dados de outros usuários — não fazemos comparação com terceiros reais).
-var MARKET_BENCHMARK_PCT = { 'Moradia': 30, 'Alimentação': 18, 'Transporte': 12, 'Saúde': 8, 'Lazer': 7, 'Educação': 6 };
+var MARKET_BENCHMARK_PCT_PF = { 'Moradia': 30, 'Alimentação': 18, 'Transporte': 12, 'Saúde': 8, 'Lazer': 7, 'Educação': 6 };
+// Referência de distribuição de custos para pequenas empresas (MEI/ME) — mesma ressalva: dados de mercado, não de outros usuários.
+var MARKET_BENCHMARK_PCT_PJ = { 'Fornecedores': 28, 'Folha de pagamento': 25, 'Aluguel/Sede': 12, 'Impostos': 10, 'Marketing': 8, 'Serviços': 7 };
+function getMarketBenchmark() { return state.profile_type === 'PJ' ? MARKET_BENCHMARK_PCT_PJ : MARKET_BENCHMARK_PCT_PF; }
 
 function renderBenchmarkCard(c) {
   if (!isProUser()) {
@@ -4058,10 +4091,11 @@ function renderBenchmarkCard(c) {
       '<button class="btn-sm" onclick="switchTab(\'plano\')">Ver plano Pro</button></div>';
   }
   const total = c.totalExpense || 1;
-  const rows = Object.keys(MARKET_BENCHMARK_PCT).map(function(cat) {
+  const benchmark = getMarketBenchmark();
+  const rows = Object.keys(benchmark).map(function(cat) {
     const catData = c.categories.find(function(x) { return x.name === cat; });
     const userPct = catData ? (catData.value / total * 100) : 0;
-    const benchPct = MARKET_BENCHMARK_PCT[cat];
+    const benchPct = benchmark[cat];
     const diff = userPct - benchPct;
     return '<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:4px"><span>' + cat + '</span><span>' + (diff > 3 ? '<span style="color:var(--expense)">▲ ' + diff.toFixed(0) + 'pp acima</span>' : diff < -3 ? '<span style="color:var(--income)">▼ ' + Math.abs(diff).toFixed(0) + 'pp abaixo</span>' : '<span style="color:var(--ink-3)">na média</span>') + '</div>' +
       '<div style="position:relative;height:8px;background:var(--border);border-radius:4px"><div style="position:absolute;left:0;top:0;height:100%;width:' + Math.min(100, userPct) + '%;background:var(--teal);border-radius:4px"></div><div style="position:absolute;left:' + Math.min(100, benchPct) + '%;top:-2px;width:2px;height:12px;background:var(--ink)"></div></div></div>';
@@ -4129,7 +4163,7 @@ function generateInsights(c, isPJ) {
   }
   // 3. Debt alert
   if (c.debtPct > 30) {
-    insights.push({ type: 'alert', icon: '⚠️', title: 'Endividamento elevado', sub: 'Gestão de dívidas', body: `Suas dívidas mensais consomem <strong>${pct(c.debtPct)}</strong> da renda. O ideal é manter abaixo de 30%. ${state.debts.filter(d => d.juros > 5).length > 0 ? 'Priorize quitar as dívidas com juros mais altos para economizar em juros compostos.' : ''}` });
+    insights.push({ type: 'alert', icon: '⚠️', title: 'Endividamento elevado', sub: 'Gestão de dívidas', body: `Suas dívidas mensais consomem <strong>${pct(c.debtPct)}</strong> ${isPJ ? 'do faturamento' : 'da renda'}. O ideal é manter abaixo de 30%. ${state.debts.filter(d => d.juros > 5).length > 0 ? 'Priorize quitar as dívidas com juros mais altos para economizar em juros compostos.' : ''}` });
   }
   // 4. Subscriptions analysis
   if (c.totalSubs > 0) {
@@ -4482,14 +4516,15 @@ function generateTips(c, isPJ, income, expenses, surplus, totalDebt, emergCurren
   // Tip: Top expense category
   if (topCat && income > 0) {
     var catPct = topCat[1] / income * 100;
-    var benchmarks = { 'Moradia': 30, 'Alimentação': 20, 'Transporte': 15, 'Lazer': 10, 'Saúde': 10 };
-    var bench = benchmarks[topCat[0]] || 15;
-    tips.push({ icon: '📊', iconType: catPct > bench ? 'warning' : 'info', title: topCat[0] + ': ' + pct(catPct) + ' da renda', text: catPct > bench ? 'Acima da média recomendada de ' + bench + '%. Você poderia economizar ' + fmt(topCat[1] - income * bench / 100) + '/mês reduzindo para o benchmark.' : 'Dentro do benchmark de ' + bench + '%. Continue monitorando.', impact: catPct > bench ? 'high' : 'low', impactIcon: catPct > bench ? '🔴' : '🟢', impactText: catPct > bench ? 'Alto impacto' : 'Sob controle', action: "switchTab('despesas')", actionLabel: 'Ver despesas' });
+    var benchmarksPF = { 'Moradia': 30, 'Alimentação': 20, 'Transporte': 15, 'Lazer': 10, 'Saúde': 10 };
+    var benchmarksPJ = { 'Fornecedores': 28, 'Folha de pagamento': 25, 'Aluguel/Sede': 12, 'Impostos': 10, 'Marketing': 8, 'Serviços': 7 };
+    var bench = (isPJ ? benchmarksPJ : benchmarksPF)[topCat[0]] || 15;
+    tips.push({ icon: '📊', iconType: catPct > bench ? 'warning' : 'info', title: topCat[0] + ': ' + pct(catPct) + (isPJ ? ' do faturamento' : ' da renda'), text: catPct > bench ? 'Acima da média recomendada de ' + bench + '%. Você poderia economizar ' + fmt(topCat[1] - income * bench / 100) + '/mês reduzindo para o benchmark.' : 'Dentro do benchmark de ' + bench + '%. Continue monitorando.', impact: catPct > bench ? 'high' : 'low', impactIcon: catPct > bench ? '🔴' : '🟢', impactText: catPct > bench ? 'Alto impacto' : 'Sob controle', action: "switchTab('despesas')", actionLabel: isPJ ? 'Ver custos' : 'Ver despesas' });
   }
 
   // Tip: Savings rate
   if (income > 0) {
-    tips.push({ icon: '💰', iconType: savingsRate >= 20 ? 'saving' : 'warning', title: 'Taxa de poupança: ' + pct(savingsRate), text: savingsRate >= 20 ? 'Excelente! Você poupa mais de 20% da renda. Considere direcionar o excedente para investimentos diversificados.' : savingsRate >= 0 ? 'O ideal é poupar 20%+ da renda (' + fmt(income * 0.2) + '/mês). Atualmente você poupa ' + fmt(surplus) + '/mês.' : 'Você está no vermelho. Foque em cortar gastos variáveis e aumentar receita.', impact: savingsRate >= 20 ? 'high' : savingsRate >= 10 ? 'medium' : 'high', impactIcon: savingsRate >= 20 ? '🟢' : '🔴', impactText: savingsRate >= 20 ? 'Excelente' : 'Precisa de atenção' });
+    tips.push({ icon: '💰', iconType: savingsRate >= 20 ? 'saving' : 'warning', title: (isPJ ? 'Margem líquida: ' : 'Taxa de poupança: ') + pct(savingsRate), text: savingsRate >= 20 ? ('Excelente! Você ' + (isPJ ? 'mantém margem acima de 20% do faturamento. Considere reinvestir ou diversificar em investimentos.' : 'poupa mais de 20% da renda. Considere direcionar o excedente para investimentos diversificados.')) : savingsRate >= 0 ? ('O ideal é manter 20%+ de ' + (isPJ ? 'margem sobre o faturamento' : 'poupança sobre a renda') + ' (' + fmt(income * 0.2) + '/mês). Atualmente está em ' + fmt(surplus) + '/mês.') : ('Você está no vermelho. Foque em cortar ' + (isPJ ? 'custos variáveis e aumentar o faturamento.' : 'gastos variáveis e aumentar receita.')), impact: savingsRate >= 20 ? 'high' : savingsRate >= 10 ? 'medium' : 'high', impactIcon: savingsRate >= 20 ? '🟢' : '🔴', impactText: savingsRate >= 20 ? 'Excelente' : 'Precisa de atenção' });
   }
 
   // Tip: Debt warning
@@ -4522,8 +4557,8 @@ function generateTips(c, isPJ, income, expenses, surplus, totalDebt, emergCurren
     tips.push({ icon: '🏢', iconType: 'premium', title: 'Otimização tributária', text: 'Revise seu regime tributário anualmente. Simples Nacional, Lucro Presumido ou Real — a escolha errada pode custar até 30% a mais em impostos. Consulte seu contador.', impact: 'high', impactIcon: '💜', impactText: 'Alto impacto' });
   }
 
-  // Tip: 50-30-20 rule
-  if (income > 0) {
+  // Tip: 50-30-20 rule (regra de orçamento pessoal — não se aplica a PJ)
+  if (income > 0 && !isPJ) {
     tips.push({ icon: '📐', iconType: 'info', title: 'Regra 50-30-20', text: 'Ideal: 50% necessidades (' + fmt(income*0.5) + '), 30% desejos (' + fmt(income*0.3) + '), 20% poupança (' + fmt(income*0.2) + '). Revise se seus gastos seguem essa proporção.', impact: 'medium', impactIcon: '📘', impactText: 'Referência' });
   }
 
@@ -4827,25 +4862,7 @@ async function showApp() {
   // conta vencendo se aproximando) mesmo sem o usuário navegar entre abas.
   if (!window._notifWatcher) window._notifWatcher = setInterval(updateNotifBadge, 5 * 60 * 1000);
 
-  // Build nav with all tabs
-  const nav = document.getElementById('nav'); nav.innerHTML = '';
-  const allTabs = [...tabsPF, ...tabsPJ.filter(t => t.pj)];
-  const seen = new Set();
-  const merged = [];
-  tabsPJ.forEach(t => { if (!seen.has(t.id)) { seen.add(t.id); merged.push(t); } });
-  tabsPF.forEach(t => { if (!seen.has(t.id)) { seen.add(t.id); merged.push(t); } });
-
-  // Render tabs based on current profile
-  const tabs = getAvailableTabs();
-  tabs.forEach(t => {
-    const btn = document.createElement('button');
-    btn.className = 'nav-btn' + (t.id === 'dashboard' ? ' active' : '');
-    if (t.pj) btn.classList.add('pj-tab', 'show');
-    btn.dataset.tab = t.id;
-    btn.innerHTML = t.label + (t.plus && !meetsTier(t.tier || 'plus') ? ' <span class="nav-plus-lock" title="Recurso ' + (PLAN_TIER_META[t.tier || 'plus'].label) + '">🔒</span>' : '');
-    btn.addEventListener('click', () => switchTab(t.id));
-    nav.appendChild(btn);
-  });
+  renderNav();
 
   // Nav scroll indicators
   const navEl = document.getElementById('nav');

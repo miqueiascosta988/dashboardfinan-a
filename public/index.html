@@ -1442,6 +1442,34 @@ function getSelectedPeriodLabel() {
   return MONTHS[selectedPeriod.month] + ' ' + selectedPeriod.year;
 }
 
+// ═══════════════════════════════════════════════════════
+// SEGREGAÇÃO PF / PJ
+// Cada lançamento (transação, meta, dívida, ativo, passivo,
+// assinatura) carrega um campo `profile`: 'PF', 'PJ' ou 'ambos'.
+// Itens antigos sem esse campo (criados antes dessa feature)
+// continuam visíveis nos dois perfis, para não "desaparecer" dado
+// de quem já usava o app.
+// ═══════════════════════════════════════════════════════
+function isVisibleInCurrentProfile(item) {
+  if (!item || !item.profile || item.profile === 'ambos') return true;
+  return item.profile === state.profile_type;
+}
+function visibleList(key) {
+  return (state[key] || []).filter(isVisibleInCurrentProfile);
+}
+function profileFieldHtml(existing) {
+  const cur = existing?.profile || state.profile_type;
+  return `<div class="form-group"><label class="form-label">Visível em</label>
+    <select class="form-select" id="m-profile">
+      <option value="PF" ${cur==='PF'?'selected':''}>👤 Só Pessoal</option>
+      <option value="PJ" ${cur==='PJ'?'selected':''}>🏢 Só Empresa</option>
+      <option value="ambos" ${cur==='ambos'?'selected':''}>👤🏢 Ambos (Pessoal + Empresa)</option>
+    </select></div>`;
+}
+function readProfileField() {
+  return document.getElementById('m-profile')?.value || state.profile_type;
+}
+
 function filterByPeriod(items, dateField) {
   if (selectedPeriod.mode === 'all') return items;
   return items.filter(item => {
@@ -1689,7 +1717,7 @@ function getMonthCategoryTotals(monthsAgo) {
   ref.setMonth(ref.getMonth() - monthsAgo);
   const m = ref.getMonth(), y = ref.getFullYear();
   const map = {};
-  state.transactions.forEach(function(t) {
+  visibleList('transactions').forEach(function(t) {
     if (t.type !== 'expense') return;
     const dt = parseTxDate(t);
     if (!dt || dt.getMonth() !== m || dt.getFullYear() !== y) return;
@@ -1702,7 +1730,7 @@ function getMonthCategoryTotals(monthsAgo) {
 function getRecentDailyNet(days) {
   const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - days);
   let inc = 0, exp = 0;
-  state.transactions.forEach(function(t) {
+  visibleList('transactions').forEach(function(t) {
     const dt = parseTxDate(t);
     if (!dt || dt < cutoff) return;
     if (t.type === 'income') inc += t.amount; else if (t.type === 'expense') exp += t.amount;
@@ -1730,7 +1758,7 @@ function generateNotifications() {
   if (c.taxaEconomia < 10 && c.totalIncome > 0) notifs.push({ id: 'savings-low', icon: '📉', title: 'Economia baixa', desc: 'Você está economizando apenas ' + pct(c.taxaEconomia) + '. Ideal: acima de 20%. Veja um plano personalizado.', type: 'info', time: 'Dica', tab: 'insights' });
 
   // ── Metas: progresso ──
-  state.goals.forEach(function(g) {
+  visibleList('goals').forEach(function(g) {
     const progress = g.target > 0 ? (g.current / g.target * 100) : 0;
     if (progress >= 90 && progress < 100) notifs.push({ id: 'goal-almost-' + g.id, icon: '🎯', title: 'Meta quase atingida!', desc: g.name + ' — ' + Math.round(progress) + '% completa', type: 'success', time: 'Progresso', tab: 'metas' });
     else if (progress >= 100) notifs.push({ id: 'goal-done-' + g.id, icon: '🏆', title: 'Meta atingida!', desc: g.name + ' — Parabéns!', type: 'success', time: 'Conquista', tab: 'metas' });
@@ -1755,7 +1783,7 @@ function generateNotifications() {
   const todayDay = today.getDate();
   const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
   const seenDueKeys = {};
-  state.transactions.filter(function(t) { return t.type === 'expense' && t.recur; }).forEach(function(t) {
+  visibleList('transactions').filter(function(t) { return t.type === 'expense' && t.recur; }).forEach(function(t) {
     const dt = parseTxDate(t);
     if (!dt) return;
     const day = dt.getDate();
@@ -1772,7 +1800,7 @@ function generateNotifications() {
   // Parcelas de dívidas perto do fim do mês
   const daysLeftInMonth = daysInMonth - todayDay;
   if (daysLeftInMonth <= 5) {
-    state.debts.filter(function(d) { return d.mensal > 0; }).forEach(function(d) {
+    visibleList('debts').filter(function(d) { return d.mensal > 0; }).forEach(function(d) {
       notifs.push({ id: 'debtdue-' + d.id, icon: '🏦', title: 'Parcela de dívida vencendo', desc: d.name + ' — parcela de ' + fmtD(d.mensal) + ' vence até o fim do mês', type: 'warning', time: 'Vencimento', tab: 'dividas' });
     });
   }
@@ -1794,7 +1822,7 @@ function generateNotifications() {
   // ── Projeção de saldo negativo ──
   const dailyNet = getRecentDailyNet(30);
   if (dailyNet < 0) {
-    const liquid = state.assets.reduce(function(s, a) { return s + a.value; }, 0);
+    const liquid = visibleList('assets').reduce(function(s, a) { return s + a.value; }, 0);
     if (liquid <= 0) {
       notifs.push({ id: 'balance-risk-zero', icon: '📉', title: 'Fluxo de caixa negativo', desc: 'Suas despesas recentes superam as receitas. Revise seu orçamento com urgência.', type: 'danger', time: 'Projeção', tab: 'projecao' });
     } else {
@@ -1804,8 +1832,8 @@ function generateNotifications() {
   }
 
   // ── Dicas de início ──
-  if (state.transactions.length === 0) notifs.push({ id: 'empty-tx', icon: '✨', title: 'Comece adicionando transações', desc: 'Registre receitas e despesas para análises personalizadas', type: 'info', time: 'Dica', tab: 'receitas' });
-  if (state.goals.length === 0 && state.transactions.length > 0) notifs.push({ id: 'empty-goals', icon: '🎯', title: 'Defina suas metas', desc: 'Crie metas financeiras e acompanhe o progresso', type: 'info', time: 'Sugestão', tab: 'metas' });
+  if (visibleList('transactions').length === 0) notifs.push({ id: 'empty-tx', icon: '✨', title: 'Comece adicionando transações', desc: 'Registre receitas e despesas para análises personalizadas', type: 'info', time: 'Dica', tab: 'receitas' });
+  if (visibleList('goals').length === 0 && visibleList('transactions').length > 0) notifs.push({ id: 'empty-goals', icon: '🎯', title: 'Defina suas metas', desc: 'Crie metas financeiras e acompanhe o progresso', type: 'info', time: 'Sugestão', tab: 'metas' });
 
   // ── Alertas avançados são exclusivos do plano Plus ──
   const ADVANCED_ALERT_PREFIXES = ['catspike-', 'balance-risk', 'goal-slow-', 'goal-nocontrib-'];
@@ -3032,32 +3060,50 @@ async function loadAllData() {
     sb.from('documents').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
     sb.from('budgets').select('*').eq('user_id', uid),
   ]);
-  state.transactions = (tx.data || []).map(r => ({ id: r.id, date: r.date, desc: r.description, cat: r.category, amount: parseFloat(r.amount), type: r.type, recur: r.recurring }));
-  state.goals = (goals.data || []).map(r => ({ id: r.id, icon: r.icon, name: r.name, target: parseFloat(r.target_amount), current: parseFloat(r.current_amount), monthly: parseFloat(r.monthly_contribution) }));
-  state.debts = (debts.data || []).map(r => ({ id: r.id, name: r.name, type: r.type, saldo: parseFloat(r.balance), juros: parseFloat(r.interest_rate), parcelas: r.installments || 0, mensal: parseFloat(r.monthly_payment) }));
-  state.assets = (assets.data || []).map(r => ({ id: r.id, name: r.name, value: parseFloat(r.value) }));
-  state.liabilities = (liab.data || []).map(r => ({ id: r.id, name: r.name, value: parseFloat(r.value) }));
-  state.subscriptions = (subs.data || []).map(r => ({ id: r.id, name: r.name, cat: r.category, price: parseFloat(r.price), color: r.color }));
+  state.transactions = (tx.data || []).map(r => ({ id: r.id, date: r.date, desc: r.description, cat: r.category, amount: parseFloat(r.amount), type: r.type, recur: r.recurring, profile: r.profile || 'ambos' }));
+  state.goals = (goals.data || []).map(r => ({ id: r.id, icon: r.icon, name: r.name, target: parseFloat(r.target_amount), current: parseFloat(r.current_amount), monthly: parseFloat(r.monthly_contribution), profile: r.profile || 'ambos' }));
+  state.debts = (debts.data || []).map(r => ({ id: r.id, name: r.name, type: r.type, saldo: parseFloat(r.balance), juros: parseFloat(r.interest_rate), parcelas: r.installments || 0, mensal: parseFloat(r.monthly_payment), profile: r.profile || 'ambos' }));
+  state.assets = (assets.data || []).map(r => ({ id: r.id, name: r.name, value: parseFloat(r.value), profile: r.profile || 'ambos' }));
+  state.liabilities = (liab.data || []).map(r => ({ id: r.id, name: r.name, value: parseFloat(r.value), profile: r.profile || 'ambos' }));
+  state.subscriptions = (subs.data || []).map(r => ({ id: r.id, name: r.name, cat: r.category, price: parseFloat(r.price), color: r.color, profile: r.profile || 'ambos' }));
   state.documents = (docs.data || []).map(r => ({ id: r.id, name: r.name, type: r.type, category: r.category, amount: parseFloat(r.amount), date: r.date, status: r.status, fileSize: r.file_size, mimeType: r.mime_type, extractedData: r.extracted_data || {} }));
   // Load budgets as object { category: amount }
   state.budgets = {};
   (budgets.data || []).forEach(r => { state.budgets[r.category] = parseFloat(r.amount); });
 }
 
+async function bulkUpsertWithProfileFallback(table, rows) {
+  if (rows.length === 0) return;
+  const { error } = await sb.from(table).upsert(rows);
+  if (error && /profile/i.test(error.message || '')) {
+    await sb.from(table).upsert(rows.map(({ profile, ...rest }) => rest));
+  }
+}
 async function syncAllToDb() {
   if (!sb || !currentUser) return;
   const uid = currentUser.id;
-  if (state.transactions.length > 0) { await sb.from('transactions').upsert(state.transactions.map(t => ({ id: t.id, user_id: uid, type: t.type, description: t.desc, category: t.cat, amount: t.amount, date: `${currentYear()}-${String(currentMonth()+1).padStart(2,'0')}-${t.date.split('/')[0].padStart(2,'0')}`, recurring: t.recur }))); }
-  if (state.goals.length > 0) { await sb.from('goals').upsert(state.goals.map(g => ({ id: g.id, user_id: uid, name: g.name, icon: g.icon, target_amount: g.target, current_amount: g.current, monthly_contribution: g.monthly }))); }
-  if (state.debts.length > 0) { await sb.from('debts').upsert(state.debts.map(d => ({ id: d.id, user_id: uid, name: d.name, type: d.type, balance: d.saldo, interest_rate: d.juros, installments: d.parcelas || null, monthly_payment: d.mensal }))); }
-  if (state.assets.length > 0) { await sb.from('assets').upsert(state.assets.map(a => ({ id: a.id, user_id: uid, name: a.name, category: 'Outros', value: a.value }))); }
-  if (state.liabilities.length > 0) { await sb.from('liabilities').upsert(state.liabilities.map(l => ({ id: l.id, user_id: uid, name: l.name, value: l.value }))); }
-  if (state.subscriptions.length > 0) { await sb.from('subscriptions').upsert(state.subscriptions.map(s => ({ id: s.id, user_id: uid, name: s.name, category: s.cat, price: s.price, color: s.color }))); }
+  await bulkUpsertWithProfileFallback('transactions', state.transactions.map(t => ({ id: t.id, user_id: uid, type: t.type, description: t.desc, category: t.cat, amount: t.amount, date: `${currentYear()}-${String(currentMonth()+1).padStart(2,'0')}-${t.date.split('/')[0].padStart(2,'0')}`, recurring: t.recur, profile: t.profile || 'ambos' })));
+  await bulkUpsertWithProfileFallback('goals', state.goals.map(g => ({ id: g.id, user_id: uid, name: g.name, icon: g.icon, target_amount: g.target, current_amount: g.current, monthly_contribution: g.monthly, profile: g.profile || 'ambos' })));
+  await bulkUpsertWithProfileFallback('debts', state.debts.map(d => ({ id: d.id, user_id: uid, name: d.name, type: d.type, balance: d.saldo, interest_rate: d.juros, installments: d.parcelas || null, monthly_payment: d.mensal, profile: d.profile || 'ambos' })));
+  await bulkUpsertWithProfileFallback('assets', state.assets.map(a => ({ id: a.id, user_id: uid, name: a.name, category: 'Outros', value: a.value, profile: a.profile || 'ambos' })));
+  await bulkUpsertWithProfileFallback('liabilities', state.liabilities.map(l => ({ id: l.id, user_id: uid, name: l.name, value: l.value, profile: l.profile || 'ambos' })));
+  await bulkUpsertWithProfileFallback('subscriptions', state.subscriptions.map(s => ({ id: s.id, user_id: uid, name: s.name, category: s.cat, price: s.price, color: s.color, profile: s.profile || 'ambos' })));
   if (state.documents.length > 0) { await sb.from('documents').upsert(state.documents.map(d => ({ id: d.id, user_id: uid, name: d.name, type: d.type, category: d.category, amount: d.amount, date: d.date, status: d.status, file_size: d.fileSize, mime_type: d.mimeType, extracted_data: d.extractedData || {} }))); }
   if (Object.keys(state.budgets).length > 0) { await sb.from('budgets').upsert(Object.entries(state.budgets).map(([cat, amt]) => ({ user_id: uid, category: cat, amount: amt }))); }
 }
 
-async function dbUpsert(table, record) { if (!sb || !currentUser) return; await sb.from(table).upsert(record); }
+async function dbUpsert(table, record) {
+  if (!sb || !currentUser) return;
+  const { error } = await sb.from(table).upsert(record);
+  // Compatibilidade com bancos ainda sem a coluna `profile` (segregação PF/PJ):
+  // se o Supabase recusar por coluna inexistente, tenta de novo sem ela, para
+  // não perder o resto do lançamento. Rode a migração abaixo para ativar 100%:
+  // ALTER TABLE <tabela> ADD COLUMN profile text DEFAULT 'ambos';
+  if (error && record.profile !== undefined && /profile/i.test(error.message || '')) {
+    const { profile, ...rest } = record;
+    await sb.from(table).upsert(rest);
+  }
+}
 async function dbDelete(table, id) { if (!sb || !currentUser) return; await sb.from(table).delete().eq('id', id); }
 
 // ═══════════════════════════════════════════════════════
@@ -3094,6 +3140,7 @@ function openTransactionModal(type, existing = null) {
       <div class="form-group"><label class="form-label">Recorrente?</label>
         <select class="form-select" id="m-recur"><option value="false" ${existing && !existing.recur ? 'selected' : ''}>Não</option><option value="true" ${existing?.recur ? 'selected' : ''}>Sim</option></select></div>
     </div>
+    <div class="form-row">${profileFieldHtml(existing)}</div>
     <div class="modal-actions">
       ${isEdit ? `<button class="btn-danger" onclick="deleteTransaction('${existing.id}')">Excluir</button>` : ''}
       <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
@@ -3103,14 +3150,30 @@ function openTransactionModal(type, existing = null) {
 async function saveTransaction(type, editId) {
   if (!editId && !checkPlanLimit(countThisMonth(state.transactions, 'date'), PLAN_LIMITS.maxTransactionsPerMonth, 'Plano Free permite até ' + PLAN_LIMITS.maxTransactionsPerMonth + ' lançamentos por mês. Faça upgrade para lançamentos ilimitados.')) return;
   const dateStr = document.getElementById('m-date').value;
-  const t = { id: editId || genId(), date: dateStr, desc: document.getElementById('m-desc').value, cat: document.getElementById('m-cat').value, amount: parseFloat(document.getElementById('m-amount').value) || 0, type, recur: document.getElementById('m-recur').value === 'true' };
+  const profile = readProfileField();
+  const t = { id: editId || genId(), date: dateStr, desc: document.getElementById('m-desc').value, cat: document.getElementById('m-cat').value, amount: parseFloat(document.getElementById('m-amount').value) || 0, type, recur: document.getElementById('m-recur').value === 'true', profile };
   if (editId) { const i = state.transactions.findIndex(x => x.id === editId); if (i >= 0) state.transactions[i] = t; } else state.transactions.push(t);
   const dd = dateStr.split('/')[0] || '01', mm = dateStr.split('/')[1] || String(currentMonth()+1);
-  await dbUpsert('transactions', { id: t.id, user_id: currentUser?.id, type, description: t.desc, category: t.cat, amount: t.amount, date: `${currentYear()}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}`, recurring: t.recur });
+  await dbUpsert('transactions', { id: t.id, user_id: currentUser?.id, type, description: t.desc, category: t.cat, amount: t.amount, date: `${currentYear()}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}`, recurring: t.recur, profile });
   closeModal(); renderCurrentTab();
   showToast(editId ? 'Lançamento atualizado' : 'Lançamento adicionado', 'success');
 }
 async function deleteTransaction(id) { state.transactions = state.transactions.filter(t => t.id !== id); await dbDelete('transactions', id); closeModal(); renderCurrentTab(); showToast('Lançamento excluído', 'info'); }
+function confirmBulkDelete(title, desc, onConfirmFnName, arg) {
+  openModal(title, `<div style="font-size:14px;color:var(--ink-2);line-height:1.6;margin-bottom:8px">${desc}</div>
+    <div class="modal-actions"><button class="btn-cancel" onclick="closeModal()">Cancelar</button>
+    <button class="btn-danger" onclick="${onConfirmFnName}(${arg !== undefined ? `'${arg}'` : ''})">Sim, excluir tudo</button></div>`);
+}
+async function deleteAllTransactions(type) {
+  const isPJ = state.profile_type === 'PJ';
+  const label = type === 'income' ? (isPJ ? 'faturamento' : 'receitas') : (isPJ ? 'custos' : 'despesas');
+  const toRemove = visibleList('transactions').filter(t => t.type === type).map(t => t.id);
+  if (toRemove.length === 0) { showToast('Não há lançamentos para excluir.', 'info'); return; }
+  state.transactions = state.transactions.filter(t => !toRemove.includes(t.id));
+  await Promise.all(toRemove.map(id => dbDelete('transactions', id)));
+  closeModal(); renderCurrentTab();
+  showToast(`${toRemove.length} lançamento(s) de ${label} (perfil ${isPJ ? 'Empresa' : 'Pessoal'}) excluído(s)`, 'info');
+}
 
 // ═══════════════════════════════════════════════════════
 // CRUD: GOALS
@@ -3121,16 +3184,25 @@ function openGoalModal(existing = null) {
     <div class="form-row"><div class="form-group"><label class="form-label">Emoji</label><input class="form-input" type="text" id="m-icon" value="${existing?.icon || (state.profile_type==='PJ' ? '💼' : '🎯')}" maxlength="4" /></div><div class="form-group"><label class="form-label">Nome</label><input class="form-input" type="text" id="m-gname" value="${existing?.name || ''}" placeholder="Ex: ${state.profile_type==='PJ'?'Reserva de capital de giro':'Comprar carro'}" /></div></div>
     <div class="form-row"><div class="form-group"><label class="form-label">Valor total</label><input class="form-input" type="number" id="m-target" value="${existing?.target || ''}" step="0.01" /></div><div class="form-group"><label class="form-label">Já acumulado</label><input class="form-input" type="number" id="m-current" value="${existing?.current || ''}" step="0.01" /></div></div>
     <div class="form-group"><label class="form-label">Aporte mensal</label><input class="form-input" type="number" id="m-monthly" value="${existing?.monthly || ''}" step="0.01" /></div>
+    ${profileFieldHtml(existing)}
     <div class="modal-actions">${isEdit ? `<button class="btn-danger" onclick="deleteGoal('${existing.id}')">Excluir</button>` : ''}<button class="btn-cancel" onclick="closeModal()">Cancelar</button><button class="btn-save" onclick="saveGoal(${isEdit ? `'${existing.id}'` : 'null'})">Salvar</button></div>`);
 }
 async function saveGoal(editId) {
   if (!editId && !checkPlanLimit(state.goals.length, PLAN_LIMITS.maxActiveGoals, 'Plano Free permite até ' + PLAN_LIMITS.maxActiveGoals + ' meta ativa. Exclua a atual ou faça upgrade para metas ilimitadas.')) return;
-  const g = { id: editId || genId(), icon: document.getElementById('m-icon').value || '🎯', name: document.getElementById('m-gname').value, target: parseFloat(document.getElementById('m-target').value) || 0, current: parseFloat(document.getElementById('m-current').value) || 0, monthly: parseFloat(document.getElementById('m-monthly').value) || 0 };
+  const profile = readProfileField();
+  const g = { id: editId || genId(), icon: document.getElementById('m-icon').value || '🎯', name: document.getElementById('m-gname').value, target: parseFloat(document.getElementById('m-target').value) || 0, current: parseFloat(document.getElementById('m-current').value) || 0, monthly: parseFloat(document.getElementById('m-monthly').value) || 0, profile };
   if (editId) { const i = state.goals.findIndex(x => x.id === editId); if (i >= 0) state.goals[i] = g; } else state.goals.push(g);
-  await dbUpsert('goals', { id: g.id, user_id: currentUser?.id, name: g.name, icon: g.icon, target_amount: g.target, current_amount: g.current, monthly_contribution: g.monthly });
+  await dbUpsert('goals', { id: g.id, user_id: currentUser?.id, name: g.name, icon: g.icon, target_amount: g.target, current_amount: g.current, monthly_contribution: g.monthly, profile });
   closeModal(); renderCurrentTab(); showToast(editId ? 'Meta atualizada' : 'Meta criada', 'success');
 }
 async function deleteGoal(id) { state.goals = state.goals.filter(g => g.id !== id); await dbDelete('goals', id); closeModal(); renderCurrentTab(); showToast('Meta excluída', 'info'); }
+async function deleteAllGoals() {
+  const toRemove = visibleList('goals').map(g => g.id);
+  if (toRemove.length === 0) { showToast('Não há metas para excluir.', 'info'); return; }
+  state.goals = state.goals.filter(g => !toRemove.includes(g.id));
+  await Promise.all(toRemove.map(id => dbDelete('goals', id)));
+  closeModal(); renderCurrentTab(); showToast(`${toRemove.length} meta(s) excluída(s)`, 'info');
+}
 
 // ═══════════════════════════════════════════════════════
 // CRUD: DEBTS
@@ -3142,16 +3214,25 @@ function openDebtModal(existing = null) {
     <div class="form-row"><div class="form-group"><label class="form-label">Nome</label><input class="form-input" type="text" id="m-dname" value="${existing?.name || ''}" /></div><div class="form-group"><label class="form-label">Tipo</label><select class="form-select" id="m-dtype">${types.map(t => `<option ${existing?.type === t ? 'selected' : ''}>${t}</option>`).join('')}</select></div></div>
     <div class="form-row"><div class="form-group"><label class="form-label">Saldo devedor</label><input class="form-input" type="number" id="m-dsaldo" value="${existing?.saldo || ''}" step="0.01" /></div><div class="form-group"><label class="form-label">Juros (% a.m.)</label><input class="form-input" type="number" id="m-djuros" value="${existing?.juros || 0}" step="0.1" /></div></div>
     <div class="form-row"><div class="form-group"><label class="form-label">Parcelas restantes</label><input class="form-input" type="number" id="m-dparcelas" value="${existing?.parcelas || 0}" /></div><div class="form-group"><label class="form-label">Valor mensal</label><input class="form-input" type="number" id="m-dmensal" value="${existing?.mensal || ''}" step="0.01" /></div></div>
+    ${profileFieldHtml(existing)}
     <div class="modal-actions">${isEdit ? `<button class="btn-danger" onclick="deleteDebt('${existing.id}')">Excluir</button>` : ''}<button class="btn-cancel" onclick="closeModal()">Cancelar</button><button class="btn-save" onclick="saveDebt(${isEdit ? `'${existing.id}'` : 'null'})">Salvar</button></div>`);
 }
 async function saveDebt(editId) {
   if (!editId && !checkPlanLimit(state.debts.length, PLAN_LIMITS.maxDebts, 'Plano Basic permite registrar até ' + PLAN_LIMITS.maxDebts + ' dívidas. Faça upgrade para o Plus (ilimitado).')) return;
-  const d = { id: editId || genId(), name: document.getElementById('m-dname').value, type: document.getElementById('m-dtype').value, saldo: parseFloat(document.getElementById('m-dsaldo').value) || 0, juros: parseFloat(document.getElementById('m-djuros').value) || 0, parcelas: parseInt(document.getElementById('m-dparcelas').value) || 0, mensal: parseFloat(document.getElementById('m-dmensal').value) || 0 };
+  const profile = readProfileField();
+  const d = { id: editId || genId(), name: document.getElementById('m-dname').value, type: document.getElementById('m-dtype').value, saldo: parseFloat(document.getElementById('m-dsaldo').value) || 0, juros: parseFloat(document.getElementById('m-djuros').value) || 0, parcelas: parseInt(document.getElementById('m-dparcelas').value) || 0, mensal: parseFloat(document.getElementById('m-dmensal').value) || 0, profile };
   if (editId) { const i = state.debts.findIndex(x => x.id === editId); if (i >= 0) state.debts[i] = d; } else state.debts.push(d);
-  await dbUpsert('debts', { id: d.id, user_id: currentUser?.id, name: d.name, type: d.type, balance: d.saldo, interest_rate: d.juros, installments: d.parcelas || null, monthly_payment: d.mensal });
+  await dbUpsert('debts', { id: d.id, user_id: currentUser?.id, name: d.name, type: d.type, balance: d.saldo, interest_rate: d.juros, installments: d.parcelas || null, monthly_payment: d.mensal, profile });
   closeModal(); renderCurrentTab(); showToast(editId ? 'Dívida atualizada' : 'Dívida adicionada', 'success');
 }
 async function deleteDebt(id) { state.debts = state.debts.filter(d => d.id !== id); await dbDelete('debts', id); closeModal(); renderCurrentTab(); showToast('Dívida excluída', 'info'); }
+async function deleteAllDebts() {
+  const toRemove = visibleList('debts').map(d => d.id);
+  if (toRemove.length === 0) { showToast('Não há dívidas para excluir.', 'info'); return; }
+  state.debts = state.debts.filter(d => !toRemove.includes(d.id));
+  await Promise.all(toRemove.map(id => dbDelete('debts', id)));
+  closeModal(); renderCurrentTab(); showToast(`${toRemove.length} dívida(s) excluída(s)`, 'info');
+}
 
 // ═══════════════════════════════════════════════════════
 // CRUD: ASSETS / LIABILITIES
@@ -3162,16 +3243,34 @@ function openAssetModal(listKey, existing = null) {
   openModal(title, `
     <div class="form-group"><label class="form-label">Nome</label><input class="form-input" type="text" id="m-aname" value="${existing?.name || ''}" /></div>
     <div class="form-group"><label class="form-label">Valor</label><input class="form-input" type="number" id="m-aval" value="${existing?.value || ''}" step="0.01" /></div>
+    ${profileFieldHtml(existing)}
     <div class="modal-actions">${isEdit ? `<button class="btn-danger" onclick="deleteAsset('${listKey}','${existing.id}')">Excluir</button>` : ''}<button class="btn-cancel" onclick="closeModal()">Cancelar</button><button class="btn-save" onclick="saveAsset('${listKey}',${isEdit ? `'${existing.id}'` : 'null'})">Salvar</button></div>`);
 }
 async function saveAsset(listKey, editId) {
   if (!editId && listKey === 'assets' && !checkPlanLimit(state.assets.length, PLAN_LIMITS.maxPatrimonioItems, 'Plano Free permite até ' + PLAN_LIMITS.maxPatrimonioItems + ' itens em Patrimônio. Faça upgrade para itens ilimitados.')) return;
-  const a = { id: editId || genId(), name: document.getElementById('m-aname').value, value: parseFloat(document.getElementById('m-aval').value) || 0 };
+  const profile = readProfileField();
+  const a = { id: editId || genId(), name: document.getElementById('m-aname').value, value: parseFloat(document.getElementById('m-aval').value) || 0, profile };
   if (editId) { const i = state[listKey].findIndex(x => x.id === editId); if (i >= 0) state[listKey][i] = a; } else state[listKey].push(a);
-  const row = listKey === 'assets' ? { id: a.id, user_id: currentUser?.id, name: a.name, category: 'Outros', value: a.value } : { id: a.id, user_id: currentUser?.id, name: a.name, value: a.value };
+  const row = listKey === 'assets' ? { id: a.id, user_id: currentUser?.id, name: a.name, category: 'Outros', value: a.value, profile } : { id: a.id, user_id: currentUser?.id, name: a.name, value: a.value, profile };
   await dbUpsert(listKey, row); closeModal(); renderCurrentTab(); showToast(editId ? 'Atualizado' : 'Adicionado', 'success');
 }
 async function deleteAsset(listKey, id) { state[listKey] = state[listKey].filter(a => a.id !== id); await dbDelete(listKey, id); closeModal(); renderCurrentTab(); showToast('Excluído', 'info'); }
+async function deleteAllAssets(listKey) {
+  const toRemove = visibleList(listKey).map(a => a.id);
+  if (toRemove.length === 0) { showToast('Não há itens para excluir.', 'info'); return; }
+  state[listKey] = state[listKey].filter(a => !toRemove.includes(a.id));
+  await Promise.all(toRemove.map(id => dbDelete(listKey, id)));
+  closeModal(); renderCurrentTab(); showToast(`${toRemove.length} item(ns) excluído(s)`, 'info');
+}
+async function deleteAllPatrimonio() {
+  const removeAssets = visibleList('assets').map(a => a.id);
+  const removeLiab = visibleList('liabilities').map(l => l.id);
+  if (removeAssets.length === 0 && removeLiab.length === 0) { showToast('Não há itens para excluir.', 'info'); return; }
+  state.assets = state.assets.filter(a => !removeAssets.includes(a.id));
+  state.liabilities = state.liabilities.filter(l => !removeLiab.includes(l.id));
+  await Promise.all([...removeAssets.map(id => dbDelete('assets', id)), ...removeLiab.map(id => dbDelete('liabilities', id))]);
+  closeModal(); renderCurrentTab(); showToast(`${removeAssets.length + removeLiab.length} item(ns) de patrimônio excluído(s)`, 'info');
+}
 
 // ═══════════════════════════════════════════════════════
 // CRUD: SUBSCRIPTIONS
@@ -3181,35 +3280,44 @@ function openSubModal(existing = null) {
   openModal(isEdit ? 'Editar assinatura' : 'Nova assinatura', `
     <div class="form-row"><div class="form-group"><label class="form-label">Nome</label><input class="form-input" type="text" id="m-sname" value="${existing?.name || ''}" /></div><div class="form-group"><label class="form-label">Categoria</label><input class="form-input" type="text" id="m-scat" value="${existing?.cat || ''}" placeholder="Ex: ${state.profile_type==='PJ'?'Software':'Streaming'}" /></div></div>
     <div class="form-row"><div class="form-group"><label class="form-label">Valor mensal</label><input class="form-input" type="number" id="m-sprice" value="${existing?.price || ''}" step="0.01" /></div><div class="form-group"><label class="form-label">Cor</label><input class="form-input" type="color" id="m-scolor" value="${existing?.color || '#7C3AED'}" style="height:42px;padding:4px" /></div></div>
+    ${profileFieldHtml(existing)}
     <div class="modal-actions">${isEdit ? `<button class="btn-danger" onclick="deleteSub('${existing.id}')">Excluir</button>` : ''}<button class="btn-cancel" onclick="closeModal()">Cancelar</button><button class="btn-save" onclick="saveSub(${isEdit ? `'${existing.id}'` : 'null'})">Salvar</button></div>`);
 }
 async function saveSub(editId) {
   if (!editId && !checkPlanLimit(state.subscriptions.length, PLAN_LIMITS.maxSubscriptions, 'Plano Free permite monitorar até ' + PLAN_LIMITS.maxSubscriptions + ' assinaturas. Faça upgrade para monitorar todas.')) return;
-  const s = { id: editId || genId(), name: document.getElementById('m-sname').value, cat: document.getElementById('m-scat').value, price: parseFloat(document.getElementById('m-sprice').value) || 0, color: document.getElementById('m-scolor').value };
+  const profile = readProfileField();
+  const s = { id: editId || genId(), name: document.getElementById('m-sname').value, cat: document.getElementById('m-scat').value, price: parseFloat(document.getElementById('m-sprice').value) || 0, color: document.getElementById('m-scolor').value, profile };
   if (editId) { const i = state.subscriptions.findIndex(x => x.id === editId); if (i >= 0) state.subscriptions[i] = s; } else state.subscriptions.push(s);
-  await dbUpsert('subscriptions', { id: s.id, user_id: currentUser?.id, name: s.name, category: s.cat, price: s.price, color: s.color });
+  await dbUpsert('subscriptions', { id: s.id, user_id: currentUser?.id, name: s.name, category: s.cat, price: s.price, color: s.color, profile });
   closeModal(); renderCurrentTab(); showToast(editId ? 'Assinatura atualizada' : 'Assinatura adicionada', 'success');
 }
 async function deleteSub(id) { state.subscriptions = state.subscriptions.filter(s => s.id !== id); await dbDelete('subscriptions', id); closeModal(); renderCurrentTab(); showToast('Assinatura excluída', 'info'); }
+async function deleteAllSubs() {
+  const toRemove = visibleList('subscriptions').map(s => s.id);
+  if (toRemove.length === 0) { showToast('Não há assinaturas para excluir.', 'info'); return; }
+  state.subscriptions = state.subscriptions.filter(s => !toRemove.includes(s.id));
+  await Promise.all(toRemove.map(id => dbDelete('subscriptions', id)));
+  closeModal(); renderCurrentTab(); showToast(`${toRemove.length} assinatura(s) excluída(s)`, 'info');
+}
 
 // ═══════════════════════════════════════════════════════
 // COMPUTE
 // ═══════════════════════════════════════════════════════
 function compute() {
-  const filtered = filterByPeriod(state.transactions, 'date');
+  const filtered = filterByPeriod(visibleList('transactions'), 'date');
   const incomes = filtered.filter(t => t.type === 'income');
   const expenses = filtered.filter(t => t.type === 'expense');
   const totalIncome = incomes.reduce((s, t) => s + t.amount, 0);
   const totalExpense = expenses.reduce((s, t) => s + t.amount, 0);
   const resultado = totalIncome - totalExpense;
   const taxaEconomia = totalIncome > 0 ? (resultado / totalIncome * 100) : 0;
-  const totalDebt = state.debts.reduce((s, d) => s + d.saldo, 0);
-  const totalDebtMonthly = state.debts.reduce((s, d) => s + d.mensal, 0);
+  const totalDebt = visibleList('debts').reduce((s, d) => s + d.saldo, 0);
+  const totalDebtMonthly = visibleList('debts').reduce((s, d) => s + d.mensal, 0);
   const debtPct = totalIncome > 0 ? (totalDebtMonthly / totalIncome * 100) : 0;
-  const totalAssets = state.assets.reduce((s, a) => s + a.value, 0);
-  const totalLiab = state.liabilities.reduce((s, l) => s + l.value, 0);
+  const totalAssets = visibleList('assets').reduce((s, a) => s + a.value, 0);
+  const totalLiab = visibleList('liabilities').reduce((s, l) => s + l.value, 0);
   const netWorth = totalAssets - totalLiab;
-  const totalSubs = state.subscriptions.reduce((s, sub) => s + sub.price, 0);
+  const totalSubs = visibleList('subscriptions').reduce((s, sub) => s + sub.price, 0);
   const catMap = {};
   expenses.forEach(e => { catMap[e.cat] = (catMap[e.cat] || 0) + e.amount; });
   const categories = Object.entries(catMap).map(([name, value]) => ({ name, value, color: CAT_COLORS[name] || 'var(--ink-3)' })).sort((a, b) => b.value - a.value);
@@ -3219,7 +3327,7 @@ function compute() {
   const sEconomia = Math.min(100, taxaEconomia * 2.5);
   const fixedPct = totalIncome > 0 ? (expenses.filter(e => e.recur).reduce((s, e) => s + e.amount, 0) / totalIncome * 100) : 0;
   const sFixos = Math.max(0, 100 - fixedPct);
-  const sInvest = Math.min(100, (state.assets.filter(a => a.name.match(/invest|ação|tesouro|cripto|fii/i)).reduce((s, a) => s + a.value, 0) / Math.max(1, totalAssets)) * 130);
+  const sInvest = Math.min(100, (visibleList('assets').filter(a => a.name.match(/invest|ação|tesouro|cripto|fii/i)).reduce((s, a) => s + a.value, 0) / Math.max(1, totalAssets)) * 130);
   const healthItems = [
     { name: state.profile_type === 'PJ' ? 'Capital de giro' : 'Reserva financeira', score: Math.round(sReserva) },
     { name: 'Nível de dívidas', score: Math.round(sDivida) },
@@ -3274,7 +3382,7 @@ function renderComparativo(c) {
   // Get previous month data
   const prevMonth = selectedPeriod.month === 0 ? 11 : selectedPeriod.month - 1;
   const prevYear = selectedPeriod.month === 0 ? selectedPeriod.year - 1 : selectedPeriod.year;
-  const prevTx = state.transactions.filter(function(t) {
+  const prevTx = visibleList('transactions').filter(function(t) {
     if (!t.date) return false;
     let d;
     if (typeof t.date === 'string' && t.date.includes('-')) d = new Date(t.date + 'T00:00:00');
@@ -3532,12 +3640,12 @@ function renderDashboard(c) {
 // ─── TRANSACTIONS LIST ──────────────────────────
 function renderTransactionList(type, c) {
   const isPJ = state.profile_type === 'PJ';
-  let items = state.transactions.filter(t => t.type === type);
+  let items = visibleList('transactions').filter(t => t.type === type);
   if (searchQuery) { items = items.filter(t => t.desc.toLowerCase().includes(searchQuery) || t.cat.toLowerCase().includes(searchQuery)); }
   const total = items.reduce((s, t) => s + t.amount, 0);
   const recur = items.filter(t => t.recur).reduce((s, t) => s + t.amount, 0);
   const label = type === 'income' ? (isPJ ? 'Faturamento' : 'Renda') : (isPJ ? 'Custos operacionais' : 'Despesas');
-  return `<div class="section-header animate-in"><div><div class="section-title">${label}</div><div class="section-desc">${items.length} lançamentos este mês</div></div><button class="btn-add" onclick="openTransactionModal('${type}')">+ Novo</button></div>
+  return `<div class="section-header animate-in"><div><div class="section-title">${label}</div><div class="section-desc">${items.length} lançamentos este mês · perfil ${isPJ?'Empresa':'Pessoal'}</div></div><div style="display:flex;gap:8px"><button class="btn-sm btn-danger" ${items.length===0?'disabled':''} onclick="confirmBulkDelete('Excluir tudo?', 'Isso vai excluir TODOS os ${items.length} lançamentos de ${label.toLowerCase()} visíveis no perfil ${isPJ?'Empresa':'Pessoal'}. Essa ação não pode ser desfeita.', 'deleteAllTransactions', '${type}')">🗑️ Excluir tudo</button><button class="btn-add" onclick="openTransactionModal('${type}')">+ Novo</button></div></div>
   <div class="kpi-grid mb-24">${[
     { label: 'Total', value: fmt(total), cls: type==='income'?'income':'expense' },
     { label: 'Recorrentes', value: fmt(recur) },
@@ -3545,14 +3653,14 @@ function renderTransactionList(type, c) {
   ].map((k,i) => `<div class="kpi animate-in stagger-${i+1}"><div class="kpi-label">${k.label}</div><div class="kpi-value ${k.cls||''}">${k.value}</div></div>`).join('')}</div>
   <div class="search-bar animate-in stagger-3"><input type="text" id="tx-search" placeholder="Buscar por descrição ou categoria..." /></div>
   ${items.length===0?`<div class="card animate-in stagger-4"><div class="empty-state"><div class="empty-icon">${type==='income'?'💰':'🧾'}</div><div class="empty-title">Nenhum lançamento</div><div class="empty-desc">${searchQuery?'Nenhum resultado para a busca.':'Clique em "+ Novo" para adicionar.'}</div></div></div>`:
-  `<div class="card overflow-x animate-in stagger-4"><table class="data-table"><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Recorrente</th><th class="text-right">Valor</th>${type==='expense'&&!isPJ?'<th></th>':''}</tr></thead><tbody>${items.map(t=>`<tr><td onclick='openTransactionModal("${type}",${JSON.stringify(t).replace(/'/g,"&#39;")})' style="cursor:pointer">${t.date}</td><td onclick='openTransactionModal("${type}",${JSON.stringify(t).replace(/'/g,"&#39;")})' style="font-weight:500;cursor:pointer">${t.desc}</td><td onclick='openTransactionModal("${type}",${JSON.stringify(t).replace(/'/g,"&#39;")})' style="cursor:pointer"><span class="cat-badge"><span class="cat-dot" style="background:${CAT_COLORS[t.cat]||'var(--ink-3)'}"></span>${t.cat}</span></td><td onclick='openTransactionModal("${type}",${JSON.stringify(t).replace(/'/g,"&#39;")})' style="cursor:pointer">${t.recur?'<span class="recur">Sim</span>':'<span style="color:var(--ink-3);font-size:12px">—</span>'}</td><td class="amount ${type}" onclick='openTransactionModal("${type}",${JSON.stringify(t).replace(/'/g,"&#39;")})' style="cursor:pointer">${type==='income'?'+':'-'} ${fmt(t.amount)}</td>${type==='expense'&&!isPJ?`<td><button class="btn-sm" onclick="openSplitExpense('${t.id}')" title="Dividir despesa">🔀</button></td>`:''}</tr>`).join('')}</tbody></table></div>`}`;
+  `<div class="card overflow-x animate-in stagger-4"><table class="data-table"><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Recorrente</th><th class="text-right">Valor</th><th></th>${type==='expense'&&!isPJ?'<th></th>':''}</tr></thead><tbody>${items.map(t=>`<tr><td onclick='openTransactionModal("${type}",${JSON.stringify(t).replace(/'/g,"&#39;")})' style="cursor:pointer">${t.date}</td><td onclick='openTransactionModal("${type}",${JSON.stringify(t).replace(/'/g,"&#39;")})' style="font-weight:500;cursor:pointer">${t.desc}</td><td onclick='openTransactionModal("${type}",${JSON.stringify(t).replace(/'/g,"&#39;")})' style="cursor:pointer"><span class="cat-badge"><span class="cat-dot" style="background:${CAT_COLORS[t.cat]||'var(--ink-3)'}"></span>${t.cat}</span></td><td onclick='openTransactionModal("${type}",${JSON.stringify(t).replace(/'/g,"&#39;")})' style="cursor:pointer">${t.recur?'<span class="recur">Sim</span>':'<span style="color:var(--ink-3);font-size:12px">—</span>'}</td><td class="amount ${type}" onclick='openTransactionModal("${type}",${JSON.stringify(t).replace(/'/g,"&#39;")})' style="cursor:pointer">${type==='income'?'+':'-'} ${fmt(t.amount)}</td><td><button class="btn-sm" onclick="event.stopPropagation();deleteTransaction('${t.id}')" title="Excluir este lançamento">🗑️</button></td>${type==='expense'&&!isPJ?`<td><button class="btn-sm" onclick="openSplitExpense('${t.id}')" title="Dividir despesa">🔀</button></td>`:''}</tr>`).join('')}</tbody></table></div>`}`;
 }
 
 // ─── ORÇAMENTO POR CATEGORIA ────────────────────
 function renderOrcamento(c) {
   const cats = getCatsExpense();
   const catMap = {};
-  state.transactions.filter(t => t.type === 'expense').forEach(e => { catMap[e.cat] = (catMap[e.cat] || 0) + e.amount; });
+  visibleList('transactions').filter(t => t.type === 'expense').forEach(e => { catMap[e.cat] = (catMap[e.cat] || 0) + e.amount; });
   return `<div class="section-header animate-in"><div><div class="section-title">Orçamento por Categoria</div><div class="section-desc">Defina limites e acompanhe seus gastos.</div></div><button class="btn-add" onclick="openBudgetModal()">Editar limites</button></div>
   <div class="card animate-in stagger-1">${cats.map(cat => {
     const spent = catMap[cat] || 0;
@@ -3612,9 +3720,9 @@ function renderMetas() {
   const emptyIcon = isPJ ? '💼' : '🎯';
   const emptyTitle = isPJ ? 'Nenhuma meta cadastrada' : 'Nenhuma meta';
   const emptyDesc = isPJ ? 'Defina objetivos como reserva de caixa, novo equipamento ou expansão.' : 'Defina seus objetivos financeiros.';
-  return `<div class="section-header animate-in"><div><div class="section-title">${title}</div><div class="section-desc">${desc}</div></div><button class="btn-add" onclick="openGoalModal()">+ Nova meta</button></div>
-  ${state.goals.length===0?`<div class="card animate-in stagger-1"><div class="empty-state"><div class="empty-icon">${emptyIcon}</div><div class="empty-title">${emptyTitle}</div><div class="empty-desc">${emptyDesc}</div><button class="btn-add" onclick="openGoalModal()">+ Criar meta</button></div></div>`:
-  `<div class="goals-grid">${state.goals.map((g,i)=>{const pctDone=g.target>0?(g.current/g.target*100):0,remaining=g.target-g.current,monthsLeft=g.monthly>0?Math.ceil(remaining/g.monthly):0,eta=g.monthly>0?(()=>{const d=new Date();d.setMonth(d.getMonth()+monthsLeft);return MONTHS[d.getMonth()]+' '+d.getFullYear();})():'—';
+  return `<div class="section-header animate-in"><div><div class="section-title">${title}</div><div class="section-desc">${desc}</div></div><div style="display:flex;gap:8px">${visibleList('goals').length>0?`<button class="btn-sm btn-danger" onclick="confirmBulkDelete('Excluir tudo?', 'Isso vai excluir TODAS as ${visibleList('goals').length} metas visíveis no perfil ${isPJ?'Empresa':'Pessoal'}. Essa ação não pode ser desfeita.', 'deleteAllGoals')">🗑️ Excluir tudo</button>`:''}<button class="btn-add" onclick="openGoalModal()">+ Nova meta</button></div></div>
+  ${visibleList('goals').length===0?`<div class="card animate-in stagger-1"><div class="empty-state"><div class="empty-icon">${emptyIcon}</div><div class="empty-title">${emptyTitle}</div><div class="empty-desc">${emptyDesc}</div><button class="btn-add" onclick="openGoalModal()">+ Criar meta</button></div></div>`:
+  `<div class="goals-grid">${visibleList('goals').map((g,i)=>{const pctDone=g.target>0?(g.current/g.target*100):0,remaining=g.target-g.current,monthsLeft=g.monthly>0?Math.ceil(remaining/g.monthly):0,eta=g.monthly>0?(()=>{const d=new Date();d.setMonth(d.getMonth()+monthsLeft);return MONTHS[d.getMonth()]+' '+d.getFullYear();})():'—';
     const milestones = [25,50,75,100];
     const milestonesHtml = isPlusUser() ? '<div style="display:flex;gap:6px;margin-bottom:12px">' + milestones.map(function(m){const reached=pctDone>=m;return '<div style="flex:1;text-align:center;padding:4px 2px;border-radius:6px;font-size:10px;font-weight:700;background:'+(reached?'var(--income-light)':'var(--card-alt)')+';color:'+(reached?'var(--income)':'var(--ink-3)')+'">'+(reached?'✓ ':'')+m+'%</div>';}).join('') + '</div>' : '';
     return`<div class="goal-card animate-in stagger-${(i%4)+1}" onclick='openGoalModal(${JSON.stringify(g).replace(/'/g,"&#39;")})'><div style="font-size:24px;margin-bottom:8px">${g.icon}</div><div class="goal-name">${g.name}</div><div class="goal-meta">Meta: ${eta} · ${fmtD(g.monthly)}/mês</div><div class="goal-track"><div class="goal-fill" style="width:${Math.min(100,pctDone)}%"></div></div><div class="goal-row mb-16"><span class="label">${pct(pctDone)} concluído</span><span class="value">${fmt(g.current)} / ${fmt(g.target)}</span></div>${milestonesHtml}<div class="goal-row"><span class="label">Faltam</span><span class="value" style="color:var(--amber)">${fmt(remaining)}</span></div></div>`;}).join('')}</div>`}`;
@@ -3622,41 +3730,44 @@ function renderMetas() {
 
 // ─── DÍVIDAS ────────────────────────────────────
 function renderDividas(c) {
-  return `<div class="section-header animate-in"><div><div class="section-title">Controle de Dívidas</div><div class="section-desc">Gerencie e simule antecipações.</div></div><button class="btn-add" onclick="openDebtModal()">+ Nova dívida</button></div>
+  const isPJ = state.profile_type === 'PJ';
+  return `<div class="section-header animate-in"><div><div class="section-title">Controle de Dívidas</div><div class="section-desc">Gerencie e simule antecipações.</div></div><div style="display:flex;gap:8px">${visibleList('debts').length>0?`<button class="btn-sm btn-danger" onclick="confirmBulkDelete('Excluir tudo?', 'Isso vai excluir TODAS as ${visibleList('debts').length} dívidas visíveis no perfil ${isPJ?'Empresa':'Pessoal'}. Essa ação não pode ser desfeita.', 'deleteAllDebts')">🗑️ Excluir tudo</button>`:''}<button class="btn-add" onclick="openDebtModal()">+ Nova dívida</button></div></div>
   <div class="kpi-grid mb-24">${[
     { label: 'Dívida total', value: fmt(c.totalDebt), cls: 'expense' },
     { label: 'Comprometimento mensal', value: fmt(c.totalDebtMonthly), cls: 'expense' },
     { label: '% da renda', value: pct(c.debtPct), color: c.debtPct>30?'var(--expense)':'var(--amber)' },
   ].map((k,i) => `<div class="kpi animate-in stagger-${i+1}"><div class="kpi-label">${k.label}</div><div class="kpi-value ${k.cls||''}" ${k.color?`style="color:${k.color}"`:''} >${k.value}</div></div>`).join('')}</div>
-  ${state.debts.length===0?`<div class="card animate-in stagger-3"><div class="empty-state"><div class="empty-icon">✅</div><div class="empty-title">Sem dívidas!</div></div></div>`:
-  `<div class="debt-summary-grid">${state.debts.map((d,i)=>`<div class="debt-card-item animate-in stagger-${(i%4)+1}"><div onclick='openDebtModal(${JSON.stringify(d).replace(/'/g,"&#39;")})' style="cursor:pointer"><div class="debt-type">${d.type}</div><div style="font-family:var(--font-display);font-weight:700;font-size:15px;margin:6px 0 2px">${d.name}</div><div class="debt-amount">${fmt(d.saldo)}</div><div class="debt-detail">${d.juros>0?`Juros: ${d.juros}% a.m.`:'Sem juros'}${d.parcelas>0?` · ${d.parcelas}x de ${fmt(d.mensal)}`:''}</div></div>${isPlusUser()?`<button class="btn-sm" style="margin-top:10px;width:100%" onclick="event.stopPropagation();openNegotiationDebt('${d.id}')">💬 Negociar</button>`:''}</div>`).join('')}</div>
-  <div class="card animate-in stagger-5"><div class="card-title" style="margin-bottom:12px">Simulação de antecipação</div>${state.debts.filter(d=>d.juros>0&&d.parcelas>0).map(d=>{const fi=d.saldo*(d.juros/100)*d.parcelas;return`<div style="background:var(--card-alt);border-radius:var(--radius-sm);padding:16px;font-size:13px;color:var(--ink-2);line-height:1.7;margin-bottom:8px"><strong style="color:var(--ink)">${d.name}</strong> — Saldo: ${fmt(d.saldo)} · ${d.juros}% a.m. · ${d.parcelas}x<br>Economia estimada: <strong style="color:var(--income)">${fmt(fi)}</strong></div>`;}).join('')||'<div style="font-size:13px;color:var(--ink-3)">Nenhuma dívida com juros.</div>'}</div>`}`;
+  ${visibleList('debts').length===0?`<div class="card animate-in stagger-3"><div class="empty-state"><div class="empty-icon">✅</div><div class="empty-title">Sem dívidas!</div></div></div>`:
+  `<div class="debt-summary-grid">${visibleList('debts').map((d,i)=>`<div class="debt-card-item animate-in stagger-${(i%4)+1}"><div onclick='openDebtModal(${JSON.stringify(d).replace(/'/g,"&#39;")})' style="cursor:pointer"><div class="debt-type">${d.type}</div><div style="font-family:var(--font-display);font-weight:700;font-size:15px;margin:6px 0 2px">${d.name}</div><div class="debt-amount">${fmt(d.saldo)}</div><div class="debt-detail">${d.juros>0?`Juros: ${d.juros}% a.m.`:'Sem juros'}${d.parcelas>0?` · ${d.parcelas}x de ${fmt(d.mensal)}`:''}</div></div>${isPlusUser()?`<button class="btn-sm" style="margin-top:10px;width:100%" onclick="event.stopPropagation();openNegotiationDebt('${d.id}')">💬 Negociar</button>`:''}</div>`).join('')}</div>
+  <div class="card animate-in stagger-5"><div class="card-title" style="margin-bottom:12px">Simulação de antecipação</div>${visibleList('debts').filter(d=>d.juros>0&&d.parcelas>0).map(d=>{const fi=d.saldo*(d.juros/100)*d.parcelas;return`<div style="background:var(--card-alt);border-radius:var(--radius-sm);padding:16px;font-size:13px;color:var(--ink-2);line-height:1.7;margin-bottom:8px"><strong style="color:var(--ink)">${d.name}</strong> — Saldo: ${fmt(d.saldo)} · ${d.juros}% a.m. · ${d.parcelas}x<br>Economia estimada: <strong style="color:var(--income)">${fmt(fi)}</strong></div>`;}).join('')||'<div style="font-size:13px;color:var(--ink-3)">Nenhuma dívida com juros.</div>'}</div>`}`;
 }
 
 // ─── PATRIMÔNIO ─────────────────────────────────
 function renderPatrimonio(c) {
-  return `<div class="section-header animate-in"><div><div class="section-title">Patrimônio</div><div class="section-desc">Visão consolidada de ativos e passivos.</div></div></div>
+  const isPJ = state.profile_type === 'PJ';
+  const totalItems = visibleList('assets').length + visibleList('liabilities').length;
+  return `<div class="section-header animate-in"><div><div class="section-title">Patrimônio</div><div class="section-desc">Visão consolidada de ativos e passivos.</div></div>${totalItems>0?`<button class="btn-sm btn-danger" onclick="confirmBulkDelete('Excluir tudo?', 'Isso vai excluir TODOS os ${totalItems} itens de patrimônio (ativos e passivos) visíveis no perfil ${isPJ?'Empresa':'Pessoal'}. Essa ação não pode ser desfeita.', 'deleteAllPatrimonio')">🗑️ Excluir tudo</button>`:''}</div>
   <div class="kpi-grid mb-24">${[
     { label: 'Total ativos', value: fmt(c.totalAssets), cls: 'income' },
     { label: 'Total passivos', value: fmt(c.totalLiab), cls: 'expense' },
     { label: 'Patrimônio líquido', value: fmt(c.netWorth), cls: 'teal' },
   ].map((k,i) => `<div class="kpi animate-in stagger-${i+1}"><div class="kpi-label">${k.label}</div><div class="kpi-value ${k.cls}">${k.value}</div></div>`).join('')}</div>
-  <div class="nw-split mb-24"><div class="card animate-in stagger-3"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><div class="card-title" style="color:var(--income);margin:0">Ativos</div><button class="btn-add" onclick="openAssetModal('assets')" style="font-size:11px;padding:5px 10px">+ Novo</button></div>${state.assets.map(a=>`<div class="nw-item" onclick='openAssetModal("assets",${JSON.stringify(a).replace(/'/g,"&#39;")})'><span class="label">${a.name}</span><span class="val" style="color:var(--income)">${fmt(a.value)}</span></div>`).join('')}${state.assets.length>0?`<div class="nw-item" style="border-top:2px solid var(--border);margin-top:4px;padding-top:12px;font-weight:700"><span>Total</span><span style="color:var(--income)">${fmt(c.totalAssets)}</span></div>`:'<div style="font-size:13px;color:var(--ink-3);text-align:center;padding:20px">Nenhum ativo</div>'}</div>
-  <div class="card animate-in stagger-4"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><div class="card-title" style="color:var(--expense);margin:0">Passivos</div><button class="btn-add" onclick="openAssetModal('liabilities')" style="font-size:11px;padding:5px 10px">+ Novo</button></div>${state.liabilities.map(l=>`<div class="nw-item" onclick='openAssetModal("liabilities",${JSON.stringify(l).replace(/'/g,"&#39;")})'><span class="label">${l.name}</span><span class="val" style="color:var(--expense)">${fmt(l.value)}</span></div>`).join('')}${state.liabilities.length>0?`<div class="nw-item" style="border-top:2px solid var(--border);margin-top:4px;padding-top:12px;font-weight:700"><span>Total</span><span style="color:var(--expense)">${fmt(c.totalLiab)}</span></div>`:'<div style="font-size:13px;color:var(--ink-3);text-align:center;padding:20px">Nenhum passivo</div>'}</div></div>`;
+  <div class="nw-split mb-24"><div class="card animate-in stagger-3"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><div class="card-title" style="color:var(--income);margin:0">Ativos</div><button class="btn-add" onclick="openAssetModal('assets')" style="font-size:11px;padding:5px 10px">+ Novo</button></div>${visibleList('assets').map(a=>`<div class="nw-item" onclick='openAssetModal("assets",${JSON.stringify(a).replace(/'/g,"&#39;")})'><span class="label">${a.name}</span><span class="val" style="color:var(--income)">${fmt(a.value)}</span></div>`).join('')}${visibleList('assets').length>0?`<div class="nw-item" style="border-top:2px solid var(--border);margin-top:4px;padding-top:12px;font-weight:700"><span>Total</span><span style="color:var(--income)">${fmt(c.totalAssets)}</span></div>`:'<div style="font-size:13px;color:var(--ink-3);text-align:center;padding:20px">Nenhum ativo</div>'}</div>
+  <div class="card animate-in stagger-4"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><div class="card-title" style="color:var(--expense);margin:0">Passivos</div><button class="btn-add" onclick="openAssetModal('liabilities')" style="font-size:11px;padding:5px 10px">+ Novo</button></div>${visibleList('liabilities').map(l=>`<div class="nw-item" onclick='openAssetModal("liabilities",${JSON.stringify(l).replace(/'/g,"&#39;")})'><span class="label">${l.name}</span><span class="val" style="color:var(--expense)">${fmt(l.value)}</span></div>`).join('')}${visibleList('liabilities').length>0?`<div class="nw-item" style="border-top:2px solid var(--border);margin-top:4px;padding-top:12px;font-weight:700"><span>Total</span><span style="color:var(--expense)">${fmt(c.totalLiab)}</span></div>`:'<div style="font-size:13px;color:var(--ink-3);text-align:center;padding:20px">Nenhum passivo</div>'}</div></div>`;
 }
 
 // ─── ASSINATURAS ────────────────────────────────
 function renderAssinaturas(c) {
   const isPJ = state.profile_type === 'PJ';
-  return `<div class="section-header animate-in"><div><div class="section-title">${isPJ?'Ferramentas & SaaS':'Assinaturas'}</div><div class="section-desc">${isPJ?'Software e serviços recorrentes.':'Todas as recorrências.'}</div></div><button class="btn-add" onclick="openSubModal()">+ Nova</button></div>
+  return `<div class="section-header animate-in"><div><div class="section-title">${isPJ?'Ferramentas & SaaS':'Assinaturas'}</div><div class="section-desc">${isPJ?'Software e serviços recorrentes.':'Todas as recorrências.'}</div></div><div style="display:flex;gap:8px">${visibleList('subscriptions').length>0?`<button class="btn-sm btn-danger" onclick="confirmBulkDelete('Excluir tudo?', 'Isso vai excluir TODAS as ${visibleList('subscriptions').length} assinaturas visíveis no perfil ${isPJ?'Empresa':'Pessoal'}. Essa ação não pode ser desfeita.', 'deleteAllSubs')">🗑️ Excluir tudo</button>`:''}<button class="btn-add" onclick="openSubModal()">+ Nova</button></div></div>
   <div class="kpi-grid mb-24">${[
     { label: 'Total mensal', value: fmtD(c.totalSubs), color: 'var(--amber)' },
     { label: 'Total anual', value: fmtD(c.totalSubs * 12), color: 'var(--amber)' },
-    { label: 'Quantidade', value: String(state.subscriptions.length) },
+    { label: 'Quantidade', value: String(visibleList('subscriptions').length) },
   ].map((k,i) => `<div class="kpi animate-in stagger-${i+1}"><div class="kpi-label">${k.label}</div><div class="kpi-value" style="color:${k.color||'var(--ink)'}">${k.value}</div></div>`).join('')}</div>
   ${renderLeakageRadar()}
-  ${state.subscriptions.length===0?'<div class="card animate-in stagger-3"><div class="empty-state"><div class="empty-icon">💳</div><div class="empty-title">Nenhuma assinatura</div></div></div>':
-  `<div class="subs-grid">${state.subscriptions.map((s,i)=>`<div class="sub-item animate-in stagger-${(i%4)+1}"><div onclick='openSubModal(${JSON.stringify(s).replace(/'/g,"&#39;")})' style="display:flex;align-items:center;gap:12px;flex:1;cursor:pointer"><div class="sub-icon" style="background:${s.color}">${s.name[0]}</div><div class="sub-info"><div class="sub-name">${s.name}</div><div class="sub-cat">${s.cat}</div></div><div class="sub-price">${fmtD(s.price)}</div></div>${isPlusUser()?`<button class="btn-sm" style="margin-left:8px" onclick="event.stopPropagation();openNegotiationSub('${s.id}')" title="Negociar/cancelar">💬</button>`:''}</div>`).join('')}</div>`}`;
+  ${visibleList('subscriptions').length===0?'<div class="card animate-in stagger-3"><div class="empty-state"><div class="empty-icon">💳</div><div class="empty-title">Nenhuma assinatura</div></div></div>':
+  `<div class="subs-grid">${visibleList('subscriptions').map((s,i)=>`<div class="sub-item animate-in stagger-${(i%4)+1}"><div onclick='openSubModal(${JSON.stringify(s).replace(/'/g,"&#39;")})' style="display:flex;align-items:center;gap:12px;flex:1;cursor:pointer"><div class="sub-icon" style="background:${s.color}">${s.name[0]}</div><div class="sub-info"><div class="sub-name">${s.name}</div><div class="sub-cat">${s.cat}</div></div><div class="sub-price">${fmtD(s.price)}</div></div>${isPlusUser()?`<button class="btn-sm" style="margin-left:8px" onclick="event.stopPropagation();openNegotiationSub('${s.id}')" title="Negociar/cancelar">💬</button>`:''}</div>`).join('')}</div>`}`;
 }
 
 // ─── PROJEÇÃO ───────────────────────────────────
@@ -4198,8 +4309,8 @@ function saveScannedDoc() {
 // últimos 60 dias) e estima a economia anual de cancelar cada uma.
 function calcLeakage() {
   const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 60);
-  return state.subscriptions.filter(function(s) {
-    const hasRecentActivity = state.transactions.some(function(t) {
+  return visibleList('subscriptions').filter(function(s) {
+    const hasRecentActivity = visibleList('transactions').some(function(t) {
       if (t.type !== 'expense') return false;
       const d = t.date ? new Date(t.date + 'T00:00:00') : null;
       if (!d || d < cutoff) return false;
@@ -4213,7 +4324,7 @@ function calcLeakage() {
 function renderLeakageRadar() {
   if (!isPlusUser()) return '';
   const leaks = calcLeakage();
-  if (state.subscriptions.length === 0) return '';
+  if (visibleList('subscriptions').length === 0) return '';
   const annualSaving = leaks.reduce(function(s, l) { return s + l.price * 12; }, 0);
   if (leaks.length === 0) {
     return '<div class="card animate-in mb-24" style="border-left:3px solid var(--income)"><div class="card-title" style="margin-bottom:6px">🔍 Radar de Vazamento</div><div style="font-size:13px;color:var(--ink-2)">Nenhuma assinatura parada foi detectada — todas têm gastos relacionados recentes. ✅</div></div>';
@@ -4246,7 +4357,7 @@ function renderBuySimResult() {
   if (amount <= 0) { el.innerHTML = ''; return; }
   const c = compute();
   const monthlySurplus = c.resultado;
-  const activeGoal = state.goals.find(function(g) { return g.current < g.target; });
+  const activeGoal = visibleList('goals').find(function(g) { return g.current < g.target; });
   let goalDelayMonths = 0;
   if (activeGoal && activeGoal.monthly > 0) goalDelayMonths = Math.ceil(amount / activeGoal.monthly);
   const reserveImpactMonths = c.totalExpense > 0 ? (amount / c.totalExpense) : 0;
@@ -4263,7 +4374,7 @@ function renderBuySimResult() {
 // ─── 5. NEGOCIAÇÃO ASSISTIDA (Plus) ─────────────────────
 function openNegotiationDebt(debtId) {
   if (!isPlusUser()) { requirePlusFeature('Negociação assistida', 'plus'); return; }
-  const d = state.debts.find(function(x) { return x.id === debtId; });
+  const d = visibleList('debts').find(function(x) { return x.id === debtId; });
   if (!d) return;
   const msg = 'Olá! Sou cliente e gostaria de negociar minha dívida "' + d.name + '" no valor de ' + fmt(d.saldo) + (d.juros > 0 ? (', atualmente com ' + d.juros + '% de juros ao mês') : '') + '. Gostaria de saber se há condições especiais de desconto à vista ou redução de juros para quitação/renegociação. Aguardo retorno, obrigado(a).';
   openNegotiationModal(msg);
@@ -4271,7 +4382,7 @@ function openNegotiationDebt(debtId) {
 
 function openNegotiationSub(subId) {
   if (!isPlusUser()) { requirePlusFeature('Negociação assistida', 'plus'); return; }
-  const s = state.subscriptions.find(function(x) { return x.id === subId; });
+  const s = visibleList('subscriptions').find(function(x) { return x.id === subId; });
   if (!s) return;
   const msg = 'Olá! Sou assinante do plano "' + s.name + '" (' + fmtD(s.price) + '/mês) e gostaria de saber se há algum desconto, plano promocional ou condição especial disponível para clientes atuais, ou orientações para cancelamento caso não haja. Obrigado(a).';
   openNegotiationModal(msg);
@@ -4439,7 +4550,7 @@ function generateInsights(c, isPJ) {
   }
   // 3. Debt alert
   if (c.debtPct > 30) {
-    insights.push({ type: 'alert', icon: '⚠️', title: 'Endividamento elevado', sub: 'Gestão de dívidas', body: `Suas dívidas mensais consomem <strong>${pct(c.debtPct)}</strong> ${isPJ ? 'do faturamento' : 'da renda'}. O ideal é manter abaixo de 30%. ${state.debts.filter(d => d.juros > 5).length > 0 ? 'Priorize quitar as dívidas com juros mais altos para economizar em juros compostos.' : ''}` });
+    insights.push({ type: 'alert', icon: '⚠️', title: 'Endividamento elevado', sub: 'Gestão de dívidas', body: `Suas dívidas mensais consomem <strong>${pct(c.debtPct)}</strong> ${isPJ ? 'do faturamento' : 'da renda'}. O ideal é manter abaixo de 30%. ${visibleList('debts').filter(d => d.juros > 5).length > 0 ? 'Priorize quitar as dívidas com juros mais altos para economizar em juros compostos.' : ''}` });
   }
   // 4. Subscriptions analysis
   if (c.totalSubs > 0) {
@@ -4447,8 +4558,8 @@ function generateInsights(c, isPJ) {
     insights.push({ type: 'warn', icon: '💸', title: `${isPJ ? 'Ferramentas & SaaS' : 'Assinaturas'}: ${fmtD(c.totalSubs)}/mês`, sub: 'Recorrências', body: `Você gasta <strong>${fmtD(c.totalSubs * 12)}</strong> por ano em ${isPJ ? 'ferramentas' : 'assinaturas'} (${subPct}% da renda). Revise periodicamente se todas estão sendo utilizadas.` });
   }
   // 5. Goals progress
-  if (state.goals.length > 0) {
-    const closest = state.goals.reduce((a, b) => { const pa = a.target > 0 ? a.current / a.target : 0; const pb = b.target > 0 ? b.current / b.target : 0; return pa > pb ? a : b; });
+  if (visibleList('goals').length > 0) {
+    const closest = visibleList('goals').reduce((a, b) => { const pa = a.target > 0 ? a.current / a.target : 0; const pb = b.target > 0 ? b.current / b.target : 0; return pa > pb ? a : b; });
     const pctDone = closest.target > 0 ? (closest.current / closest.target * 100).toFixed(0) : 0;
     insights.push({ type: 'tip', icon: '🎯', title: `Meta mais próxima: ${closest.name}`, sub: 'Progresso de metas', body: `Você já alcançou <strong>${pctDone}%</strong> da meta "${closest.name}" (${fmt(closest.current)} de ${fmt(closest.target)}). ${pctDone > 75 ? 'Está quase lá! Mantenha o ritmo.' : 'Continue contribuindo mensalmente para atingir o objetivo.'}` });
   }
@@ -4678,9 +4789,9 @@ function confirmStatementImport() {
     const chk = document.getElementById('stmt-chk-' + i);
     if (!chk || !chk.checked) return;
     const d = r.isoDate;
-    const t = { id: genId(), date: r.date, desc: r.desc, cat: r.cat, amount: r.amount, type: r.type, recur: false };
+    const t = { id: genId(), date: r.date, desc: r.desc, cat: r.cat, amount: r.amount, type: r.type, recur: false, profile: state.profile_type };
     state.transactions.push(t);
-    dbUpsert('transactions', { id: t.id, user_id: currentUser?.id, type: t.type, description: t.desc, category: t.cat, amount: t.amount, date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`, recurring: false });
+    dbUpsert('transactions', { id: t.id, user_id: currentUser?.id, type: t.type, description: t.desc, category: t.cat, amount: t.amount, date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`, recurring: false, profile: state.profile_type });
     imported++;
   });
   const existing = accounts.find(function(a) { return a.label === label; });
@@ -4774,16 +4885,16 @@ function renderEstrategia(c) {
   const isPJ = state.profile_type === 'PJ';
   const income = c.totalIncome || state.monthly_income || 0;
   const expenses = c.totalExpense || 0;
-  const totalDebt = state.debts.reduce((s, d) => s + d.saldo, 0);
-  const totalAssets = state.assets.reduce((s, a) => s + a.value, 0);
-  const totalLiab = state.liabilities.reduce((s, l) => s + l.value, 0);
+  const totalDebt = visibleList('debts').reduce((s, d) => s + d.saldo, 0);
+  const totalAssets = visibleList('assets').reduce((s, a) => s + a.value, 0);
+  const totalLiab = visibleList('liabilities').reduce((s, l) => s + l.value, 0);
   const netWorth = totalAssets - totalLiab;
   const surplus = income - expenses;
   const savingsRate = income > 0 ? (surplus / income * 100) : 0;
   const emergencyTarget = expenses * 6;
-  const emergencyCurrent = state.assets.filter(a => ['Conta corrente', 'Poupança'].includes(a.category)).reduce((s, a) => s + a.value, 0);
-  const subsTotal = state.subscriptions.filter(s => s.active !== false).reduce((s, sub) => s + sub.price, 0);
-  const goalsRemaining = state.goals.reduce((s, g) => s + (g.target - g.current), 0);
+  const emergencyCurrent = visibleList('assets').filter(a => ['Conta corrente', 'Poupança'].includes(a.category)).reduce((s, a) => s + a.value, 0);
+  const subsTotal = visibleList('subscriptions').filter(s => s.active !== false).reduce((s, sub) => s + sub.price, 0);
+  const goalsRemaining = visibleList('goals').reduce((s, g) => s + (g.target - g.current), 0);
 
   // Financial health score
   const scores = [];
@@ -4868,8 +4979,8 @@ function generatePlanSteps(c, isPJ, income, expenses, surplus, totalDebt, emergC
   }
   // Phase 3: Debt elimination
   if (totalDebt > 0) {
-    var highInterest = state.debts.filter(function(d){return d.juros > 2}).sort(function(a,b){return b.juros - a.juros});
-    var debtMonthly = state.debts.reduce(function(s,d){return s + d.mensal}, 0);
+    var highInterest = visibleList('debts').filter(function(d){return d.juros > 2}).sort(function(a,b){return b.juros - a.juros});
+    var debtMonthly = visibleList('debts').reduce(function(s,d){return s + d.mensal}, 0);
     var topDebt = highInterest[0];
     steps.push({ phase: 'Fase 3 — Eliminar dívidas', title: topDebt ? 'Prioridade: ' + topDebt.name + ' (' + topDebt.juros + '% a.m.)' : 'Quitar dívidas pendentes', desc: 'Dívida total: ' + fmt(totalDebt) + '. Pagamento mensal: ' + fmt(debtMonthly) + '. ' + (topDebt ? 'Concentre pagamentos extras na dívida de maior juros (' + topDebt.name + ').' : 'Use o método avalanche: pague a de maior juros primeiro.'), value: fmt(totalDebt), color: 'var(--expense)', status: 'active' });
   } else {
@@ -4877,11 +4988,11 @@ function generatePlanSteps(c, isPJ, income, expenses, surplus, totalDebt, emergC
   }
   // Phase 4: Subscriptions optimization
   if (subsTotal > income * 0.05 && subsTotal > 0) {
-    steps.push({ phase: 'Fase 4 — Otimizar recorrentes', title: 'Revisar ' + state.subscriptions.filter(function(s){return s.active!==false}).length + ' assinaturas', desc: 'Você gasta ' + fmt(subsTotal) + '/mês em assinaturas (' + pct(subsTotal/income*100) + ' da renda). Cancele as que não usa há 30+ dias.', value: 'Potencial economia: ' + fmt(subsTotal * 0.3) + '/mês', color: 'var(--amber)', status: '' });
+    steps.push({ phase: 'Fase 4 — Otimizar recorrentes', title: 'Revisar ' + visibleList('subscriptions').filter(function(s){return s.active!==false}).length + ' assinaturas', desc: 'Você gasta ' + fmt(subsTotal) + '/mês em assinaturas (' + pct(subsTotal/income*100) + ' da renda). Cancele as que não usa há 30+ dias.', value: 'Potencial economia: ' + fmt(subsTotal * 0.3) + '/mês', color: 'var(--amber)', status: '' });
   }
   // Phase 5: Goals
   if (goalsRem > 0) {
-    var topGoal = state.goals.sort(function(a,b){return (a.target-a.current)-(b.target-b.current)})[0];
+    var topGoal = visibleList('goals').sort(function(a,b){return (a.target-a.current)-(b.target-b.current)})[0];
     steps.push({ phase: 'Fase ' + (steps.length + 1) + ' — Metas', title: 'Alcançar: ' + (topGoal ? topGoal.name : 'suas metas'), desc: 'Faltam ' + fmt(goalsRem) + ' para completar todas as metas. ' + (topGoal ? 'Meta mais próxima: ' + topGoal.name + ' (faltam ' + fmt(topGoal.target - topGoal.current) + ').' : '') + ' Direcione o surplus mensal.', value: fmt(goalsRem), color: 'var(--violet)', status: '' });
   }
   // Phase 6: Invest
@@ -4897,7 +5008,7 @@ function generatePlanSteps(c, isPJ, income, expenses, surplus, totalDebt, emergC
 function generateTips(c, isPJ, income, expenses, surplus, totalDebt, emergCurrent, emergTarget, subsTotal, savingsRate) {
   const tips = [];
   const catTotals = {};
-  state.transactions.filter(t => t.type === 'expense').forEach(t => { catTotals[t.cat] = (catTotals[t.cat] || 0) + t.amount; });
+  visibleList('transactions').filter(t => t.type === 'expense').forEach(t => { catTotals[t.cat] = (catTotals[t.cat] || 0) + t.amount; });
   const topCat = Object.entries(catTotals).sort((a, b) => b[1] - a[1])[0];
 
   // Tip: Top expense category
@@ -4916,14 +5027,14 @@ function generateTips(c, isPJ, income, expenses, surplus, totalDebt, emergCurren
 
   // Tip: Debt warning
   if (totalDebt > 0) {
-    var highInterestDebts = state.debts.filter(function(d){return d.juros > 2});
+    var highInterestDebts = visibleList('debts').filter(function(d){return d.juros > 2});
     var monthsToPayoff = surplus > 0 ? Math.ceil(totalDebt / surplus) : null;
-    tips.push({ icon: '⚠️', iconType: 'warning', title: state.debts.length + ' dívida(s) ativa(s)', text: highInterestDebts.length > 0 ? highInterestDebts.length + ' dívida(s) com juros altos (>' + highInterestDebts[0].juros + '% a.m.). Renegociar pode economizar ' + fmt(highInterestDebts.reduce(function(s,d){return s + d.saldo * d.juros / 100}, 0)) + '/mês em juros.' : 'Dívida total de ' + fmt(totalDebt) + '. ' + (monthsToPayoff ? 'Estimativa de quitação: ' + monthsToPayoff + ' meses.' : 'Aumente sua margem para começar a quitar.'), impact: 'high', impactIcon: '🔴', impactText: 'Prioridade alta', action: "switchTab('dividas')", actionLabel: 'Gerenciar dívidas' });
+    tips.push({ icon: '⚠️', iconType: 'warning', title: visibleList('debts').length + ' dívida(s) ativa(s)', text: highInterestDebts.length > 0 ? highInterestDebts.length + ' dívida(s) com juros altos (>' + highInterestDebts[0].juros + '% a.m.). Renegociar pode economizar ' + fmt(highInterestDebts.reduce(function(s,d){return s + d.saldo * d.juros / 100}, 0)) + '/mês em juros.' : 'Dívida total de ' + fmt(totalDebt) + '. ' + (monthsToPayoff ? 'Estimativa de quitação: ' + monthsToPayoff + ' meses.' : 'Aumente sua margem para começar a quitar.'), impact: 'high', impactIcon: '🔴', impactText: 'Prioridade alta', action: "switchTab('dividas')", actionLabel: 'Gerenciar dívidas' });
   }
 
   // Tip: Subscriptions
   if (subsTotal > 0) {
-    var subCount = state.subscriptions.filter(function(s){return s.active !== false}).length;
+    var subCount = visibleList('subscriptions').filter(function(s){return s.active !== false}).length;
     tips.push({ icon: '🔄', iconType: income > 0 && subsTotal > income * 0.05 ? 'warning' : 'info', title: subCount + ' assinaturas = ' + fmt(subsTotal) + '/mês', text: 'Isso representa ' + fmt(subsTotal * 12) + '/ano. Cancele serviços duplicados ou pouco usados. Considere planos anuais para economia de 15-20%.', impact: subsTotal > income * 0.05 ? 'medium' : 'low', impactIcon: subsTotal > income * 0.05 ? '🟡' : '🟢', impactText: subsTotal > income * 0.05 ? 'Pode otimizar' : 'Razoável', action: "switchTab('assinaturas')", actionLabel: 'Ver assinaturas' });
   }
 
@@ -4934,8 +5045,8 @@ function generateTips(c, isPJ, income, expenses, surplus, totalDebt, emergCurren
   }
 
   // Tip: Goals progress
-  if (state.goals.length > 0) {
-    var avgProgress = state.goals.reduce(function(s,g){return s + (g.target > 0 ? g.current / g.target : 0)}, 0) / state.goals.length * 100;
+  if (visibleList('goals').length > 0) {
+    var avgProgress = visibleList('goals').reduce(function(s,g){return s + (g.target > 0 ? g.current / g.target : 0)}, 0) / visibleList('goals').length * 100;
     tips.push({ icon: '🎯', iconType: 'info', title: 'Metas: ' + pct(avgProgress) + ' concluídas', text: avgProgress >= 80 ? 'Quase lá! Mantenha o aporte mensal e não resgate antes do prazo.' : 'Acelere: aumente o aporte mensal ou adicione uma fonte de renda extra. Pequenos aportes extras fazem grande diferença com o tempo.', impact: avgProgress >= 50 ? 'medium' : 'high', impactIcon: avgProgress >= 50 ? '🟡' : '🔴', impactText: avgProgress >= 50 ? 'No caminho' : 'Acelere', action: "switchTab('metas')", actionLabel: 'Ver metas' });
   }
 
@@ -5009,8 +5120,8 @@ function bindSimulator() {
   const extraSlider = document.getElementById('sim-extra');
   if (!incomeSlider) return;
 
-  const totalDebt = state.debts.reduce((s, d) => s + d.saldo, 0);
-  const goalsRem = state.goals.reduce((s, g) => s + (g.target - g.current), 0);
+  const totalDebt = visibleList('debts').reduce((s, d) => s + d.saldo, 0);
+  const goalsRem = visibleList('goals').reduce((s, g) => s + (g.target - g.current), 0);
   const c = compute();
   const baseExpenses = c.totalExpense || 0;
 
@@ -5152,7 +5263,7 @@ function exportJSON() {
   if (!isPlusUser()) {
     var cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 30);
     stateToExport = Object.assign({}, state, {
-      transactions: state.transactions.filter(function(t) {
+      transactions: visibleList('transactions').filter(function(t) {
         var d = t.date ? new Date(t.date + 'T00:00:00') : null;
         return d && d >= cutoff;
       }),
@@ -5171,7 +5282,7 @@ function exportJSON() {
 
 function exportCSV() {
   const headers = ['Data', 'Tipo', 'Descrição', 'Categoria', 'Valor', 'Recorrente'];
-  var txs = state.transactions;
+  var txs = visibleList('transactions');
   var footer = '';
   if (!isPlusUser()) {
     var cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 30);
@@ -5204,7 +5315,7 @@ function exportPDF() {
   const now = new Date();
   const win = window.open('', '_blank');
   if (!win) { showToast('Permita pop-ups para gerar o PDF.', 'error'); return; }
-  const rows = state.transactions.slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+  const rows = visibleList('transactions').slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''))
     .slice(0, 60)
     .map(t => `<tr><td>${t.date || ''}</td><td>${t.type === 'income' ? (isPJ ? 'Faturamento' : 'Renda') : (isPJ ? 'Custo' : 'Despesa')}</td><td>${t.desc || ''}</td><td>${t.cat || ''}</td><td style="text-align:right">${fmt(t.amount || 0)}</td></tr>`).join('');
   win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Relatório SM Financial</title>

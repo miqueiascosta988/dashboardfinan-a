@@ -249,6 +249,14 @@ body {
 .sidebar-badges { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .sidebar-plan, .sidebar-type-badge { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.02em; padding: 2px 7px; border-radius: 999px; white-space: nowrap; }
 .sidebar-plan { background: var(--gold-light); color: var(--gold-mid); }
+/* ─── Selos de plano com identidade própria por tier ───
+   Basic fica deliberadamente neutro (sem negrito, sem cor, sem relevo);
+   Plus/Pro/Business ganham um acabamento "3D" (gradiente + sombra em relevo). */
+.plan-badge-free { background: none; color: var(--ink-2); font-weight: 400; text-transform: none; letter-spacing: normal; padding: 0; border-radius: 0; box-shadow: none; }
+.plan-badge-plus, .plan-badge-pro, .plan-badge-business { border: none; text-shadow: 0 1px 1px rgba(0,0,0,0.18); }
+.plan-badge-plus { background: linear-gradient(160deg, #6EE7A8 0%, #22B573 55%, #16A34A 100%); color: #ffffff; box-shadow: 0 2px 0 #148A47, 0 3px 7px rgba(22,163,74,0.4), inset 0 1px 1px rgba(255,255,255,0.5), inset 0 -2px 2px rgba(0,0,0,0.12); }
+.plan-badge-pro { background: linear-gradient(160deg, #7FB4FB 0%, #3B82F6 55%, #1D4ED8 100%); color: #ffffff; box-shadow: 0 2px 0 #1A3FB0, 0 3px 7px rgba(37,99,235,0.4), inset 0 1px 1px rgba(255,255,255,0.5), inset 0 -2px 2px rgba(0,0,0,0.12); }
+.plan-badge-business { background: linear-gradient(160deg, #FCE388 0%, #E8B627 55%, #C4930E 100%); color: #3A2900; text-shadow: 0 1px 0 rgba(255,255,255,0.4); box-shadow: 0 2px 0 #9A7409, 0 3px 7px rgba(196,147,14,0.4), inset 0 1px 1px rgba(255,255,255,0.6), inset 0 -2px 2px rgba(0,0,0,0.1); }
 .sidebar-type-badge { background: var(--teal-light); color: var(--teal-mid); }
 body.pj-mode .sidebar-type-badge { background: #16161C; color: var(--gold); }
 .sidebar-nav-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; }
@@ -5091,7 +5099,10 @@ async function showApp() {
   document.getElementById('onboarding-screen').hidden = true;
   document.getElementById('app-screen').hidden = false;
   const planNames = { free: 'Basic', plus: 'Plus', pro: 'Pro', business: 'Business' };
-  document.getElementById('plan-badge').textContent = planNames[profile?.plan] || (state.profile_type === 'PJ' ? 'Business' : 'Basic');
+  const planKey = profile?.plan || (state.profile_type === 'PJ' ? 'business' : 'free');
+  const planBadgeEl = document.getElementById('plan-badge');
+  planBadgeEl.textContent = planNames[planKey] || 'Basic';
+  planBadgeEl.className = 'sidebar-plan plan-badge-' + (planNames[planKey] ? planKey : 'free');
   updatePeriodDisplay();
   updateThemeIcon();
   updateNotifBadge();

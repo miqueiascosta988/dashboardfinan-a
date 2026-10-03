@@ -868,19 +868,24 @@ svg text { font-family: var(--font-body); }
 .insight-progress-fill { height: 100%; border-radius: 3px; transition: width 0.8s ease; }
 
 /* ─── OPEN FINANCE ──────────────────────────── */
-.openfi-hero { background: linear-gradient(135deg, #6D28D9 0%, #7C3AED 40%, #0F766E 100%); border-radius: var(--radius); padding: 32px; color: #fff; position: relative; overflow: hidden; margin-bottom: 20px; }
+.openfi-hero { background: linear-gradient(135deg, var(--teal) 0%, var(--teal-mid) 100%); border-radius: var(--radius); padding: 32px; color: #fff; position: relative; overflow: hidden; margin-bottom: 20px; }
 .openfi-hero::after { content: ''; position: absolute; top: -30%; right: -8%; width: 180px; height: 180px; background: rgba(255,255,255,0.06); border-radius: 50%; }
 .openfi-hero-title { font-family: var(--font-display); font-weight: 800; font-size: 24px; margin-bottom: 6px; }
 .openfi-hero-desc { font-size: 14px; opacity: 0.85; line-height: 1.6; max-width: 500px; }
 .openfi-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.15); padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; margin-bottom: 12px; backdrop-filter: blur(4px); }
-.bank-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
-.bank-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; text-align: center; transition: all 0.2s; cursor: pointer; opacity: 0.7; }
-.bank-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); opacity: 1; }
-.bank-card-icon { font-size: 32px; margin-bottom: 8px; }
-.bank-card-name { font-family: var(--font-display); font-weight: 700; font-size: 14px; margin-bottom: 2px; }
-.bank-card-status { font-size: 11px; color: var(--ink-3); }
-.premium-lock { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 14px; background: var(--violet-light); border-radius: var(--radius-sm); font-size: 13px; color: var(--violet); font-weight: 600; margin-top: 16px; cursor: pointer; transition: all 0.2s; }
-.premium-lock:hover { background: var(--violet); color: #fff; }
+.premium-lock { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 14px; background: var(--gold-light); border-radius: var(--radius-sm); font-size: 13px; color: var(--gold-mid); font-weight: 600; margin-top: 16px; cursor: pointer; transition: all 0.2s; }
+.premium-lock:hover { background: var(--gold); color: #fff; }
+/* ─── Importação de extrato bancário (OFX/CSV) ─── */
+.stmt-preview-list { max-height: 340px; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius-sm); margin: 4px 0 14px; }
+.stmt-row { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-bottom: 1px solid var(--border-subtle); font-size: 12.5px; }
+.stmt-row:last-child { border-bottom: none; }
+.stmt-row.dup { opacity: 0.5; }
+.stmt-row-date { color: var(--ink-3); width: 42px; flex-shrink: 0; }
+.stmt-row-desc { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stmt-row-cat { color: var(--ink-3); font-size: 11px; flex-shrink: 0; }
+.stmt-row-amount { font-weight: 700; flex-shrink: 0; width: 90px; text-align: right; }
+.stmt-row-dup-tag { font-size: 9.5px; color: var(--ink-3); flex-shrink: 0; }
+.stmt-summary-bar { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--ink-2); margin-bottom: 8px; }
 
 /* ─── ESTRATÉGIA FINANCEIRA ─────────────────── */
 .strategy-hero { background: linear-gradient(135deg, #0F766E 0%, #14B8A6 40%, #6D28D9 100%); border-radius: var(--radius); padding: 32px; color: #fff; position: relative; overflow: hidden; margin-bottom: 20px; }
@@ -1096,8 +1101,8 @@ svg text { font-family: var(--font-body); }
         </div>
         <div class="auth-stat">
           <div class="auth-stat-icon tone-gold"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 0 1 13.3-6"></path><path d="M14.3 3 17.3 6 14.3 9"></path><path d="M20 12a8 8 0 0 1-13.3 6"></path><path d="M9.7 21 6.7 18 9.7 15"></path></svg></div>
-          <strong>Open Finance</strong>
-          <span>Conexão bancária</span>
+          <strong>Extratos</strong>
+          <span>Importe seu extrato</span>
         </div>
         <div class="auth-stat">
           <div class="auth-stat-icon tone-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6l7-3z"></path><path d="M9 12l2 2 4-4"></path></svg></div>
@@ -1926,9 +1931,9 @@ const TOUR_STEPS = [
   { target: '[data-tab="projecao"]', title: '📈 Projeção', desc: 'Simule cenários futuros baseados nas suas receitas e despesas atuais. Veja projeções de saldo e patrimônio para os próximos meses.', arrow: 'top', tabHighlight: true },
   { target: '[data-tab="saude"]', title: '💊 Saúde Financeira', desc: 'Score de 0 a 100 baseado em 5 critérios: reserva de emergência, nível de dívidas, taxa de economia, gastos fixos e diversificação de investimentos.', arrow: 'top', tabHighlight: true },
   { target: '[data-tab="estrategia"]', title: '🧠 Estratégia', desc: 'Consultoria personalizada com plano em fases, dicas contextuais e simulador de cenários. Monte sua estratégia financeira ideal.', arrow: 'top', tabHighlight: true },
-  { target: '[data-tab="openfinance"]', title: '🏛️ Open Finance', desc: 'Conecte suas contas bancárias para importar transações automaticamente. Sincronize dados de múltiplas instituições em um só lugar.', arrow: 'top', tabHighlight: true },
+  { target: '[data-tab="openfinance"]', title: '📄 Extratos Bancários', desc: 'Importe o extrato do seu banco (OFX ou CSV) e as transações entram automaticamente no seu histórico, com categoria sugerida.', arrow: 'top', tabHighlight: true },
   { target: '[data-tab="cambio"]', title: '💱 Câmbio', desc: 'Acompanhe cotações de moedas em tempo real. Útil para quem tem rendimentos, despesas ou investimentos em moeda estrangeira.', arrow: 'top', tabHighlight: true },
-  { target: '[data-tab="plano"]', title: '⭐ Plano', desc: 'Gerencie sua assinatura do SM Financial. Compare os planos Free e Plus, e desbloqueie recursos premium como Open Finance e projeções avançadas.', arrow: 'top', tabHighlight: true },
+  { target: '[data-tab="plano"]', title: '⭐ Plano', desc: 'Gerencie sua assinatura do SM Financial. Compare os planos Free e Plus, e desbloqueie recursos premium como importação de extrato e projeções avançadas.', arrow: 'top', tabHighlight: true },
   // ── Volta ao geral ──
   { target: '.hero-card', title: 'Visão Geral', desc: 'O card principal mostra seu saldo patrimonial atualizado. Abaixo, os KPIs resumem receitas, despesas, resultado e taxa de economia do período.', arrow: 'bottom' },
   { target: '#btn-export', title: 'Exportar Dados', desc: 'Exporte seus dados a qualquer momento em JSON (backup completo) ou CSV (transações para planilhas).', arrow: 'top' },
@@ -2092,7 +2097,7 @@ function showWelcomeModal() {
     [
       { icon: '📄', title: 'Documentos & Upload', desc: 'Faça upload de faturas, holerites e extratos. Dados extraídos automaticamente.' },
       { icon: '🏢', title: 'PF & PJ', desc: 'Alterne entre pessoa física e jurídica. Fiscal, fluxo de caixa e mais para empresas.' },
-      { icon: '💱', title: 'Câmbio & Open Finance', desc: 'Cotações em tempo real e integração com Open Finance brasileiro.' },
+      { icon: '💱', title: 'Câmbio & Extratos', desc: 'Cotações em tempo real e importação de extrato bancário (OFX/CSV).' },
     ],
   ];
   var currentSlide = 0;
@@ -2237,7 +2242,7 @@ function openHelpPanel() {
         '</div>' +
 
         '<div class="help-card" onclick="closeHelpPanel();switchTab(\'openfinance\')">' +
-          '<div class="help-card-header"><span class="help-card-icon">🏛️</span><span class="help-card-title">Open Finance</span></div>' +
+          '<div class="help-card-header"><span class="help-card-icon">📄</span><span class="help-card-title">Extratos Bancários</span></div>' +
           '<div class="help-card-desc">Conecte contas bancárias para importar transações automaticamente. Sincronize dados de múltiplas instituições.</div>' +
         '</div>' +
 
@@ -2422,8 +2427,8 @@ var CHAT_KB = [
   },
   {
     id: 'openfinance',
-    keywords: ['open finance','conectar banco','importar transacoes','importar transações','sincronizar conta'],
-    answer: '<b>🏛️ Open Finance</b> permite conectar suas contas bancárias para importar transações automaticamente, sincronizando dados de múltiplas instituições em um só lugar. Esse recurso é exclusivo do <b>plano Plus</b>.',
+    keywords: ['open finance','conectar banco','importar extrato','importar transacoes','importar transações','ofx','csv','sincronizar conta'],
+    answer: '<b>📄 Extratos Bancários</b> permite importar o extrato do seu banco (arquivo OFX ou CSV) para trazer as transações automaticamente, com categoria sugerida — sem digitar nada. Esse recurso é exclusivo do <b>plano Plus</b>.',
     related: ['Planos e pagamento']
   },
   {
@@ -2436,7 +2441,7 @@ var CHAT_KB = [
   {
     id: 'planos',
     keywords: ['plano','planos','plus','free','gratuito','premium','upgrade','assinar plano','qual plano'],
-    answer: 'O SM Financial tem 2 planos:<ul><li><b>Free</b> — todas as funcionalidades essenciais: receitas, despesas, orçamento, metas, dívidas, patrimônio e saúde financeira.</li><li><b>Plus</b> — libera recursos avançados como Open Finance (conexão bancária automática), projeções avançadas e relatórios exclusivos.</li></ul>Você pode comparar e fazer upgrade na aba <b>⭐ Plano</b>.',
+    answer: 'O SM Financial tem 2 planos:<ul><li><b>Free</b> — todas as funcionalidades essenciais: receitas, despesas, orçamento, metas, dívidas, patrimônio e saúde financeira.</li><li><b>Plus</b> — libera recursos avançados como importação de extrato bancário (OFX/CSV), projeções avançadas e relatórios exclusivos.</li></ul>Você pode comparar e fazer upgrade na aba <b>⭐ Plano</b>.',
     related: ['Como faço o pagamento?', 'Como cancelo minha assinatura?']
   },
   {
@@ -3282,7 +3287,7 @@ const tabsPF = [
   {id:'dashboard',label:'Visão Geral',section:'Operação'},{id:'receitas',label:'Renda',section:'Operação'},{id:'despesas',label:'Despesas',section:'Operação'},{id:'documentos',label:'Documentos',section:'Operação'},
   {id:'orcamento',label:'Orçamento',section:'Planejamento'},{id:'metas',label:'Metas',section:'Planejamento'},{id:'projecao',label:'Projeção',plus:true,tier:'plus',section:'Planejamento'},{id:'estrategia',label:'Estratégia',plus:true,tier:'pro',section:'Planejamento'},
   {id:'patrimonio',label:'Patrimônio',section:'Patrimônio & Dívidas'},{id:'dividas',label:'Dívidas',section:'Patrimônio & Dívidas'},
-  {id:'insights',label:'Insights',plus:true,tier:'plus',section:'Ferramentas'},{id:'assinaturas',label:'Assinaturas',section:'Ferramentas'},{id:'openfinance',label:'Open Finance',plus:true,tier:'plus',section:'Ferramentas'},{id:'cambio',label:'Câmbio',plus:true,tier:'plus',section:'Ferramentas'},
+  {id:'insights',label:'Insights',plus:true,tier:'plus',section:'Ferramentas'},{id:'assinaturas',label:'Assinaturas',section:'Ferramentas'},{id:'openfinance',label:'Extratos Bancários',plus:true,tier:'plus',section:'Ferramentas'},{id:'cambio',label:'Câmbio',plus:true,tier:'plus',section:'Ferramentas'},
   {id:'saude',label:'Saúde Financeira',section:'Conta'},{id:'plano',label:'Plano',section:'Conta'},
 ];
 const tabsPJ = [
@@ -3290,7 +3295,7 @@ const tabsPJ = [
   {id:'orcamento',label:'Orçamento',section:'Planejamento'},{id:'metas',label:'Metas',section:'Planejamento'},{id:'projecao',label:'Projeção',plus:true,tier:'plus',section:'Planejamento'},{id:'estrategia',label:'Estratégia',plus:true,tier:'pro',section:'Planejamento'},
   {id:'patrimonio',label:'Patrimônio',section:'Patrimônio & Dívidas'},{id:'dividas',label:'Dívidas',section:'Patrimônio & Dívidas'},
   {id:'fiscal',label:'Fiscal',pj:true,plus:true,tier:'business',section:'Fiscal & Caixa'},{id:'fluxo',label:'Fluxo de Caixa',pj:true,plus:true,tier:'business',section:'Fiscal & Caixa'},
-  {id:'insights',label:'Insights',plus:true,tier:'plus',section:'Ferramentas'},{id:'assinaturas',label:'Ferramentas & SaaS',section:'Ferramentas'},{id:'openfinance',label:'Open Finance',plus:true,tier:'plus',section:'Ferramentas'},{id:'cambio',label:'Câmbio',plus:true,tier:'plus',section:'Ferramentas'},
+  {id:'insights',label:'Insights',plus:true,tier:'plus',section:'Ferramentas'},{id:'assinaturas',label:'Ferramentas & SaaS',section:'Ferramentas'},{id:'openfinance',label:'Extratos Bancários',plus:true,tier:'plus',section:'Ferramentas'},{id:'cambio',label:'Câmbio',plus:true,tier:'plus',section:'Ferramentas'},
   {id:'saude',label:'Saúde Financeira',section:'Conta'},{id:'plano',label:'Plano',section:'Conta'},
 ];
 
@@ -4433,196 +4438,307 @@ function generateInsights(c, isPJ) {
   if (emergMonths < 6 && c.totalExpense > 0) {
     insights.push({ type: 'warn', icon: '🛡️', title: `Reserva de emergência: ${emergMonths.toFixed(1)} meses`, sub: 'Segurança financeira', body: `Sua reserva cobre <strong>${emergMonths.toFixed(1)} meses</strong> de ${isPJ ? 'custos' : 'gastos'}. O recomendado é ter pelo menos 6 meses. Faltam <strong>${fmt(Math.max(0, c.totalExpense * 6 - c.totalAssets))}</strong> para atingir o ideal.` });
   }
-  // 8. Open Finance CTA
-  insights.push({ type: 'premium', icon: '🔗', title: 'Conecte seu banco via Open Finance', sub: 'Feature Premium', body: `Automatize a importação de extratos e transações conectando sua conta bancária. Dados categorizados automaticamente, sem digitação manual. <strong>Disponível no plano Plus ou superior.</strong>` });
+  // 8. CTA de importação de extrato
+  insights.push({ type: 'premium', icon: '📄', title: 'Importe seu extrato bancário', sub: 'Feature Premium', body: `Importe o extrato (OFX ou CSV) do seu banco e traga as transações automaticamente, categorizadas, sem digitação manual. <strong>Disponível no plano Plus ou superior.</strong>` });
 
   return insights;
 }
 
 // ═══════════════════════════════════════════════════════
-// OPEN FINANCE
+// EXTRATOS BANCÁRIOS — Importação real de OFX/CSV (sem custo, sem
+// agregador terceiro). Tudo é lido e processado no navegador do usuário;
+// nenhum arquivo é enviado para fora do app nessa etapa de leitura.
 // ═══════════════════════════════════════════════════════
-// Lista de instituições parceiras do Open Finance Brasil suportadas pelo SM Financial
-const OPENFINANCE_BANKS = [
-  { icon: '🟣', name: 'Nubank', status: 'Disponível' },
-  { icon: '🟠', name: 'Itaú', status: 'Disponível' },
-  { icon: '🔴', name: 'Bradesco', status: 'Disponível' },
-  { icon: '🔵', name: 'Banco do Brasil', status: 'Disponível' },
-  { icon: '🟡', name: 'Caixa Econômica', status: 'Disponível' },
-  { icon: '⚪', name: 'Santander', status: 'Disponível' },
-  { icon: '🟡', name: 'Banco Inter', status: 'Disponível' },
-  { icon: '🟤', name: 'C6 Bank', status: 'Disponível' },
-  { icon: '🟢', name: 'Sicredi', status: 'Disponível' },
-  { icon: '🔵', name: 'Sicoob', status: 'Disponível' },
-  { icon: '🟢', name: 'PicPay', status: 'Disponível' },
-  { icon: '🔵', name: 'Mercado Pago', status: 'Disponível' },
-  { icon: '⚫', name: 'Neon', status: 'Disponível' },
-  { icon: '🟠', name: 'PagBank', status: 'Disponível' },
-  { icon: '⚪', name: 'Will Bank', status: 'Disponível' },
-  { icon: '⚫', name: 'BTG Pactual', status: 'Disponível' },
-  { icon: '🔷', name: 'XP Investimentos', status: 'Em breve' },
-  { icon: '🟣', name: 'Banco Original', status: 'Em breve' },
-];
 
-// Contas conectadas ficam salvas localmente (demonstração — integração real via
-// agregador Open Finance como Pluggy/Belvo é um projeto de backend à parte)
+// Extratos já importados ficam listados localmente (nome dado pelo usuário,
+// formato, data do último import e quantidade de transações trazidas).
 function ofGetAccounts() { try { return JSON.parse(localStorage.getItem('financa-of-accounts') || '[]'); } catch(e) { return []; } }
 function ofSaveAccounts(list) { try { localStorage.setItem('financa-of-accounts', JSON.stringify(list)); } catch(e) {} }
 
-function openBankConnectModal(bankName, icon) {
-  if (!isPlusUser()) { requirePlusFeature('Open Finance'); return; }
-  const accounts = ofGetAccounts();
-  if (accounts.find(function(a) { return a.bankName === bankName; })) { showToast(bankName + ' já está conectado.', 'info'); return; }
-  openModal('Conectar ' + bankName, `
-    <div style="text-align:center;padding:8px 0 16px">
-      <div style="font-size:40px;margin-bottom:12px">${icon}</div>
-      <div style="font-size:13px;color:var(--ink-2);line-height:1.6">Você será redirecionado ao ambiente oficial do <b>${bankName}</b> para autorizar o compartilhamento de dados via Open Finance Brasil. O SM Financial nunca solicita sua senha do banco diretamente.</div>
-      <div style="margin-top:14px;padding:10px 14px;background:var(--amber-light);border-radius:var(--radius-sm);font-size:11.5px;color:#92400E;text-align:left">⚠️ <b>Ambiente de demonstração:</b> a integração oficial com o Open Finance Brasil está em desenvolvimento. Esta simulação importa transações de exemplo para você já sentir como a experiência final vai funcionar.</div>
-    </div>
-    <div class="modal-actions"><button class="btn-cancel" onclick="closeModal()">Cancelar</button><button class="btn-save" onclick="simulateBankConnect('${bankName}','${icon}')">Simular autorização</button></div>
-  `);
+let pendingStatementImport = null;
+
+function triggerStatementFileInput() {
+  if (!isPlusUser()) { requirePlusFeature('Importação de extrato'); return; }
+  document.getElementById('stmt-file-input')?.click();
 }
 
-function simulateBankConnect(bankName, icon) {
-  closeModal();
-  const existing = ofGetAccounts();
-  const cap = tierLimit('maxOFAccounts');
-  if (existing.length >= cap && cap !== Infinity) {
-    showToast('🔒 Seu plano Plus permite até ' + cap + ' contas conectadas. Faça upgrade para o Pro para conectar quantas quiser.', 'info');
-    setTimeout(function() { switchTab('plano'); }, 900);
+function handleStatementFileChange(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function() {
+    try {
+      processStatementText(file.name, String(reader.result || ''));
+    } catch (e) {
+      showToast('Não foi possível ler este arquivo. Confira se é um OFX/QFX ou CSV válido.', 'info');
+    }
+    input.value = '';
+  };
+  reader.onerror = function() { showToast('Erro ao ler o arquivo.', 'info'); input.value = ''; };
+  reader.readAsText(file, 'utf-8');
+}
+
+function processStatementText(filename, text) {
+  const lower = filename.toLowerCase();
+  const isOFX = lower.endsWith('.ofx') || lower.endsWith('.qfx') || /<OFX>/i.test(text);
+  const parsed = isOFX ? parseOFXStatement(text) : parseCSVStatement(text);
+  if (!parsed.length) {
+    showToast('Nenhuma transação reconhecida nesse arquivo. Confira se é um extrato OFX ou CSV com colunas de data, descrição e valor.', 'info');
     return;
   }
-  showToast('Conectando com ' + bankName + '…', 'info');
-  setTimeout(function() {
-    const accounts = ofGetAccounts();
-    if (accounts.find(function(a) { return a.bankName === bankName; })) return;
-    const importedCount = importSampleBankTransactions(bankName);
-    accounts.push({ id: genId(), bankName: bankName, icon: icon, connectedAt: new Date().toISOString(), lastSync: new Date().toISOString(), txCount: importedCount });
-    ofSaveAccounts(accounts);
-    renderCurrentTab();
-    showToast('✅ ' + bankName + ' conectado — ' + importedCount + ' transações importadas', 'success');
-  }, 1200);
+  const existingKeys = new Set(state.transactions.map(txDedupKey));
+  const rows = parsed.map(function(tx) {
+    const dateStr = String(tx.date.getDate()).padStart(2, '0') + '/' + String(tx.date.getMonth() + 1).padStart(2, '0');
+    const cat = guessTxCategory(tx.desc, tx.type);
+    const key = txDedupKey({ date: dateStr, amount: tx.amount, desc: tx.desc });
+    return { date: dateStr, isoDate: tx.date, desc: tx.desc, amount: tx.amount, type: tx.type, cat: cat, dup: existingKeys.has(key) };
+  }).sort(function(a, b) { return b.isoDate - a.isoDate; });
+  const defaultLabel = filename.replace(/\.(ofx|qfx|csv|txt)$/i, '').slice(0, 40) || 'Extrato importado';
+  pendingStatementImport = { rows: rows, format: isOFX ? 'OFX' : 'CSV', defaultLabel: defaultLabel };
+  openStatementPreviewModal();
 }
 
-function confirmDisconnectBank(bankName) {
-  openModal('Desconectar ' + bankName, `<div style="font-size:13px;color:var(--ink-2);line-height:1.6">Tem certeza que deseja desconectar <b>${bankName}</b>? As transações já importadas continuam no seu histórico, mas a sincronização automática para.</div>
-  <div class="modal-actions"><button class="btn-cancel" onclick="closeModal()">Cancelar</button><button class="btn-danger" style="margin-right:0" onclick="disconnectBank('${bankName}')">Desconectar</button></div>`);
+// Chave simples de deduplicação: mesma data + valor + início da descrição já
+// evita reimportar a mesma transação em uploads repetidos de um período que se sobrepõe.
+function txDedupKey(t) {
+  return t.date + '|' + Number(t.amount).toFixed(2) + '|' + String(t.desc || '').toLowerCase().trim().slice(0, 18);
 }
 
-function disconnectBank(bankName) {
-  const accounts = ofGetAccounts().filter(function(a) { return a.bankName !== bankName; });
+// ─── Parser OFX (SGML/XML usado por praticamente todo banco brasileiro) ───
+function parseOFXStatement(text) {
+  const txs = [];
+  const blocks = text.split(/<STMTTRN>/i).slice(1);
+  blocks.forEach(function(block) {
+    const endIdx = block.search(/<\/STMTTRN>/i);
+    const chunk = endIdx >= 0 ? block.substring(0, endIdx) : block;
+    const get = function(tag) {
+      const m = chunk.match(new RegExp('<' + tag + '>([^<\\r\\n]*)', 'i'));
+      return m ? m[1].trim() : '';
+    };
+    const dtRaw = get('DTPOSTED');
+    if (!dtRaw || dtRaw.length < 8) return;
+    const y = parseInt(dtRaw.substring(0, 4), 10), mo = parseInt(dtRaw.substring(4, 6), 10), da = parseInt(dtRaw.substring(6, 8), 10);
+    const date = new Date(y, mo - 1, da);
+    if (isNaN(date.getTime())) return;
+    const amt = parseFloat(get('TRNAMT').replace(',', '.'));
+    if (isNaN(amt) || amt === 0) return;
+    const memo = get('MEMO') || get('NAME') || 'Transação';
+    txs.push({ date: date, desc: memo, amount: Math.abs(amt), type: amt < 0 ? 'expense' : 'income' });
+  });
+  return txs;
+}
+
+// ─── Parser CSV (detecta cabeçalho comum de extrato BR; sem cabeçalho,
+// assume Data/Descrição/Valor nas 3 primeiras colunas) ───
+function parseCSVStatement(text) {
+  const rows = text.split(/\r?\n/).map(function(r) { return r.trim(); }).filter(function(r) { return r.length > 0; });
+  if (!rows.length) return [];
+  const firstLine = rows[0];
+  const delim = (firstLine.split(';').length > firstLine.split(',').length) ? ';' : ',';
+  // Split respeitando campos entre aspas (ex: "3.500,00" não pode ser quebrado no delimitador interno).
+  const splitRow = function(r) {
+    const out = []; let cur = ''; let inQuotes = false;
+    for (let i = 0; i < r.length; i++) {
+      const ch = r[i];
+      if (ch === '"') { if (inQuotes && r[i + 1] === '"') { cur += '"'; i++; } else { inQuotes = !inQuotes; } }
+      else if (ch === delim && !inQuotes) { out.push(cur.trim()); cur = ''; }
+      else { cur += ch; }
+    }
+    out.push(cur.trim());
+    return out;
+  };
+  const header = splitRow(rows[0]).map(function(h) { return h.toLowerCase(); });
+  let dateIdx = header.findIndex(function(h) { return /data|date/.test(h); });
+  let descIdx = header.findIndex(function(h) { return /descr|histor|memo|lan[çc]amento/.test(h); });
+  let amountIdx = header.findIndex(function(h) { return /valor|amount|value|montante/.test(h); });
+  let startIdx = 1;
+  if (dateIdx === -1 || amountIdx === -1) { dateIdx = 0; descIdx = 1; amountIdx = 2; startIdx = 0; }
+  const parseDateBR = function(s) {
+    s = (s || '').trim();
+    let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10));
+    m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+    if (m) { let yr = parseInt(m[3], 10); if (yr < 100) yr += 2000; return new Date(yr, parseInt(m[2], 10) - 1, parseInt(m[1], 10)); }
+    return null;
+  };
+  const parseAmountBR = function(s) {
+    s = (s || '').trim().replace(/^R\$\s?/i, '');
+    if (!s) return null;
+    let neg = false;
+    if (/^\(.*\)$/.test(s)) { neg = true; s = s.slice(1, -1); }
+    if (/^-/.test(s)) { neg = true; s = s.slice(1); }
+    if (/,\d{1,2}$/.test(s)) { s = s.replace(/\./g, '').replace(',', '.'); } else { s = s.replace(/,/g, ''); }
+    const v = parseFloat(s);
+    if (isNaN(v)) return null;
+    return neg ? -Math.abs(v) : v;
+  };
+  const txs = [];
+  for (let i = startIdx; i < rows.length; i++) {
+    const cols = splitRow(rows[i]);
+    if (cols.length < 2) continue;
+    const date = parseDateBR(cols[dateIdx] || '');
+    const amount = parseAmountBR(cols[amountIdx] || '');
+    if (!date || amount === null || amount === 0) continue;
+    const desc = (descIdx >= 0 ? cols[descIdx] : cols.filter(function(_, ci) { return ci !== dateIdx && ci !== amountIdx; }).join(' ')) || 'Transação';
+    txs.push({ date: date, desc: desc, amount: Math.abs(amount), type: amount < 0 ? 'expense' : 'income' });
+  }
+  return txs;
+}
+
+// Sugestão simples de categoria por palavra-chave na descrição importada.
+function guessTxCategory(desc, type) {
+  const d = (desc || '').toLowerCase();
+  const isPJ = state.profile_type === 'PJ';
+  if (type === 'income') return getCatsIncome()[0];
+  const cats = getCatsExpense();
+  const map = isPJ ? {
+    'Fornecedores': ['fornecedor', 'compra', 'mercadoria'],
+    'Folha de pagamento': ['salario', 'salário', 'folha', 'pro-labore', 'pró-labore'],
+    'Aluguel/Sede': ['aluguel', 'condomínio', 'condominio'],
+    'Marketing': ['marketing', 'ads', 'anuncio', 'anúncio'],
+    'Impostos': ['das ', 'imposto', 'tributo', 'darf'],
+    'Serviços': ['assinatura', 'serviço', 'servico', 'mensalidade'],
+    'Equipamentos': ['equipamento', 'informática', 'informatica'],
+  } : {
+    'Moradia': ['aluguel', 'condomínio', 'condominio', 'iptu', 'energia', 'luz', 'água', 'agua', 'internet'],
+    'Alimentação': ['mercado', 'supermercado', 'ifood', 'restaurante', 'padaria', 'lanchonete'],
+    'Transporte': ['uber', '99 ', 'combustível', 'combustivel', 'posto', 'estacionamento', 'pedágio', 'pedagio'],
+    'Saúde': ['farmácia', 'farmacia', 'drogaria', 'hospital', 'clínica', 'clinica'],
+    'Lazer': ['cinema', 'netflix', 'spotify', 'ingresso', 'viagem'],
+    'Educação': ['escola', 'curso', 'faculdade'],
+  };
+  for (const cat in map) {
+    if (!cats.includes(cat)) continue;
+    if (map[cat].some(function(kw) { return d.indexOf(kw) !== -1; })) return cat;
+  }
+  return cats[cats.length - 1];
+}
+
+function openStatementPreviewModal() {
+  if (!pendingStatementImport) return;
+  const p = pendingStatementImport;
+  const newCount = p.rows.filter(function(r) { return !r.dup; }).length;
+  openModal('Confirmar importação (' + p.format + ')', `
+    <div class="form-group"><label class="form-label">Nome deste extrato/conta</label>
+      <input class="form-input" type="text" id="stmt-label" value="${p.defaultLabel.replace(/"/g, '&quot;')}" placeholder="Ex: Nubank · Outubro" /></div>
+    <div class="stmt-summary-bar"><span>${p.rows.length} transações encontradas</span><span>${newCount} novas · ${p.rows.length - newCount} já existentes (desmarcadas)</span></div>
+    <div class="stmt-preview-list">${p.rows.map(function(r, i) {
+      return `<label class="stmt-row${r.dup ? ' dup' : ''}">
+        <input type="checkbox" id="stmt-chk-${i}" ${r.dup ? '' : 'checked'} />
+        <span class="stmt-row-date">${r.date}</span>
+        <span class="stmt-row-desc" title="${r.desc.replace(/"/g, '&quot;')}">${r.desc}</span>
+        <span class="stmt-row-cat">${r.cat}</span>
+        <span class="stmt-row-amount" style="color:${r.type === 'income' ? 'var(--income)' : 'var(--expense)'}">${r.type === 'income' ? '+' : '-'} ${fmt(r.amount)}</span>
+        ${r.dup ? '<span class="stmt-row-dup-tag">já existe</span>' : ''}
+      </label>`;
+    }).join('')}</div>
+    <div class="modal-actions"><button class="btn-cancel" onclick="closeModal()">Cancelar</button>
+      <button class="btn-save" onclick="confirmStatementImport()">Importar selecionadas</button></div>`);
+}
+
+function confirmStatementImport() {
+  if (!pendingStatementImport) return;
+  const p = pendingStatementImport;
+  const label = (document.getElementById('stmt-label')?.value || p.defaultLabel).trim() || p.defaultLabel;
+  const accounts = ofGetAccounts();
+  const isNewLabel = !accounts.find(function(a) { return a.label === label; });
+  if (isNewLabel) {
+    const cap = tierLimit('maxOFAccounts');
+    if (accounts.length >= cap && cap !== Infinity) {
+      showToast('🔒 Seu plano Plus permite até ' + cap + ' extrato(s) salvo(s). Faça upgrade para o Pro para importar quantos quiser.', 'info');
+      setTimeout(function() { switchTab('plano'); }, 900);
+      return;
+    }
+  }
+  let imported = 0;
+  p.rows.forEach(function(r, i) {
+    const chk = document.getElementById('stmt-chk-' + i);
+    if (!chk || !chk.checked) return;
+    const d = r.isoDate;
+    const t = { id: genId(), date: r.date, desc: r.desc, cat: r.cat, amount: r.amount, type: r.type, recur: false };
+    state.transactions.push(t);
+    dbUpsert('transactions', { id: t.id, user_id: currentUser?.id, type: t.type, description: t.desc, category: t.cat, amount: t.amount, date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`, recurring: false });
+    imported++;
+  });
+  const existing = accounts.find(function(a) { return a.label === label; });
+  if (existing) { existing.lastImport = new Date().toISOString(); existing.txCount = (existing.txCount || 0) + imported; existing.format = p.format; }
+  else { accounts.push({ id: genId(), label: label, format: p.format, lastImport: new Date().toISOString(), txCount: imported }); }
   ofSaveAccounts(accounts);
+  pendingStatementImport = null;
   closeModal();
   renderCurrentTab();
-  showToast(bankName + ' desconectado', 'info');
+  showToast('✅ ' + imported + ' transação(ões) importada(s) de "' + label + '"', 'success');
 }
 
-function syncBankAccount(bankName, icon) {
-  showToast('Sincronizando ' + bankName + '…', 'info');
-  setTimeout(function() {
-    const accounts = ofGetAccounts();
-    const acc = accounts.find(function(a) { return a.bankName === bankName; });
-    if (!acc) return;
-    const newCount = importSampleBankTransactions(bankName);
-    acc.lastSync = new Date().toISOString();
-    acc.txCount = (acc.txCount || 0) + newCount;
-    ofSaveAccounts(accounts);
-    renderCurrentTab();
-    showToast('🔄 ' + bankName + ' sincronizado — ' + newCount + ' novas transações', 'success');
-  }, 900);
+function confirmDeleteStatementAccount(id) {
+  const accounts = ofGetAccounts();
+  const acc = accounts.find(function(a) { return a.id === id; });
+  if (!acc) return;
+  openModal('Remover "' + acc.label + '"', `<div style="font-size:13px;color:var(--ink-2);line-height:1.6">Isso remove apenas o registro de importação. As transações já lançadas continuam no seu histórico — exclua-as individualmente em Despesas/Renda se quiser desfazer também os lançamentos.</div>
+  <div class="modal-actions"><button class="btn-cancel" onclick="closeModal()">Cancelar</button><button class="btn-danger" style="margin-right:0" onclick="deleteStatementAccount('${id}')">Remover</button></div>`);
 }
 
-// Gera transações de exemplo realistas para simular a importação via Open Finance
-function importSampleBankTransactions(bankName) {
-  const isPJ = state.profile_type === 'PJ';
-  const expCats = getCatsExpense(), incCats = getCatsIncome();
-  const sampleExpenses = [
-    { desc: 'Supermercado', min: 80, max: 450 }, { desc: 'Uber', min: 12, max: 60 },
-    { desc: 'Restaurante', min: 25, max: 180 }, { desc: 'Farmácia', min: 20, max: 150 },
-    { desc: 'Posto de gasolina', min: 100, max: 300 }, { desc: 'Streaming', min: 20, max: 55 },
-  ];
-  const sampleIncomes = [ { desc: 'Transferência recebida', min: 200, max: 3000 }, { desc: 'PIX recebido', min: 50, max: 1500 } ];
-  const count = 4 + Math.floor(Math.random() * 5); // 4 a 8 transações
-  let added = 0;
-  for (let i = 0; i < count; i++) {
-    const isIncome = Math.random() < 0.25;
-    const pool = isIncome ? sampleIncomes : sampleExpenses;
-    const pick = pool[Math.floor(Math.random() * pool.length)];
-    const amount = Math.round((pick.min + Math.random() * (pick.max - pick.min)) * 100) / 100;
-    const daysAgo = Math.floor(Math.random() * 28);
-    const d = new Date(); d.setDate(d.getDate() - daysAgo);
-    const dateStr = String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0');
-    const cat = isIncome ? incCats[0] : expCats[Math.floor(Math.random() * expCats.length)];
-    const t = { id: genId(), date: dateStr, desc: pick.desc + ' · via ' + bankName, cat: cat, amount: amount, type: isIncome ? 'income' : 'expense', recur: false };
-    state.transactions.push(t);
-    dbUpsert('transactions', { id: t.id, user_id: currentUser?.id, type: t.type, description: t.desc, category: t.cat, amount: t.amount, date: `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`, recurring: false });
-    added++;
-  }
-  return added;
+function deleteStatementAccount(id) {
+  ofSaveAccounts(ofGetAccounts().filter(function(a) { return a.id !== id; }));
+  closeModal();
+  renderCurrentTab();
+  showToast('Registro removido', 'info');
 }
 
 function renderOpenFinance(c) {
   const isPJ = state.profile_type === 'PJ';
-  const banks = OPENFINANCE_BANKS;
   const isActive = isPlusUser();
-  const connected = ofGetAccounts();
+  const imported = ofGetAccounts();
+  const totalTx = imported.reduce(function(s, a) { return s + (a.txCount || 0); }, 0);
 
   return `<div class="openfi-hero animate-in">
-    <div class="openfi-badge">✨ Open Finance Brasil</div>
-    <div class="openfi-hero-title">Conecte suas contas bancárias</div>
-    <div class="openfi-hero-desc">Importe transações automaticamente, categorize gastos em tempo real e tenha uma visão 360° das suas finanças${isPJ ? ' empresariais' : ''}. Dados criptografados e seguros.</div>
+    <div class="openfi-badge">📄 Importação de extrato</div>
+    <div class="openfi-hero-title">Importe seu extrato bancário</div>
+    <div class="openfi-hero-desc">Baixe o extrato (OFX ou CSV) direto no app do seu banco e importe aqui. A leitura acontece no seu navegador — nenhum arquivo é enviado para fora do SM Financial, e não há custo nenhum envolvido.</div>
   </div>
 
   <div class="kpi-grid mb-24 animate-in stagger-1">${[
-    { label: 'Bancos suportados', value: banks.length + '+', cls: '' },
-    { label: 'Contas conectadas', value: String(connected.length), cls: 'teal' },
-    { label: 'Categorização', value: 'Automática', cls: 'income' },
-    { label: 'Segurança', value: 'Criptografia E2E', cls: '' },
+    { label: 'Formatos suportados', value: 'OFX · CSV', cls: '' },
+    { label: 'Extratos salvos', value: String(imported.length), cls: 'teal' },
+    { label: 'Transações importadas', value: String(totalTx), cls: 'income' },
+    { label: 'Custo', value: 'Gratuito', cls: 'income' },
   ].map((k, i) => `<div class="kpi animate-in stagger-${i + 1}"><div class="kpi-label">${k.label}</div><div class="kpi-value ${k.cls}" style="font-size:20px">${k.value}</div></div>`).join('')}</div>
 
-  ${connected.length > 0 ? `<div class="card mb-24 animate-in stagger-2">
-    <div class="card-header"><div><div class="card-title">Contas conectadas</div><div class="card-subtitle">Sincronize a qualquer momento ou desconecte quando quiser</div></div></div>
-    ${connected.map(function(a) {
+  <div class="card mb-24 animate-in stagger-2">
+    <div class="card-header"><div><div class="card-title">Importar novo extrato</div><div class="card-subtitle">Arquivos .ofx, .qfx ou .csv exportados pelo app/site do seu banco${isPJ ? ' ou da sua conta PJ' : ''}</div></div></div>
+    <input type="file" id="stmt-file-input" accept=".ofx,.qfx,.csv,.txt" style="display:none" onchange="handleStatementFileChange(this)" />
+    <div class="upload-zone" style="position:relative" onclick="triggerStatementFileInput()">
+      <div class="upload-zone-icon">📄</div>
+      <div class="upload-zone-title">Clique para selecionar o arquivo do extrato</div>
+      <div class="upload-zone-desc">A maioria dos bancos oferece exportação em OFX no app ou internet banking, em "Extrato" → "Exportar".</div>
+    </div>
+    ${!isActive ? `<div class="premium-lock" onclick="switchTab('plano')">🔒 Upgrade para Plus — Desbloquear importação de extrato</div>` : ''}
+  </div>
+
+  ${imported.length > 0 ? `<div class="card mb-24 animate-in stagger-3">
+    <div class="card-header"><div><div class="card-title">Extratos importados</div><div class="card-subtitle">Reimporte o mesmo nome para atualizar — transações repetidas não são duplicadas</div></div></div>
+    ${imported.map(function(a) {
       return `<div class="notif-item" style="cursor:default">
-        <div class="notif-icon">${a.icon}</div>
+        <div class="notif-icon">📄</div>
         <div class="notif-content">
-          <div class="notif-title">${a.bankName} <span style="font-size:10px;background:var(--income-light);color:var(--income);padding:2px 8px;border-radius:10px;font-weight:700">Conectado</span></div>
-          <div class="notif-desc">${a.txCount || 0} transações importadas · última sincronização ${new Date(a.lastSync).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })}</div>
+          <div class="notif-title">${a.label} <span style="font-size:10px;background:var(--income-light);color:var(--income);padding:2px 8px;border-radius:10px;font-weight:700">${a.format}</span></div>
+          <div class="notif-desc">${a.txCount || 0} transações · último import ${new Date(a.lastImport).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</div>
         </div>
         <div style="display:flex;gap:6px;flex-shrink:0">
-          <button class="btn-sm" onclick="syncBankAccount('${a.bankName}','${a.icon}')">🔄 Sincronizar</button>
-          <button class="btn-sm" onclick="confirmDisconnectBank('${a.bankName}')" style="color:var(--expense)">Desconectar</button>
+          <button class="btn-sm" onclick="confirmDeleteStatementAccount('${a.id}')" style="color:var(--expense)">Remover</button>
         </div>
       </div>`;
     }).join('')}
   </div>` : ''}
 
-  <div class="card mb-24 animate-in stagger-3">
-    <div class="card-header"><div><div class="card-title">Bancos parceiros</div><div class="card-subtitle">Selecione seu banco para iniciar a conexão</div></div></div>
-    <div class="bank-grid">${banks.map((b, i) => {
-      const isConnected = connected.find(function(a) { return a.bankName === b.name; });
-      const disabled = b.status === 'Em breve';
-      let action;
-      if (disabled) action = `showToast('${b.name} chega em breve!','info')`;
-      else if (isConnected) action = `showToast('${b.name} já está conectado. Use Sincronizar ou Desconectar acima.','info')`;
-      else action = `openBankConnectModal('${b.name}','${b.icon}')`;
-      return `<div class="bank-card animate-in stagger-${(i % 4) + 1}" style="${disabled ? 'opacity:0.55' : ''}" onclick="${action}">
-        <div class="bank-card-icon">${b.icon}</div>
-        <div class="bank-card-name">${b.name}</div>
-        <div class="bank-card-status">${isConnected ? '✅ Conectado' : b.status}</div>
-      </div>`;
-    }).join('')}</div>
-    ${!isActive ? `<div class="premium-lock" onclick="switchTab('plano')">🔒 Upgrade para Plus — Desbloquear Open Finance</div>` : ''}
-  </div>
-
   <div class="card animate-in stagger-5">
     <div class="card-header"><div><div class="card-title">Como funciona</div></div></div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;padding-top:8px">
       ${[
-        { step: '1', icon: '🏦', title: 'Selecione o banco', desc: 'Escolha entre ' + banks.length + '+ instituições financeiras.' },
-        { step: '2', icon: '🔐', title: 'Autorize o acesso', desc: 'Autentique-se com segurança no app do seu banco.' },
-        { step: '3', icon: '📊', title: 'Dados importados', desc: 'Transações categorizadas automaticamente no seu dashboard.' },
-        { step: '4', icon: '🤖', title: 'Insights em tempo real', desc: 'Alertas e sugestões baseados nos seus gastos reais.' },
+        { icon: '🏦', title: 'Baixe o extrato', desc: 'No app ou site do banco, exporte o período desejado em OFX ou CSV.' },
+        { icon: '📤', title: 'Envie o arquivo', desc: 'Clique acima e selecione o arquivo — a leitura é feita localmente.' },
+        { icon: '✅', title: 'Revise e confirme', desc: 'Veja a prévia das transações, já com categoria sugerida, antes de importar.' },
+        { icon: '📊', title: 'Aparece no dashboard', desc: 'As transações confirmadas entram direto no seu histórico e nos relatórios.' },
       ].map(s => `<div style="text-align:center"><div style="width:40px;height:40px;border-radius:50%;background:var(--teal-wash);display:flex;align-items:center;justify-content:center;margin:0 auto 10px;font-size:18px">${s.icon}</div><div style="font-family:var(--font-display);font-weight:700;font-size:13px;margin-bottom:4px">${s.title}</div><div style="font-size:12px;color:var(--ink-3);line-height:1.5">${s.desc}</div></div>`).join('')}
     </div>
   </div>`;
@@ -4919,7 +5035,7 @@ function renderPlano() {
       'Histórico completo (sem limite de meses)',
       'Insights avançados e detecção de anomalias',
       'Projeção de cenários futuros (até 3 anos)',
-      'Open Finance — 1 conta bancária conectada',
+      'Importação de extrato (OFX/CSV) — 1 extrato salvo',
       'Câmbio multi-moeda',
       'Notificações avançadas (gasto fora do padrão, risco de saldo negativo)',
       'Exportação sem marca d\'água (CSV/JSON)',
@@ -4929,7 +5045,7 @@ function renderPlano() {
       'Tudo do Plus',
       'Estratégia & Consultoria — planos em fases e simulador de decisões',
       'Projeção estendida (até 5 anos)',
-      'Open Finance ilimitado (quantas contas quiser)',
+      'Importação de extrato ilimitada (quantos extratos quiser)',
       'Relatórios completos em PDF para download',
       'Controle de patrimônio avançado',
     ], cta: 'Fazer upgrade', hotmartUrl: appConfig.hotmartCheckoutPro, priceId: appConfig.stripePricePro },

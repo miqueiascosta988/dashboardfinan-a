@@ -1219,7 +1219,28 @@ svg text { font-family: var(--font-body); }
         <button class="option-btn selected" data-profile="PF" onclick="selectProfile(this)"><div class="opt-icon">👤</div><div class="opt-label">Pessoa Física</div><div class="opt-desc">Finanças pessoais</div></button>
         <button class="option-btn" data-profile="PJ" onclick="selectProfile(this)"><div class="opt-icon">🏢</div><div class="opt-label">Pessoa Jurídica</div><div class="opt-desc">MEI, ME, autônomo</div></button>
       </div>
-      <button class="btn-primary" onclick="nextOnboard(state.profile_type==='PF'?'occ':2)">Continuar</button>
+      <button class="btn-primary" onclick="nextOnboard(state.profile_type==='PF'?'occ':'pjtype')">Continuar</button>
+    </div>
+    <div class="onboard-inner" id="onboard-step-pjtype" hidden>
+      <div class="onboard-step" data-step-label>Passo 2 de 6</div>
+      <div class="onboard-title">Qual é o tipo da sua empresa?</div>
+      <div class="onboard-desc">Define impostos, alertas e o menu fiscal.</div>
+      <div class="option-grid"><button class="option-btn" data-ptype="mei" onclick="selectPJType(this)"><div class="opt-icon">🧾</div><div class="opt-label">MEI</div><div class="opt-desc">Microempreendedor individual</div></button><button class="option-btn" data-ptype="simples" onclick="selectPJType(this)"><div class="opt-icon">📘</div><div class="opt-label">ME / Simples Nacional</div><div class="opt-desc">Microempresa no Simples</div></button><button class="option-btn" data-ptype="epp" onclick="selectPJType(this)"><div class="opt-icon">📗</div><div class="opt-label">EPP</div><div class="opt-desc">Empresa de pequeno porte</div></button><button class="option-btn" data-ptype="presumido" onclick="selectPJType(this)"><div class="opt-icon">📙</div><div class="opt-label">Lucro Presumido</div><div class="opt-desc">Tributação presumida</div></button><button class="option-btn" data-ptype="real" onclick="selectPJType(this)"><div class="opt-icon">📕</div><div class="opt-label">Lucro Real</div><div class="opt-desc">Apuração pelo lucro contábil</div></button><button class="option-btn" data-ptype="liberal" onclick="selectPJType(this)"><div class="opt-icon">🧑‍⚕️</div><div class="opt-label">Profissional liberal</div><div class="opt-desc">CNPJ de prestador (SLU/EI)</div></button><button class="option-btn" data-ptype="ong" onclick="selectPJType(this)"><div class="opt-icon">🤝</div><div class="opt-label">Associação / ONG</div><div class="opt-desc">Sem fins lucrativos</div></button><button class="option-btn" data-ptype="startup" onclick="selectPJType(this)"><div class="opt-icon">🚀</div><div class="opt-label">Startup</div><div class="opt-desc">Foco em caixa e crescimento</div></button></div>
+      <button class="btn-primary" onclick="nextOnboard('pjact')">Continuar</button>
+    </div>
+    <div class="onboard-inner" id="onboard-step-pjact" hidden>
+      <div class="onboard-step" data-step-label>Passo 3 de 6</div>
+      <div class="onboard-title">Qual é a atividade principal?</div>
+      <div class="onboard-desc">Ajusta categorias, anexo tributário e indicadores.</div>
+      <div class="option-grid"><button class="option-btn" data-pact="comercio" onclick="selectPJActivity(this)"><div class="opt-icon">🛒</div><div class="opt-label">Comércio</div><div class="opt-desc">Revenda de produtos</div></button><button class="option-btn" data-pact="servicos" onclick="selectPJActivity(this)"><div class="opt-icon">🛠️</div><div class="opt-label">Serviços</div><div class="opt-desc">Prestação de serviços</div></button><button class="option-btn" data-pact="industria" onclick="selectPJActivity(this)"><div class="opt-icon">🏭</div><div class="opt-label">Indústria</div><div class="opt-desc">Fabricação / produção</div></button><button class="option-btn" data-pact="misto" onclick="selectPJActivity(this)"><div class="opt-icon">🔀</div><div class="opt-label">Misto</div><div class="opt-desc">Mais de uma atividade</div></button></div>
+      <button class="btn-primary" onclick="nextOnboard('pjbill')">Continuar</button>
+    </div>
+    <div class="onboard-inner" id="onboard-step-pjbill" hidden>
+      <div class="onboard-step" data-step-label>Passo 4 de 6</div>
+      <div class="onboard-title">Como a empresa fatura?</div>
+      <div class="onboard-desc">Define a reserva de caixa e a leitura do fluxo.</div>
+      <div class="option-grid"><button class="option-btn" data-pbill="recorrente" onclick="selectPJBilling(this)"><div class="opt-icon">🔁</div><div class="opt-label">Recorrente</div><div class="opt-desc">Contratos / mensalidades</div></button><button class="option-btn" data-pbill="sazonal" onclick="selectPJBilling(this)"><div class="opt-icon">🌦️</div><div class="opt-label">Sazonal</div><div class="opt-desc">Picos em épocas do ano</div></button><button class="option-btn" data-pbill="projeto" onclick="selectPJBilling(this)"><div class="opt-icon">📦</div><div class="opt-label">Por projeto</div><div class="opt-desc">Vendas avulsas / projetos</div></button></div>
+      <button class="btn-primary" onclick="nextOnboard(2)">Continuar</button>
     </div>
     <div class="onboard-inner" id="onboard-step-occ" hidden>
       <div class="onboard-step" data-step-label>Passo 2 de 5</div>
@@ -1268,7 +1289,7 @@ svg text { font-family: var(--font-body); }
         <div class="sidebar-badges">
           <span class="sidebar-plan plan-badge-free" id="plan-badge">Free</span>
           <span class="sidebar-type-badge" id="profile-type-badge">Personal</span>
-          <span class="sidebar-type-badge occ-chip" id="occ-chip" title="Alterar vínculo de trabalho" onclick="openOccupationModal()" hidden></span>
+          <span class="sidebar-type-badge occ-chip" id="occ-chip" title="Alterar perfil" onclick="openProfileModal()" hidden></span>
         </div>
       </div>
     </div>
@@ -1400,6 +1421,9 @@ let state = {
   // PJ-specific
   pj_faturamento_anual: 0,
   pj_regime: 'MEI', // MEI, Simples, Lucro Presumido
+  company_type: null,      // mei | simples | epp | presumido | real | liberal | ong | startup
+  pj_activity: null,       // comercio | servicos | industria | misto
+  pj_billing: null,        // recorrente | sazonal | projeto
   occupation: null,        // clt | servidor | autonomo | mei | empresario | aposentado | estudante | mista | sem_renda
   income_stability: null,  // fixa | media | variavel
 };
@@ -1439,9 +1463,15 @@ const CAT_COLORS = {
   'Vendas':'var(--cat-1)','Serviços prestados':'var(--cat-2)','Consultoria':'var(--cat-5)','Comissões':'var(--cat-6)',
 };
 
-function getCatsExpense() { return state.profile_type === 'PJ' ? CATS_EXPENSE_PJ : CATS_EXPENSE_PF; }
+function getCatsExpense() {
+  if (state.profile_type !== 'PJ') return CATS_EXPENSE_PF;
+  const a = PJ_ACTIVITIES[state.pj_activity];
+  if (!a) return CATS_EXPENSE_PJ;
+  const base = CATS_EXPENSE_PJ.filter(x => x !== 'Outros');
+  return base.concat(a.expenseExtra.filter(x => base.indexOf(x) < 0), ['Outros']);
+}
 function getCatsIncome() {
-  if (state.profile_type === 'PJ') return CATS_INCOME_PJ;
+  if (state.profile_type === 'PJ') { const a = PJ_ACTIVITIES[state.pj_activity]; return a ? a.income : CATS_INCOME_PJ; }
   const o = OCCUPATIONS[state.occupation];
   return o ? o.cats : CATS_INCOME_PF;
 }
@@ -1785,6 +1815,15 @@ function generateNotifications() {
     const p = meiRevenueYearToDate() / MEI_ANNUAL_LIMIT * 100;
     if (p >= 100) notifs.push({ id: 'mei-over', icon: '🚨', title: 'Limite do MEI ultrapassado', desc: 'Faturamento no ano acima de ' + fmt(MEI_ANNUAL_LIMIT) + '. Fale com seu contador.', type: 'danger', time: 'Agora', tab: 'obrigacoes' });
     else if (p >= 80) notifs.push({ id: 'mei-80', icon: '⚠️', title: 'Perto do limite do MEI', desc: Math.round(p) + '% do limite anual já faturado', type: 'warning', time: 'Agora', tab: 'obrigacoes' });
+  }
+  if (isPJ && getCompanyType() && meetsTier('basic')) {
+    const ck = getCompanyType();
+    if (ck === 'mei') { const p = meiRevenueYearToDate() / MEI_ANNUAL_LIMIT * 100;
+      if (p >= 100) notifs.push({ id: 'pj-mei-over', icon: '🚨', title: 'Limite do MEI ultrapassado', desc: 'Faturamento no ano acima de ' + fmt(MEI_ANNUAL_LIMIT) + '. Fale com o contador.', type: 'danger', time: 'Agora', tab: 'regimepj' });
+      else if (p >= 80) notifs.push({ id: 'pj-mei-80', icon: '⚠️', title: 'Perto do limite do MEI', desc: Math.round(p) + '% do limite anual faturado', type: 'warning', time: 'Agora', tab: 'regimepj' }); }
+    if (ck === 'simples' && revenueLast12Months() > 360000) notifs.push({ id: 'pj-me-teto', icon: '📈', title: 'Receita acima do teto de ME', desc: 'Últimos 12 meses acima de R$ 360 mil: avalie o enquadramento como EPP.', type: 'warning', time: 'Agora', tab: 'regimepj' });
+    const r = getPJReserveTarget(c);
+    if (r.target > 0 && r.current < r.target * 0.5) notifs.push({ id: 'pj-reserve', icon: '🛟', title: 'Reserva de caixa abaixo do ideal', desc: 'Alvo: ' + r.months + ' meses de custos (' + fmt(r.target) + ').', type: 'warning', time: 'Sugestão', tab: 'caixapj' });
   }
   if (!isPJ && getOccupation() && getStability() === 'variavel') {
     const r = getReserveTarget(c);
@@ -2990,7 +3029,7 @@ function selectCurrency(el) {
 function nextOnboard(step) {
   document.querySelectorAll('[id^="onboard-step-"]').forEach(s => s.hidden = true);
   const el = document.getElementById('onboard-step-' + step); el.hidden = false;
-  const seq = state.profile_type === 'PF' ? [1, 'occ', 'stab', 2, 3] : [1, 2, 3];
+  const seq = state.profile_type === 'PF' ? [1, 'occ', 'stab', 2, 3] : [1, 'pjtype', 'pjact', 'pjbill', 2, 3];
   const lbl = el.querySelector('[data-step-label]');
   if (lbl) lbl.textContent = 'Passo ' + (seq.indexOf(step) + 1) + ' de ' + seq.length;
 }
@@ -3004,6 +3043,7 @@ async function finishOnboard() {
       onboarding_done: true,
     }).eq('id', currentUser.id);
     if (state.profile_type === 'PF' && getOccupation()) await persistOccupation();
+    if (state.profile_type === 'PJ' && getCompanyType()) await persistCompany();
   }
   showApp();
 }
@@ -3096,6 +3136,7 @@ async function loadProfile() {
     profile = data; state.name = data.name; state.profile_type = data.profile_type;
     state.currency = data.currency; state.monthlyIncome = parseFloat(data.monthly_income) || 5000;
     state.occupation = data.occupation || null; state.income_stability = data.income_stability || null;
+    state.company_type = data.company_type || null; state.pj_activity = data.pj_activity || null; state.pj_billing = data.billing_pattern || null; syncRegimeFromCompany();
   }
 }
 
@@ -3558,7 +3599,7 @@ function stabTag(s) { const x = STABILITY[s]; return x ? '<span class="occ-tag '
 // Chip ao lado do plano na barra lateral
 function updateOccChip() {
   const el = document.getElementById('occ-chip'); if (!el) return;
-  if (state.profile_type !== 'PF') { el.hidden = true; return; }
+  if (state.profile_type === 'PJ') { const t = PJ_TYPES[getCompanyType()]; el.hidden = false; el.textContent = t ? (t.icon + ' ' + t.label) : '＋ Definir empresa'; return; }
   const o = OCCUPATIONS[getOccupation()];
   el.hidden = false; el.textContent = o ? (o.icon + ' ' + o.label) : '＋ Definir vínculo';
 }
@@ -3606,6 +3647,7 @@ async function saveOccupation() {
 
 // ── Faixa no topo do dashboard ──
 function renderOccBanner(c) {
+  if (state.profile_type === 'PJ') return renderCompanyBanner(c);
   if (state.profile_type !== 'PF') return '';
   const k = getOccupation();
   if (!k) return '<div class="card mb-24 animate-in occ-banner"><div><div class="occ-b-title">🧭 Personalize seu painel</div><div class="occ-b-desc">Conte como você trabalha (CLT, autônomo, MEI…) e o menu e as metas se ajustam ao seu tipo de renda.</div></div><button class="btn-add" onclick="openOccupationModal()">Definir agora</button></div>';
@@ -3664,6 +3706,194 @@ function renderObrigacoes(c) {
     '<div class="occ-b-desc" style="margin-top:10px">Estimativa para planejamento — o valor real depende de INSS, carnê-leão/IR e deduções. Confirme com um contador.</div></div>';
 }
 
+
+// ═══════════════════════════════════════════════════════
+// PERFIL DA EMPRESA (PJ): tipo + atividade + forma de faturar
+// ═══════════════════════════════════════════════════════
+const PJ_TYPES = {
+  mei:       { icon:'🧾', label:'MEI',                  regime:'MEI',             reserve:3,  tab:'MEI & DAS',            tip:'Acompanhe o limite anual de faturamento e o DAS mensal; não misture o caixa da empresa com o pessoal.' },
+  simples:   { icon:'📘', label:'ME / Simples Nacional', regime:'Simples',         reserve:4,  tab:'Simples Nacional',     tip:'Seu imposto depende da receita dos últimos 12 meses — acompanhe a faixa para não ser surpreendido.' },
+  epp:       { icon:'📗', label:'EPP',                  regime:'Simples',         reserve:4,  tab:'Simples Nacional',     tip:'Empresa de pequeno porte: acompanhe o teto do Simples e a faixa de alíquota.' },
+  presumido: { icon:'📙', label:'Lucro Presumido',      regime:'Lucro Presumido', reserve:5,  tab:'Tributos (Presumido)', tip:'Guias federais mensais e trimestrais: provisione os tributos a cada faturamento.' },
+  real:      { icon:'📕', label:'Lucro Real',           regime:'Lucro Presumido', reserve:6,  tab:'Tributos (Lucro Real)', tip:'Imposto sobre o lucro apurado: mantenha a contabilidade em dia e provisione os tributos.' },
+  liberal:   { icon:'🧑‍⚕️', label:'Profissional liberal', regime:'Simples',        reserve:6,  tab:'Impostos & Pró-labore', tip:'Defina um pró-labore fixo e trate o restante como lucro da empresa.' },
+  ong:       { icon:'🤝', label:'Associação / ONG',     regime:'Lucro Presumido', reserve:6,  tab:'Prestação de contas',  tip:'Controle recursos por origem (doações, convênios) e mantenha a prestação de contas organizada.' },
+  startup:   { icon:'🚀', label:'Startup',              regime:'Simples',         reserve:12, tab:'Runway & Burn',        tip:'Seu indicador-chave é o runway: quantos meses o caixa aguenta no ritmo atual de gastos.' },
+};
+const PJ_ACTIVITIES = {
+  comercio: { icon:'🛒', label:'Comércio',  recLabel:'Vendas',              annex:'I',   dasExtra:1, income:['Vendas','Comissões','Serviços prestados','Outros'],            expenseExtra:['Estoque / Mercadorias','Frete'] },
+  servicos: { icon:'🛠️', label:'Serviços',  recLabel:'Receita de serviços', annex:'III', dasExtra:5, income:['Serviços prestados','Consultoria','Comissões','Vendas','Outros'], expenseExtra:['Subcontratados'] },
+  industria:{ icon:'🏭', label:'Indústria', recLabel:'Produção & Vendas',   annex:'II',  dasExtra:1, income:['Vendas','Serviços prestados','Comissões','Outros'],            expenseExtra:['Matéria-prima','Produção','Frete'] },
+  misto:    { icon:'🔀', label:'Misto',     recLabel:'Faturamento',         annex:'III', dasExtra:6, income:['Vendas','Serviços prestados','Consultoria','Comissões','Outros'], expenseExtra:['Estoque / Mercadorias','Subcontratados'] },
+};
+const PJ_BILLINGS = {
+  recorrente:{ icon:'🔁', label:'Recorrente',  reserve:3,  tip:'Receita previsível: foque em retenção de clientes e em manter a margem.' },
+  sazonal:   { icon:'🌦️', label:'Sazonal',     reserve:9,  tip:'Receita com picos: guarde nos meses fortes para cobrir os meses fracos.' },
+  projeto:   { icon:'📦', label:'Por projeto', reserve:6,  tip:'Receita irregular: mantenha pipeline de propostas e uma reserva maior.' },
+};
+// Simples Nacional — Anexos I, II e III (LC 123/2006): [teto da faixa, alíquota nominal, parcela a deduzir]
+const SIMPLES_TABLE = {
+  I:   [[180000,.04,0],[360000,.073,5940],[720000,.095,13860],[1800000,.107,22500],[3600000,.143,87300],[4800000,.19,378000]],
+  II:  [[180000,.045,0],[360000,.078,5940],[720000,.10,13860],[1800000,.112,22500],[3600000,.147,85500],[4800000,.30,720000]],
+  III: [[180000,.06,0],[360000,.112,9360],[720000,.135,17640],[1800000,.16,35640],[3600000,.21,125640],[4800000,.33,648000]],
+};
+function getCompanyType() { return PJ_TYPES[state.company_type] ? state.company_type : null; }
+function getPJActivity() { return PJ_ACTIVITIES[state.pj_activity] ? state.pj_activity : null; }
+function getPJBilling() { return PJ_BILLINGS[state.pj_billing] ? state.pj_billing : null; }
+function syncRegimeFromCompany() { const t = PJ_TYPES[getCompanyType()]; if (t) state.pj_regime = t.regime; }
+function getPJReserveMonths() {
+  const t = PJ_TYPES[getCompanyType()], b = PJ_BILLINGS[getPJBilling()];
+  if (!t && !b) return 6;
+  return Math.min(12, Math.max(t ? t.reserve : 0, b ? b.reserve : 0));
+}
+function getPJReserveTarget(c) {
+  const st = getIncomeStats(); const cost = (c && c.totalExpense) || st.exp || 0;
+  return { months: getPJReserveMonths(), monthlyCost: cost, target: cost * getPJReserveMonths(), current: liquidAssetsTotal() };
+}
+function revenueLast12Months() {
+  const now = new Date(); const from = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+  return visibleList('transactions').filter(t => t.type === 'income').reduce((s,t) => { const d = txDateObj(t); return d && d >= from ? s + t.amount : s; }, 0);
+}
+function simplesEstimate(rbt12, activity) {
+  const annex = (PJ_ACTIVITIES[activity] || PJ_ACTIVITIES.servicos).annex; const tbl = SIMPLES_TABLE[annex];
+  if (!rbt12 || rbt12 <= 0) return { annex, faixa: 1, nominal: tbl[0][1], effective: tbl[0][1] };
+  let i = tbl.findIndex(r => rbt12 <= r[0]); if (i < 0) i = tbl.length - 1;
+  const eff = Math.max(0, (rbt12 * tbl[i][1] - tbl[i][2]) / rbt12);
+  return { annex, faixa: i + 1, nominal: tbl[i][1], effective: eff };
+}
+function pjTag(text, cls) { return '<span class="occ-tag ' + (cls || '') + '">' + text + '</span>'; }
+
+// Escolha (onboarding)
+function selPick(el) { el.parentElement.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected')); el.classList.add('selected'); }
+function selectPJType(el) { selPick(el); state.company_type = el.dataset.ptype; syncRegimeFromCompany(); }
+function selectPJActivity(el) { selPick(el); state.pj_activity = el.dataset.pact; }
+function selectPJBilling(el) { selPick(el); state.pj_billing = el.dataset.pbill; }
+async function persistCompany() {
+  if (profile) { profile.company_type = state.company_type; profile.pj_activity = state.pj_activity; profile.billing_pattern = state.pj_billing; }
+  if (sb && currentUser) {
+    try { const r = await sb.from('profiles').update({ company_type: state.company_type, pj_activity: state.pj_activity, billing_pattern: state.pj_billing }).eq('id', currentUser.id);
+      if (r && r.error) console.warn('perfil da empresa não salvo (rode a migração 007):', r.error.message); } catch (e) { console.warn(e); }
+  }
+}
+function openProfileModal() { if (state.profile_type === 'PJ') openCompanyModal(); else openOccupationModal(); }
+function openCompanyModal() {
+  const mk = (map, cur, attr, fn) => Object.keys(map).map(k => '<button class="option-btn' + (k === cur ? ' selected' : '') + '" data-' + attr + '="' + k + '" onclick="' + fn + '(this)"><div class="opt-icon">' + map[k].icon + '</div><div class="opt-label">' + map[k].label + '</div></button>').join('');
+  openModal('Perfil da empresa',
+    '<div class="form-label" style="margin-bottom:8px">Tipo de empresa</div><div class="option-grid occ-modal-grid">' + mk(PJ_TYPES, getCompanyType(), 'ptype', 'selectPJType') + '</div>' +
+    '<div class="form-label" style="margin:16px 0 8px">Atividade principal</div><div class="option-grid">' + mk(PJ_ACTIVITIES, getPJActivity(), 'pact', 'selectPJActivity') + '</div>' +
+    '<div class="form-label" style="margin:16px 0 8px">Como a empresa fatura?</div><div class="option-grid">' + mk(PJ_BILLINGS, getPJBilling(), 'pbill', 'selectPJBilling') + '</div>' +
+    '<button class="btn-primary" style="margin-top:16px" onclick="saveCompany()">Salvar</button>');
+}
+async function saveCompany() {
+  if (!getCompanyType()) { showToast('Escolha o tipo da empresa', 'info'); return; }
+  syncRegimeFromCompany(); await persistCompany(); closeModal();
+  if (!getAvailableTabs().some(t => t.id === currentTab)) currentTab = 'dashboard';
+  renderNav(); renderCurrentTab(); showToast('Painel adaptado à sua empresa ✔', 'success');
+}
+
+// Faixa no topo do dashboard (PJ)
+function renderCompanyBanner(c) {
+  const k = getCompanyType();
+  if (!k) return '<div class="card mb-24 animate-in occ-banner"><div><div class="occ-b-title">🧭 Personalize o painel da empresa</div><div class="occ-b-desc">Informe o tipo da empresa, a atividade e como ela fatura para adaptar menu, impostos e alertas.</div></div><button class="btn-add" onclick="openCompanyModal()">Definir agora</button></div>';
+  const t = PJ_TYPES[k], a = PJ_ACTIVITIES[getPJActivity()], b = PJ_BILLINGS[getPJBilling()], r = getPJReserveTarget(c);
+  const pctRes = r.target > 0 ? Math.min(100, r.current / r.target * 100) : 0;
+  let extra = '';
+  if (k === 'mei') extra = ' · Limite MEI no ano: <strong>' + Math.round(meiRevenueYearToDate() / MEI_ANNUAL_LIMIT * 100) + '%</strong>';
+  if (k === 'simples' || k === 'epp') extra = ' · Receita 12 meses: <strong>' + fmt(revenueLast12Months()) + '</strong>';
+  return '<div class="card mb-24 animate-in occ-banner"><div><div class="occ-b-title">' + t.icon + ' ' + t.label + (a ? ' · ' + a.label : '') + ' ' + (b ? pjTag(b.icon + ' ' + b.label) : '') + '</div><div class="occ-b-desc">' + t.tip + '<br>Reserva de caixa alvo: <strong>' + r.months + ' meses</strong>' + (r.target > 0 ? ' · ' + Math.round(pctRes) + '% atingido' : '') + extra + '</div></div><button class="btn-add" onclick="switchTab(\'caixapj\')">Ver caixa e reserva</button></div>';
+}
+
+// Aba: Caixa & Reserva (PJ)
+function renderCaixaPJ(c) {
+  const k = getCompanyType();
+  if (!k) return '<div class="section-header animate-in"><div><div class="section-title">Caixa & Reserva</div><div class="section-desc">Defina o perfil da empresa para receber metas sob medida.</div></div></div><div class="card animate-in"><div class="empty-state"><div class="empty-icon">🧭</div><div class="empty-title">Perfil não definido</div><button class="btn-add" onclick="openCompanyModal()">Definir perfil</button></div></div>';
+  const t = PJ_TYPES[k], a = PJ_ACTIVITIES[getPJActivity()], b = PJ_BILLINGS[getPJBilling()], st = getIncomeStats(), r = getPJReserveTarget(c);
+  const pctRes = r.target > 0 ? Math.min(100, r.current / r.target * 100) : 0;
+  const barCls = pctRes >= 100 ? '' : pctRes >= 50 ? 'warn' : 'danger';
+  const series = monthlyIncomeSeries(6); const maxV = Math.max.apply(null, series.map(x => Math.max(x.total, x.exp)).concat([1]));
+  const mn = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const bars = series.map(x => '<div style="flex:1;text-align:center"><div style="height:90px;display:flex;align-items:flex-end;gap:3px"><div style="flex:1;height:' + Math.max(3, x.total / maxV * 100) + '%;background:var(--teal);border-radius:5px 5px 0 0;opacity:' + (x.total > 0 ? 1 : .25) + '"></div><div style="flex:1;height:' + Math.max(3, x.exp / maxV * 100) + '%;background:var(--gold);border-radius:5px 5px 0 0;opacity:' + (x.exp > 0 ? 1 : .25) + '"></div></div><div style="font-size:11px;color:var(--ink-3);margin-top:4px">' + mn[x.m] + '</div></div>').join('');
+  const withData = series.filter(x => x.total > 0);
+  const best = withData.length ? withData.reduce((m, x) => x.total > m.total ? x : m) : null, worst = withData.length ? withData.reduce((m, x) => x.total < m.total ? x : m) : null;
+  const advice = !b ? '' : b.label === 'Sazonal'
+    ? 'Receita sazonal' + (best && worst && best !== worst ? ': melhor mês <strong>' + mn[best.m] + '</strong>, pior <strong>' + mn[worst.m] + '</strong>.' : '.') + ' Separe parte dos meses fortes para cobrir a baixa temporada.'
+    : b.tip;
+  const profit = st.n ? st.avg - st.exp : 0;
+  return '<div class="section-header animate-in"><div><div class="section-title">Caixa & Reserva</div><div class="section-desc">' + t.icon + ' ' + t.label + (a ? ' · ' + a.label : '') + ' ' + (b ? pjTag(b.icon + ' ' + b.label) : '') + '</div></div><button class="btn-add" onclick="openCompanyModal()">Alterar</button></div>' +
+  '<div class="card mb-24 animate-in"><div class="occ-b-desc" style="font-size:13.5px;color:var(--ink-2)">' + advice + '</div></div>' +
+  '<div class="kpi-grid mb-24">' + [
+    { label: 'Faturamento médio (6 meses)', value: st.n ? fmt(st.avg) : '—' },
+    { label: 'Custo médio mensal', value: st.exp ? fmt(st.exp) : '—' },
+    { label: 'Resultado médio', value: st.n ? (profit >= 0 ? '+ ' : '- ') + fmt(profit) : '—', color: profit >= 0 ? 'var(--income)' : 'var(--expense)' },
+    { label: 'Pior mês', value: st.n ? fmt(st.min) : '—', cls: 'teal' },
+  ].map((x,i) => '<div class="kpi animate-in stagger-' + (i+1) + '"><div class="kpi-label">' + x.label + '</div><div class="kpi-value ' + (x.cls||'') + '"' + (x.color ? ' style="color:' + x.color + '"' : '') + '>' + x.value + '</div></div>').join('') + '</div>' +
+  '<div class="charts-grid"><div class="card animate-in stagger-2"><div class="card-header"><div><div class="card-title">Faturamento × custos (6 meses)</div><div class="card-subtitle"><span style="color:var(--teal)">■</span> faturamento · <span style="color:var(--gold)">■</span> custos</div></div></div><div style="display:flex;gap:8px;align-items:flex-end">' + bars + '</div></div>' +
+  '<div class="card animate-in stagger-3"><div class="card-header"><div><div class="card-title">Reserva de caixa</div><div class="card-subtitle">Alvo: ' + r.months + ' meses de custos</div></div></div><div class="occ-bar ' + barCls + '"><span style="width:' + pctRes + '%"></span></div>' +
+  '<div style="display:flex;justify-content:space-between;font-size:12.5px;margin-top:8px"><span>Em caixa: <strong>' + fmt(r.current) + '</strong></span><span>Alvo: <strong>' + fmt(r.target) + '</strong></span></div><div class="occ-b-desc" style="margin-top:8px">Considera contas e itens de patrimônio com nome como conta, caixa, reserva, CDB, Selic.</div></div></div>';
+}
+
+// Aba específica do tipo de empresa
+function renderRegimePJ(c) {
+  const k = getCompanyType(); if (!k) return renderCaixaPJ(c);
+  const t = PJ_TYPES[k], act = getPJActivity(), a = PJ_ACTIVITIES[act];
+  const head = '<div class="section-header animate-in"><div><div class="section-title">' + t.tab + '</div><div class="section-desc">' + t.icon + ' ' + t.label + (a ? ' · ' + a.label : '') + '</div></div><button class="btn-add" onclick="openCompanyModal()">Alterar</button></div>';
+  const st = getIncomeStats();
+  const noteEst = '<div class="occ-b-desc" style="margin-top:10px">Estimativa para planejamento. Confirme valores e prazos com o seu contador.</div>';
+  if (k === 'mei') {
+    const rev = meiRevenueYearToDate(), p = rev / MEI_ANNUAL_LIMIT * 100, cls = p >= 100 ? 'danger' : p >= 80 ? 'warn' : '';
+    const dasExtra = a ? a.dasExtra : 5;
+    return head + '<div class="card mb-24 animate-in"><div class="card-title">Limite anual de faturamento</div><div class="occ-bar ' + cls + '" style="margin:12px 0"><span style="width:' + Math.min(100, p) + '%"></span></div><div style="display:flex;justify-content:space-between;font-size:13px"><span>Faturado no ano: <strong>' + fmt(rev) + '</strong></span><span>Limite: <strong>' + fmt(MEI_ANNUAL_LIMIT) + '</strong></span></div><div class="occ-b-desc" style="margin-top:10px">' + (p >= 100 ? 'Limite ultrapassado: até 20% acima o excesso paga imposto extra; acima disso há desenquadramento.' : p >= 80 ? 'Atenção: mais de 80% do limite anual.' : 'Dentro do limite anual.') + ' Faltam <strong>' + fmt(Math.max(0, MEI_ANNUAL_LIMIT - rev)) + '</strong>.</div></div>' +
+      '<div class="card animate-in"><div class="card-title">DAS mensal</div><div class="occ-b-desc" style="font-size:13px;margin-top:6px">5% do salário mínimo + R$ ' + dasExtra + ' (' + (act === 'comercio' || act === 'industria' ? 'ICMS' : act === 'misto' ? 'ICMS + ISS' : 'ISS') + '). Vence todo dia 20.</div></div>';
+  }
+  if (k === 'simples' || k === 'epp') {
+    const rbt = revenueLast12Months(), est = simplesEstimate(rbt, act), monthRev = c.totalIncome || (st.n ? st.avg : 0), das = monthRev * est.effective;
+    const teto = k === 'simples' ? 360000 : 4800000, pT = rbt / teto * 100, cls = pT >= 100 ? 'danger' : pT >= 80 ? 'warn' : '';
+    const alertTxt = k === 'simples' && rbt > 360000 ? 'Receita acima do teto de ME (R$ 360 mil): a empresa deve migrar para EPP.' : rbt > 4800000 ? 'Acima do teto do Simples Nacional (R$ 4,8 milhões).' : pT >= 80 ? 'Perto do teto da sua categoria.' : 'Dentro do teto da sua categoria.';
+    return head + '<div class="kpi-grid mb-24">' + [
+      { label: 'Receita 12 meses (RBT12)', value: fmt(rbt) }, { label: 'Anexo / faixa', value: 'Anexo ' + est.annex + ' · faixa ' + est.faixa, cls: 'teal' },
+      { label: 'Alíquota efetiva (est.)', value: (est.effective * 100).toFixed(2).replace('.', ',') + '%' }, { label: 'DAS estimado do mês', value: fmt(das), cls: 'expense' },
+    ].map((x,i) => '<div class="kpi animate-in stagger-' + (i+1) + '"><div class="kpi-label">' + x.label + '</div><div class="kpi-value ' + (x.cls||'') + '" style="font-size:' + (i === 1 ? '20px' : '28px') + '">' + x.value + '</div></div>').join('') + '</div>' +
+      '<div class="card animate-in"><div class="card-title">Teto do ' + (k === 'simples' ? 'enquadramento como ME' : 'Simples Nacional') + '</div><div class="occ-bar ' + cls + '" style="margin:12px 0"><span style="width:' + Math.min(100, pT) + '%"></span></div><div style="display:flex;justify-content:space-between;font-size:13px"><span>Receita 12 meses: <strong>' + fmt(rbt) + '</strong></span><span>Teto: <strong>' + fmt(teto) + '</strong></span></div><div class="occ-b-desc" style="margin-top:10px">' + alertTxt + ' Anexo ' + est.annex + ' considerado pela atividade; para serviços sujeitos aos Anexos IV ou V (fator r), consulte o contador.</div>' + noteEst + '</div>';
+  }
+  if (k === 'startup') {
+    const cash = liquidAssetsTotal(), burn = Math.max(0, (st.exp || c.totalExpense || 0) - (st.n ? st.avg : 0)), runway = burn > 0 ? cash / burn : Infinity;
+    const cls = runway >= 12 ? '' : runway >= 6 ? 'warn' : 'danger';
+    return head + '<div class="kpi-grid mb-24">' + [
+      { label: 'Caixa disponível', value: fmt(cash) }, { label: 'Burn mensal líquido', value: burn > 0 ? fmt(burn) : 'Sem queima', cls: 'expense' },
+      { label: 'Runway', value: runway === Infinity ? '∞' : runway.toFixed(1).replace('.', ',') + ' meses', cls: 'teal' },
+    ].map((x,i) => '<div class="kpi animate-in stagger-' + (i+1) + '"><div class="kpi-label">' + x.label + '</div><div class="kpi-value ' + (x.cls||'') + '">' + x.value + '</div></div>').join('') + '</div>' +
+      '<div class="card animate-in"><div class="card-title">Saúde do runway</div><div class="occ-bar ' + cls + '" style="margin:12px 0"><span style="width:' + (runway === Infinity ? 100 : Math.min(100, runway / 18 * 100)) + '%"></span></div><div class="occ-b-desc">Burn = custos médios menos faturamento médio. Meta usual: pelo menos 12 meses de runway; abaixo de 6 meses é hora de captar ou cortar custos.</div></div>';
+  }
+  if (k === 'ong') {
+    const don = visibleList('transactions').filter(x => x.type === 'income').reduce((s, x) => s + x.amount, 0), exp = visibleList('transactions').filter(x => x.type === 'expense').reduce((s, x) => s + x.amount, 0);
+    return head + '<div class="kpi-grid mb-24">' + [{ label: 'Recursos recebidos', value: fmt(don), cls: 'income' }, { label: 'Aplicado', value: fmt(exp), cls: 'expense' }, { label: 'Saldo de recursos', value: (don - exp >= 0 ? '' : '- ') + fmt(don - exp), cls: 'teal' }].map((x,i) => '<div class="kpi animate-in stagger-' + (i+1) + '"><div class="kpi-label">' + x.label + '</div><div class="kpi-value ' + (x.cls||'') + '">' + x.value + '</div></div>').join('') + '</div>' +
+      '<div class="card animate-in"><div class="card-title">Checklist de prestação de contas</div><div class="occ-b-desc" style="font-size:13px;margin-top:8px;line-height:1.8">☐ Separar recursos por origem (doações, convênios, projetos)<br>☐ Guardar comprovantes de cada despesa na aba Documentos<br>☐ Conciliar o saldo de cada projeto todo mês<br>☐ Manter atas e relatórios de atividades atualizados</div>' + noteEst + '</div>';
+  }
+  // presumido, real, liberal: provisão de tributos
+  const defPct = { presumido: 15, real: 20, liberal: 12 }[k];
+  const pctProv = Math.max(0, parseFloat(state._pjProvPct) || defPct), rev = st.n ? st.avg : 0;
+  const obrig = k === 'liberal'
+    ? 'Defina um pró-labore fixo (com INSS) e trate o restante como distribuição de lucros. Prazos variam conforme o regime da empresa.'
+    : 'Principais obrigações federais: DCTFWeb (até o dia 15), PIS/COFINS (dia 25 do mês seguinte) e IRPJ/CSLL (apuração trimestral).';
+  return head + '<div class="card mb-24 animate-in"><div class="card-title">Quanto provisionar por mês</div><div class="form-group" style="margin-top:12px"><label class="form-label">% do faturamento para tributos (estimativa)</label><input class="form-input" type="number" min="0" max="60" value="' + pctProv + '" oninput="state._pjProvPct=this.value;document.getElementById(\'pj-prov-out\').textContent=fmt((' + rev + ')*Math.max(0,parseFloat(this.value)||0)/100)"></div>' +
+    '<div class="kpi-grid"><div class="kpi"><div class="kpi-label">Faturamento médio</div><div class="kpi-value">' + fmt(rev) + '</div></div><div class="kpi"><div class="kpi-label">Provisão mensal</div><div class="kpi-value teal" id="pj-prov-out">' + fmt(rev * pctProv / 100) + '</div></div></div>' + noteEst + '</div>' +
+    '<div class="card animate-in"><div class="card-title">Obrigações</div><div class="occ-b-desc" style="font-size:13px;margin-top:8px">' + obrig + '</div></div>';
+}
+
+function getShapedPJTabs() {
+  const k = getCompanyType();
+  const tabs = tabsPJ.map(t => Object.assign({}, t));
+  if (!k) return tabs;
+  const a = PJ_ACTIVITIES[getPJActivity()], t = PJ_TYPES[k];
+  tabs.forEach(x => { if (x.id === 'receitas') x.label = k === 'ong' ? 'Recursos recebidos' : k === 'startup' ? 'Receita' : (a ? a.recLabel : x.label); });
+  const idx = tabs.findIndex(x => x.id === 'orcamento');
+  tabs.splice(idx < 0 ? tabs.length : idx, 0, { id:'caixapj', label:'Caixa & Reserva', section:'Planejamento', plus:true, tier:'basic' });
+  const fIdx = tabs.findIndex(x => x.id === 'fiscal');
+  const regimeTab = { id:'regimepj', label:t.tab, section: k === 'startup' || k === 'ong' ? 'Planejamento' : 'Fiscal & Caixa', plus:true, tier: k === 'startup' || k === 'ong' ? 'basic' : 'business' };
+  if (regimeTab.section === 'Planejamento') tabs.splice(idx + 1, 0, regimeTab); else tabs.splice(fIdx < 0 ? tabs.length : fIdx + 1, 0, regimeTab);
+  return tabs;
+}
+
 // ── Menu moldado pelo vínculo ──
 function getShapedPFTabs() {
   const k = getOccupation(); const o = OCCUPATIONS[k];
@@ -3700,7 +3930,7 @@ const tabsPJ = [
   {id:'saude',label:'Saúde Financeira',section:'Conta'},{id:'plano',label:'Plano',section:'Conta'},
 ];
 
-function getAvailableTabs() { return state.profile_type === 'PJ' ? tabsPJ : getShapedPFTabs(); }
+function getAvailableTabs() { return state.profile_type === 'PJ' ? getShapedPJTabs() : getShapedPFTabs(); }
 
 // Reconstrói a navegação lateral do zero a cada chamada — necessário porque os
 // rótulos (ex.: "Renda" vs "Faturamento") e os itens exclusivos de PJ (Fiscal,
@@ -3768,6 +3998,8 @@ function tierLimit(key) {
 // "tier" é o menor plano que já libera a aba: plus | pro | business.
 var PLUS_ONLY_TABS = {
   perfilrenda: { label: 'Perfil de Renda', desc: 'Reserva de emergência sob medida, renda para planejar e histórico de renda por vínculo de trabalho.', tier: 'basic' },
+  caixapj: { label: 'Caixa & Reserva', desc: 'Reserva de caixa sob medida, faturamento versus custos e leitura da sazonalidade da empresa.', tier: 'basic' },
+  regimepj: { label: 'Painel do regime tributário', desc: 'Impostos, limites e obrigações específicos do tipo da sua empresa.', tier: 'business' },
   obrigacoes: { label: 'MEI & Impostos', desc: 'Limite anual do MEI, DAS e provisão de impostos para autônomos.', tier: 'basic' },
   projecao: { label: 'Projeção', desc: 'Simule cenários futuros de saldo e patrimônio com base nas suas receitas e despesas reais.', tier: 'plus' },
   estrategia: { label: 'Estratégia & Consultoria', desc: 'Consultoria personalizada em fases, dicas contextuais, simulador de decisões financeiras e recomendações de um especialista virtual — recurso do plano Pro.', tier: 'pro' },
@@ -3881,8 +4113,11 @@ function renderCurrentTab() {
     openfinance: () => renderOpenFinance(c),
     perfilrenda: () => renderPerfilRenda(c),
     obrigacoes: () => renderObrigacoes(c),
+    caixapj: () => renderCaixaPJ(c),
+    regimepj: () => renderRegimePJ(c),
   };
-  const isGated = PLUS_ONLY_TABS[currentTab] && !meetsTier(PLUS_ONLY_TABS[currentTab].tier || 'plus');
+  const _gTier = currentTab === 'regimepj' && (getCompanyType() === 'startup' || getCompanyType() === 'ong') ? 'basic' : (PLUS_ONLY_TABS[currentTab] && (PLUS_ONLY_TABS[currentTab].tier || 'plus'));
+  const isGated = !!_gTier && !meetsTier(_gTier);
   main.innerHTML = isGated ? renderPlusPaywall(currentTab) : (renderers[currentTab] ? renderers[currentTab]() : renderers.dashboard());
   updateNotifBadge();
   if (currentTab === 'projecao' && !isGated) bindScenarioPills();
@@ -5176,7 +5411,7 @@ function renderEstrategia(c) {
   const netWorth = totalAssets - totalLiab;
   const surplus = income - expenses;
   const savingsRate = income > 0 ? (surplus / income * 100) : 0;
-  const emergencyTarget = expenses * (isPJ ? 6 : getReserveMonths());
+  const emergencyTarget = expenses * (isPJ ? getPJReserveMonths() : getReserveMonths());
   const emergencyCurrent = liquidAssetsTotal();
   const subsTotal = visibleList('subscriptions').filter(s => s.active !== false).reduce((s, sub) => s + sub.price, 0);
   const goalsRemaining = visibleList('goals').reduce((s, g) => s + (g.target - g.current), 0);

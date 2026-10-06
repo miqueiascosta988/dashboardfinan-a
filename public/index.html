@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 <style>
 :root {
   --surface: #F3F6FA;
@@ -3972,6 +3973,254 @@ function getShapedPJTabs() {
   return tabs;
 }
 
+
+// ═══════════════════════════════════════════════════════
+// SIMULADOR CLT — férias e rescisão (estimativa)
+// Tabelas 2026 (conferir a cada janeiro): INSS progressivo; IRRF com tabela de 2025
+// + redutor da Lei 15.270/2025. Fontes consultadas: tabelas públicas de 2026 que
+// reproduzem os valores da Receita/INSS. Todo cálculo roda no navegador.
+// ═══════════════════════════════════════════════════════
+const TAX2026 = {
+  salarioMinimo: 1621.00,
+  inssFaixas: [[1621.00, .075], [2902.84, .09], [4354.27, .12], [8475.55, .14]],   // [teto da faixa, alíquota]
+  irrfFaixas: [[2428.80, 0, 0], [2826.65, .075, 182.16], [3751.05, .15, 394.16], [4664.68, .225, 675.49], [Infinity, .275, 908.73]],
+  deducaoDependente: 189.59,
+  descontoSimplificado: 607.20,
+  redutorIsencao: 5000.00, redutorLimite: 7350.00, redutorA: 978.62, redutorB: 0.133145,
+};
+function inssCalc(base) {
+  const teto = TAX2026.inssFaixas[TAX2026.inssFaixas.length - 1][0];
+  const b = Math.max(0, Math.min(base, teto)); let prev = 0, tot = 0;
+  TAX2026.inssFaixas.forEach(f => { if (b > prev) tot += (Math.min(b, f[0]) - prev) * f[1]; prev = f[0]; });
+  return Math.round(tot * 100) / 100;
+}
+function irrfCalc(rendTrib, inss, dependentes, pensao) {
+  const legal = inss + (dependentes || 0) * TAX2026.deducaoDependente + (pensao || 0);
+  const ded = Math.max(legal, TAX2026.descontoSimplificado);
+  const base = Math.max(0, rendTrib - ded);
+  const f = TAX2026.irrfFaixas.find(x => base <= x[0]);
+  const tabela = Math.max(0, base * f[1] - f[2]);
+  let redutor = 0;
+  if (rendTrib <= TAX2026.redutorIsencao) redutor = tabela;
+  else if (rendTrib <= TAX2026.redutorLimite) redutor = Math.min(tabela, Math.max(0, TAX2026.redutorA - TAX2026.redutorB * rendTrib));
+  const r2 = v => Math.round(v * 100) / 100;
+  return { base: r2(base), tabela: r2(tabela), redutor: r2(redutor), valor: r2(Math.max(0, tabela - redutor)), usouSimplificado: ded === TAX2026.descontoSimplificado && legal < TAX2026.descontoSimplificado };
+}
+const SIM = { mode: 'ferias', holerites: [], salary: 0, variaveis: 0, consig: 0, dep: 0, ferias: { faltas: 0, opcao: '30', adiant13: false, outrosDesc: 0 },
+  resc: { admissao: '', saida: '', tipo: 'sem_justa', aviso: 'indenizado', feriasVenc: 0, fgts: 0, adiant13: 0, descEmpregador: 0, descConsig: 0 }, out: null, msg: '' };
+const simBRL = v => (v < 0 ? '- ' : '') + 'R$ ' + Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const simR2 = v => Math.round(v * 100) / 100;
+const simNum = v => { const n = parseFloat(String(v).replace(/\./g, '').replace(',', '.')); return isNaN(n) ? 0 : n; };
+
+// ── Leitura de holerites (PDF com texto, no navegador) ──
+const SIM_CATS = { base: 'Salário / fixo', variavel: 'Variável (entra na média)', consig: 'Consignado / empréstimo', outros: 'Outro desconto', inss: 'INSS', irrf: 'IRRF', ignorar: 'Ignorar' };
+function simClassify(desc) {
+  const d = desc.toLowerCase();
+  if (/inss|previd/.test(d)) return 'inss';
+  if (/irrf|imposto de renda|\bir\b|i\.r\./.test(d)) return 'irrf';
+  if (/consign|empr[eé]stimo|financiamento/.test(d)) return 'consig';
+  if (/adiantamento|vale|plano|mensalidade|pens[aã]o|falta|atraso|desconto|co-?participa|seguro|sindic|contribui/.test(d)) return 'outros';
+  if (/horas?\s*extras?|\bh\.?e\.?\b|adicional|comiss|gratifica|dsr|descanso|periculos|insalubr|b[oô]nus|pr[eê]mio|plr|produtividade|noturno|sobreaviso/.test(d)) return 'variavel';
+  if (/sal[aá]rio|ordenado|vencimento|remunera/.test(d)) return 'base';
+  return 'ignorar';
+}
+function simParseLines(lines) {
+  const num = /\d{1,3}(?:\.\d{3})*,\d{2}/g; const rows = [];
+  lines.forEach(line => {
+    const nums = line.match(num); if (!nums) return;
+    const desc = line.replace(num, ' ').replace(/[\d.,%]+/g, ' ').replace(/\s+/g, ' ').trim();
+    if (desc.length < 3 || /total|l[ií]quido|base de|fgts|bruto|^valor/i.test(desc)) return;
+    const cat = simClassify(desc); if (cat === 'ignorar') return;
+    rows.push({ desc: desc.slice(0, 48), valor: simNum(nums[nums.length - 1]), cat });
+  });
+  return rows;
+}
+function simFindComp(text, fallback) {
+  const meses = ['janeiro','fevereiro','março','marco','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+  const t = text.toLowerCase();
+  const m1 = new RegExp('(' + meses.join('|') + ')\\s*(?:de|/|-)?\\s*(20\\d{2})').exec(t);
+  if (m1) return m1[1].charAt(0).toUpperCase() + m1[1].slice(1) + '/' + m1[2];
+  const m2 = /\b(0?[1-9]|1[0-2])\s*\/\s*(20\d{2})\b/.exec(t); if (m2) return m2[1].padStart(2, '0') + '/' + m2[2];
+  return fallback;
+}
+async function simReadFiles(fileList) {
+  const files = Array.from(fileList || []).filter(f => /\.pdf$/i.test(f.name) || f.type === 'application/pdf');
+  if (!files.length) { SIM.msg = 'Selecione arquivos PDF.'; return renderCurrentTab(); }
+  if (!window.pdfjsLib) { SIM.msg = 'Leitor de PDF indisponível agora. Preencha os valores manualmente.'; return renderCurrentTab(); }
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+  SIM.msg = 'Lendo ' + files.length + ' arquivo(s)…'; renderCurrentTab();
+  const notRead = [];
+  for (const f of files.slice(0, 12 - SIM.holerites.length)) {
+    try {
+      const pdf = await pdfjsLib.getDocument({ data: await f.arrayBuffer() }).promise; const lines = []; let all = '';
+      for (let p = 1; p <= Math.min(pdf.numPages, 3); p++) {
+        const tc = await (await pdf.getPage(p)).getTextContent(); const byY = {};
+        tc.items.forEach(it => { const y = Math.round(it.transform[5] / 3); (byY[y] = byY[y] || []).push(it); });
+        Object.keys(byY).sort((a, b) => b - a).forEach(y => { const l = byY[y].sort((a, b) => a.transform[4] - b.transform[4]).map(i => i.str).join(' ').replace(/\s+/g, ' ').trim(); if (l) { lines.push(l); all += l + '\n'; } });
+      }
+      const rows = simParseLines(lines);
+      if (!rows.length) { notRead.push(f.name); continue; }
+      SIM.holerites.push({ id: genId(), name: f.name, comp: simFindComp(all, f.name.replace(/\.pdf$/i, '')), rows });
+    } catch (e) { notRead.push(f.name); }
+  }
+  SIM.msg = notRead.length ? 'Não consegui ler: ' + notRead.join(', ') + ' (PDF escaneado/foto não é suportado — preencha manualmente).' : '';
+  simApplyHolerites(); renderCurrentTab();
+}
+function simApplyHolerites() {
+  const hs = SIM.holerites; if (!hs.length) return;
+  const sum = (h, cat) => h.rows.filter(r => r.cat === cat).reduce((s, r) => s + r.valor, 0);
+  const last = hs[hs.length - 1];
+  SIM.salary = simR2(sum(last, 'base')) || SIM.salary;
+  SIM.variaveis = simR2(hs.reduce((s, h) => s + sum(h, 'variavel'), 0) / hs.length);
+  SIM.consig = simR2(sum(last, 'consig'));
+}
+function simSetCat(hid, idx, cat) { const h = SIM.holerites.find(x => x.id === hid); if (h) { h.rows[idx].cat = cat; simApplyHolerites(); renderCurrentTab(); } }
+function simRemoveHolerite(hid) { SIM.holerites = SIM.holerites.filter(x => x.id !== hid); simApplyHolerites(); renderCurrentTab(); }
+function simSet(path, val, isNum) {
+  const parts = path.split('.'); let o = SIM; for (let i = 0; i < parts.length - 1; i++) o = o[parts[i]];
+  o[parts[parts.length - 1]] = isNum ? simNum(val) : val;
+}
+
+// ── Datas e avos ──
+function simAvos(ini, fim) {
+  if (!ini || !fim || fim < ini) return 0; let n = 0;
+  for (let y = ini.getFullYear(), m = ini.getMonth(); y < fim.getFullYear() || (y === fim.getFullYear() && m <= fim.getMonth()); m++) {
+    if (m > 11) { m = 0; y++; if (y > fim.getFullYear()) break; }
+    const first = new Date(y, m, 1), last = new Date(y, m + 1, 0);
+    const s = ini > first ? ini : first, e = fim < last ? fim : last;
+    const days = Math.round((e - s) / 86400000) + 1; if (days >= 15) n++;
+    if (y === fim.getFullYear() && m === fim.getMonth()) break;
+  }
+  return n;
+}
+const simDate = s => { if (!s) return null; const d = new Date(s + 'T00:00:00'); return isNaN(d) ? null : d; };
+
+// ── Cálculo: FÉRIAS ──
+function simCalcFerias() {
+  const f = SIM.ferias, remun = SIM.salary + SIM.variaveis, L = [];
+  if (SIM.salary <= 0) return { erro: 'Informe o salário base (ou envie um holerite).' };
+  const faltas = f.faltas || 0;
+  const direito = faltas <= 5 ? 30 : faltas <= 14 ? 24 : faltas <= 23 ? 18 : faltas <= 32 ? 12 : 0;
+  if (direito === 0) return { erro: 'Com mais de 32 faltas injustificadas no período aquisitivo não há direito a férias.' };
+  const gozoOpt = f.opcao === '20+10' ? Math.min(direito, 20) : Math.min(direito, parseInt(f.opcao, 10));
+  const abonoDias = f.opcao === '20+10' ? Math.min(10, Math.floor(direito / 3)) : 0;
+  const dia = remun / 30;
+  const ferias = simR2(dia * gozoOpt), terco = simR2(ferias / 3), abono = simR2(dia * abonoDias), tercoAbono = simR2(abono / 3);
+  const trib = ferias + terco, inss = inssCalc(trib), ir = irrfCalc(trib, inss, SIM.dep, 0);
+  const adiant = f.adiant13 ? simR2(remun / 2) : 0;
+  const outros = f.outrosDesc || 0;
+  L.push({ k: 'info', t: 'Remuneração de referência', v: simBRL(remun), n: 'Salário ' + simBRL(SIM.salary) + (SIM.variaveis ? ' + média de variáveis ' + simBRL(SIM.variaveis) : '') });
+  L.push({ k: 'info', t: 'Dias de direito', v: direito + ' dias', n: faltas > 5 ? faltas + ' faltas injustificadas reduzem o direito (CLT art. 130)' : 'Até 5 faltas: 30 dias' });
+  L.push({ k: '+', t: 'Férias (' + gozoOpt + ' dias)', v: simBRL(ferias), n: 'remuneração ÷ 30 × ' + gozoOpt });
+  L.push({ k: '+', t: '1/3 constitucional', v: simBRL(terco) });
+  if (abonoDias) { L.push({ k: '+', t: 'Abono pecuniário (' + abonoDias + ' dias)', v: simBRL(abono), n: 'Não sofre INSS nem IRRF' }); L.push({ k: '+', t: '1/3 do abono', v: simBRL(tercoAbono), n: 'Não sofre INSS nem IRRF' }); }
+  L.push({ k: '-', t: 'INSS', v: simBRL(inss), n: 'Sobre férias + 1/3, tabela progressiva 2026' });
+  L.push({ k: '-', t: 'IRRF', v: simBRL(ir.valor), n: 'Tabela ' + (ir.usouSimplificado ? 'com desconto simplificado' : 'com deduções legais') + (ir.redutor ? '; redutor Lei 15.270: ' + simBRL(ir.redutor) : '') });
+  if (adiant) L.push({ k: '+', t: '1ª parcela do 13º (adiantamento)', v: simBRL(adiant), n: 'Sem desconto nesta parcela; INSS e IRRF vêm na 2ª parcela' });
+  if (outros) L.push({ k: '-', t: 'Outros descontos informados', v: simBRL(outros), n: 'Consignado, adiantamentos etc. — depende de como sua empresa lança' });
+  const liquido = simR2(ferias + terco + abono + tercoAbono + adiant - inss - ir.valor - outros);
+  return { titulo: 'Férias', liquido, linhas: L, aviso: 'As férias costumam ser tributadas junto com o salário do mês, então INSS e IRRF reais podem ser um pouco maiores. O pagamento deve ocorrer até 2 dias antes do início das férias.' };
+}
+
+// ── Cálculo: RESCISÃO ──
+function simCalcResc() {
+  const r = SIM.resc, remun = SIM.salary + SIM.variaveis, L = [];
+  const adm = simDate(r.admissao), sai = simDate(r.saida);
+  if (SIM.salary <= 0) return { erro: 'Informe o salário base (ou envie um holerite).' };
+  if (!adm || !sai || sai < adm) return { erro: 'Informe datas de admissão e saída válidas.' };
+  const tipo = r.tipo, justa = tipo === 'justa_causa';
+  const anos = Math.floor((sai - adm) / (365.25 * 86400000));
+  const dia = remun / 30;
+  const saldoDias = Math.min(30, sai.getDate());
+  const saldo = simR2(dia * saldoDias);
+  let avisoDias = 0, avisoVal = 0, avisoDesc = 0;
+  if (tipo === 'sem_justa' || tipo === 'acordo') {
+    if (r.aviso === 'indenizado') { avisoDias = Math.min(90, 30 + 3 * anos); avisoVal = simR2(dia * avisoDias * (tipo === 'acordo' ? 0.5 : 1)); }
+  } else if (tipo === 'pedido' && r.aviso === 'nao_cumprido') { avisoDesc = simR2(remun); }
+  const diasProj = tipo === 'acordo' ? Math.floor(avisoDias / 2) : avisoDias;
+  const fimProj = new Date(sai.getTime() + diasProj * 86400000);
+  // 13º
+  let decimo = 0, avos13 = 0;
+  if (!justa) {
+    const iniAno = new Date(fimProj.getFullYear(), 0, 1); avos13 = simAvos(adm > iniAno ? adm : iniAno, fimProj);
+    decimo = simR2(remun * avos13 / 12);
+  }
+  const decimoLiq = Math.max(0, decimo - (r.adiant13 || 0));
+  // férias
+  const venc = Math.max(0, parseInt(r.feriasVenc, 10) || 0);
+  const feriasVenc = simR2(venc * remun * 4 / 3);
+  let avosF = 0, feriasProp = 0;
+  if (!justa) {
+    let ult = new Date(adm); while (new Date(ult.getFullYear() + 1, ult.getMonth(), ult.getDate()) <= fimProj) ult = new Date(ult.getFullYear() + 1, ult.getMonth(), ult.getDate());
+    // se já há período vencido não gozado, o proporcional parte do último aniversário
+    avosF = simAvos(ult, fimProj); if (avosF > 12) avosF = 12;
+    feriasProp = simR2(remun * avosF / 12 * 4 / 3);
+  }
+  // tributos
+  const inssSaldo = inssCalc(saldo), irSaldo = irrfCalc(saldo, inssSaldo, SIM.dep, 0);
+  const inss13 = inssCalc(decimoLiq + (r.adiant13 || 0)), ir13 = irrfCalc(decimo, inss13, SIM.dep, 0);
+  const descEmp = Math.min(r.descEmpregador || 0, remun), capado = (r.descEmpregador || 0) > remun;
+  L.push({ k: 'info', t: 'Remuneração de referência', v: simBRL(remun), n: 'Salário ' + simBRL(SIM.salary) + (SIM.variaveis ? ' + média de variáveis ' + simBRL(SIM.variaveis) : '') });
+  L.push({ k: '+', t: 'Saldo de salário (' + saldoDias + ' dias)', v: simBRL(saldo) });
+  if (avisoVal) L.push({ k: '+', t: 'Aviso prévio indenizado (' + (tipo === 'acordo' ? Math.floor(avisoDias / 2) + ' dias, 50% por acordo' : avisoDias + ' dias') + ')', v: simBRL(avisoVal), n: '30 dias + 3 por ano completo (máx. 90). Sem INSS/IRRF' });
+  if (!justa) L.push({ k: '+', t: '13º proporcional (' + avos13 + '/12)', v: simBRL(decimo), n: (diasProj ? 'Inclui projeção do aviso. ' : '') + 'Mês conta com 15 dias ou mais' });
+  if (venc) L.push({ k: '+', t: 'Férias vencidas + 1/3 (' + venc + ' período)', v: simBRL(feriasVenc), n: 'Indenizadas: sem INSS/IRRF' });
+  if (!justa) L.push({ k: '+', t: 'Férias proporcionais + 1/3 (' + avosF + '/12)', v: simBRL(feriasProp), n: 'Indenizadas: sem INSS/IRRF' });
+  if (r.adiant13) L.push({ k: '-', t: '13º já recebido (adiantamento)', v: simBRL(r.adiant13) });
+  L.push({ k: '-', t: 'INSS sobre saldo de salário', v: simBRL(inssSaldo) });
+  L.push({ k: '-', t: 'IRRF sobre saldo de salário', v: simBRL(irSaldo.valor), n: irSaldo.redutor ? 'Redutor Lei 15.270: ' + simBRL(irSaldo.redutor) : '' });
+  if (decimoLiq || decimo) { L.push({ k: '-', t: 'INSS sobre 13º', v: simBRL(inss13) }); L.push({ k: '-', t: 'IRRF sobre 13º (tributação separada)', v: simBRL(ir13.valor), n: ir13.redutor ? 'Redutor Lei 15.270: ' + simBRL(ir13.redutor) + ' — confirme com o RH' : '' }); }
+  if (avisoDesc) L.push({ k: '-', t: 'Aviso prévio não cumprido', v: simBRL(avisoDesc), n: 'Empresa pode descontar até 30 dias' });
+  if (descEmp) L.push({ k: '-', t: 'Descontos do empregador (adiantamentos etc.)', v: simBRL(descEmp), n: capado ? 'Limitado a 1 remuneração (CLT art. 477 §5º)' : 'Compensação limitada a 1 remuneração (CLT art. 477 §5º)' });
+  if (r.descConsig) L.push({ k: '-', t: 'Consignado descontado na rescisão', v: simBRL(r.descConsig), n: 'Valor informado por você — confira o contrato e o TRCT' });
+  const liquido = simR2(saldo + avisoVal + decimoLiq + feriasVenc + feriasProp - inssSaldo - irSaldo.valor - (decimoLiq || decimo ? inss13 + ir13.valor : 0) - avisoDesc - descEmp - (r.descConsig || 0));
+  // FGTS
+  const baseFgts = saldo + decimo + avisoVal, depFgts = simR2(baseFgts * 0.08);
+  let fgtsExtra = null;
+  if (tipo === 'sem_justa' || tipo === 'acordo') {
+    const total = (r.fgts || 0) + depFgts, multa = simR2(total * (tipo === 'acordo' ? 0.2 : 0.4));
+    const saque = tipo === 'acordo' ? simR2(total * 0.8 + multa) : simR2(total + multa);
+    fgtsExtra = { linhas: [
+      { k: 'info', t: 'Depósito do FGTS rescisório (8%)', v: simBRL(depFgts), n: 'Sobre saldo de salário, 13º e aviso — pago pela empresa na conta do FGTS' },
+      { k: '+', t: 'Multa rescisória (' + (tipo === 'acordo' ? '20%' : '40%') + ')', v: simBRL(multa), n: 'Sobre o saldo total do FGTS' },
+      { k: '+', t: 'FGTS disponível para saque', v: simBRL(saque), n: tipo === 'acordo' ? 'No acordo, saca 80% do saldo + multa' : 'Saca 100% do saldo + multa' }] };
+    if (!r.fgts) fgtsExtra.linhas.unshift({ k: 'info', t: 'Saldo do FGTS não informado', v: '—', n: 'Informe o saldo (app do FGTS) para calcular a multa' });
+  }
+  const av = [];
+  if (tipo === 'acordo') av.push('No acordo, a projeção do aviso para 13º e férias foi estimada pela metade dos dias.');
+  if (tipo === 'pedido' && r.aviso === 'nao_cumprido') av.push('Pedido de demissão sem cumprir o aviso gera desconto.');
+  av.push('O valor oficial é o do TRCT emitido pela sua empresa; convenção coletiva e médias específicas podem alterar o resultado.');
+  return { titulo: 'Rescisão', liquido, linhas: L, fgts: fgtsExtra, aviso: av.join(' ') };
+}
+function simRun() { SIM.out = SIM.mode === 'ferias' ? simCalcFerias() : simCalcResc(); renderCurrentTab(); }
+function simMode(m) { SIM.mode = m; SIM.out = null; renderCurrentTab(); }
+
+// ── Interface ──
+function simLinhasHtml(L) {
+  return '<table class="data-table" style="width:100%"><tbody>' + L.map(x => '<tr><td style="padding:8px 4px"><div style="font-weight:600;font-size:13.5px">' + x.t + '</div>' + (x.n ? '<div style="font-size:11.5px;color:var(--ink-3)">' + x.n + '</div>' : '') + '</td><td style="text-align:right;white-space:nowrap;font-weight:700;color:' + (x.k === '+' ? 'var(--income)' : x.k === '-' ? 'var(--expense)' : 'var(--ink-2)') + '">' + (x.k === '-' ? '− ' : x.k === '+' ? '+ ' : '') + x.v + '</td></tr>').join('') + '</tbody></table>';
+}
+function simInput(label, path, val, type, extra) {
+  return '<div class="form-group"><label class="form-label">' + label + '</label><input class="form-input" ' + (type === 'date' ? 'type="date"' : 'type="text" inputmode="decimal"') + ' value="' + (val === undefined || val === null || val === 0 && type !== 'date' ? '' : val) + '" placeholder="' + (extra || '') + '" oninput="simSet(\'' + path + '\', this.value, ' + (type === 'date' ? 'false' : 'true') + ')"></div>';
+}
+function renderSimuladorCLT(c) {
+  const f = SIM.ferias, r = SIM.resc;
+  const hol = SIM.holerites.map(h => '<div class="card mb-24" style="padding:14px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div><strong>' + h.comp + '</strong> <span style="font-size:11.5px;color:var(--ink-3)">' + h.name + '</span></div><button class="btn-sm" onclick="simRemoveHolerite(\'' + h.id + '\')">Remover</button></div><table class="data-table" style="width:100%;margin-top:8px"><tbody>' + h.rows.map((x, i) => '<tr><td style="padding:5px 4px;font-size:12.5px">' + x.desc + '</td><td style="text-align:right;font-size:12.5px;white-space:nowrap">' + simBRL(x.valor) + '</td><td style="width:170px"><select class="form-input" style="padding:4px 6px;font-size:12px" onchange="simSetCat(\'' + h.id + '\',' + i + ',this.value)">' + Object.keys(SIM_CATS).map(k => '<option value="' + k + '"' + (k === x.cat ? ' selected' : '') + '>' + SIM_CATS[k] + '</option>').join('') + '</select></td></tr>').join('') + '</tbody></table></div>').join('');
+  const cardHol = '<div class="card mb-24 animate-in"><div class="card-title">1. Holerites (opcional, mas deixa a conta mais exata)</div><div class="occ-b-desc" style="margin:8px 0 12px">Envie até 12 holerites em <strong>PDF com texto</strong> (baixados do portal da empresa). A leitura acontece no seu navegador: os arquivos <strong>não são enviados nem guardados</strong>. Confira e corrija a classificação das linhas abaixo.</div><input type="file" accept="application/pdf" multiple onchange="simReadFiles(this.files)" class="form-input">' + (SIM.msg ? '<div class="occ-b-desc" style="margin-top:8px;color:var(--gold)">' + SIM.msg + '</div>' : '') + (SIM.holerites.length ? '<div class="occ-b-desc" style="margin-top:10px">Média de variáveis (' + SIM.holerites.length + ' holerite' + (SIM.holerites.length > 1 ? 's' : '') + '): <strong>' + simBRL(SIM.variaveis) + '</strong> · Parcela de consignado no último: <strong>' + simBRL(SIM.consig) + '</strong></div>' : '') + '</div>' + hol;
+  const comum = '<div class="occ-grid-3">' + simInput('Salário base (R$)', 'salary', SIM.salary, 'num', '0,00') + simInput('Média mensal de variáveis (R$)', 'variaveis', SIM.variaveis, 'num', 'horas extras, comissões…') + simInput('Dependentes (IR)', 'dep', SIM.dep, 'num', '0') + '</div>';
+  const formF = '<div class="occ-grid-3">' + simInput('Faltas injustificadas no período', 'ferias.faltas', f.faltas, 'num', '0') + '<div class="form-group"><label class="form-label">Como vai tirar</label><select class="form-input" onchange="simSet(\'ferias.opcao\', this.value)"><option value="30"' + (f.opcao === '30' ? ' selected' : '') + '>30 dias</option><option value="20+10"' + (f.opcao === '20+10' ? ' selected' : '') + '>20 dias + vender 10 (abono)</option><option value="15"' + (f.opcao === '15' ? ' selected' : '') + '>15 dias</option><option value="10"' + (f.opcao === '10' ? ' selected' : '') + '>10 dias</option></select></div><div class="form-group"><label class="form-label">1ª parcela do 13º junto?</label><select class="form-input" onchange="simSet(\'ferias.adiant13\', this.value===\'sim\')"><option value="nao">Não</option><option value="sim"' + (f.adiant13 ? ' selected' : '') + '>Sim</option></select></div>' + simInput('Descontos a abater (consignado, adiantamentos) R$', 'ferias.outrosDesc', f.outrosDesc, 'num', '0,00') + '</div>';
+  const sel = (path, cur, opts) => '<select class="form-input" onchange="simSet(\'' + path + '\', this.value)">' + opts.map(o => '<option value="' + o[0] + '"' + (o[0] === cur ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select>';
+  const formR = '<div class="occ-grid-3">' + simInput('Data de admissão', 'resc.admissao', r.admissao, 'date') + simInput('Data de saída', 'resc.saida', r.saida, 'date') +
+    '<div class="form-group"><label class="form-label">Tipo de desligamento</label>' + sel('resc.tipo', r.tipo, [['sem_justa', 'Sem justa causa'], ['pedido', 'Pedido de demissão'], ['acordo', 'Acordo (art. 484-A)'], ['justa_causa', 'Justa causa']]) + '</div>' +
+    '<div class="form-group"><label class="form-label">Aviso prévio</label>' + sel('resc.aviso', r.aviso, [['indenizado', 'Indenizado'], ['trabalhado', 'Trabalhado'], ['nao_cumprido', 'Não cumprido (pedido)']]) + '</div>' +
+    simInput('Períodos de férias vencidos', 'resc.feriasVenc', r.feriasVenc, 'num', '0') + simInput('Saldo do FGTS (app do FGTS) R$', 'resc.fgts', r.fgts, 'num', '0,00') + simInput('13º já recebido adiantado R$', 'resc.adiant13', r.adiant13, 'num', '0,00') +
+    simInput('Descontos do empregador (adiantamento de aniversário etc.) R$', 'resc.descEmpregador', r.descEmpregador, 'num', '0,00') + simInput('Consignado descontado na rescisão R$', 'resc.descConsig', r.descConsig || (SIM.consig ? '' : ''), 'num', SIM.consig ? 'última parcela: ' + SIM.consig : '0,00') + '</div>';
+  const o = SIM.out;
+  const res = !o ? '' : o.erro ? '<div class="card animate-in" style="border-left:4px solid var(--expense)"><strong>' + o.erro + '</strong></div>' :
+    '<div class="hero-card animate-in mb-24"><div class="hero-label">' + o.titulo + ' · valor líquido estimado</div><div class="hero-value">' + simBRL(o.liquido) + '</div><div class="hero-sub">Estimativa — confira com o RH/TRCT</div></div><div class="card mb-24 animate-in"><div class="card-title" style="margin-bottom:8px">Memória de cálculo</div>' + simLinhasHtml(o.linhas) + '</div>' + (o.fgts ? '<div class="card mb-24 animate-in"><div class="card-title" style="margin-bottom:8px">FGTS (pago à parte)</div>' + simLinhasHtml(o.fgts.linhas) + '</div>' : '') + '<div class="occ-b-desc">⚠️ ' + o.aviso + ' Tabelas de INSS e IRRF de 2026 (Lei 15.270/2025). Não substitui orientação de contador ou advogado trabalhista.</div>';
+  return '<div class="section-header animate-in"><div><div class="section-title">Simulador CLT</div><div class="section-desc">Estime férias ou rescisão com os descontos previstos em lei.</div></div></div>' + cardHol +
+    '<div class="card mb-24 animate-in"><div class="card-title">2. Dados do cálculo</div><div style="display:flex;gap:8px;margin:12px 0"><button class="btn-add" style="' + (SIM.mode === 'ferias' ? '' : 'opacity:.55') + '" onclick="simMode(\'ferias\')">🏖️ Férias</button><button class="btn-add" style="' + (SIM.mode === 'resc' ? '' : 'opacity:.55') + '" onclick="simMode(\'resc\')">📄 Rescisão</button></div>' + comum + (SIM.mode === 'ferias' ? formF : formR) + '<button class="btn-primary" style="margin-top:16px" onclick="simRun()">Calcular</button></div>' + res;
+}
+
 // ── Menu moldado pelo vínculo ──
 function getShapedPFTabs() {
   const k = getOccupation(); const o = OCCUPATIONS[k];
@@ -3988,6 +4237,7 @@ function getShapedPFTabs() {
   if (k === 'mei') extra.push({ id:'obrigacoes', label:'MEI & DAS', section:'Planejamento', plus:true, tier:'basic' });
   else if (k === 'autonomo' || k === 'empresario') extra.push({ id:'obrigacoes', label:'Impostos', section:'Planejamento', plus:true, tier:'basic' });
   tabs.splice(idx < 0 ? tabs.length : idx, 0, ...extra);
+  if (k === 'clt') { const ai = tabs.findIndex(t => t.id === 'assinaturas'); tabs.splice(ai < 0 ? tabs.length : ai, 0, { id:'simuladorclt', label:'Simulador CLT', section:'Ferramentas', plus:true, tier:'plus' }); }
   // Renda variável: Planejamento sobe para logo depois de Operação (já é a 2ª seção; Ferramentas desce)
   return tabs;
 }
@@ -4076,6 +4326,7 @@ function tierLimit(key) {
 // "tier" é o menor plano que já libera a aba: plus | pro | business.
 var PLUS_ONLY_TABS = {
   perfilrenda: { label: 'Perfil de Renda', desc: 'Reserva de emergência sob medida, renda para planejar e histórico de renda por vínculo de trabalho.', tier: 'basic' },
+  simuladorclt: { label: 'Simulador CLT', desc: 'Simule férias e rescisão com INSS, IRRF e descontos previstos em lei, lendo seus holerites em PDF.', tier: 'plus' },
   caixapj: { label: 'Caixa & Reserva', desc: 'Reserva de caixa sob medida, faturamento versus custos e leitura da sazonalidade da empresa.', tier: 'basic' },
   regimepj: { label: 'Painel do regime tributário', desc: 'Impostos, limites e obrigações específicos do tipo da sua empresa.', tier: 'business' },
   obrigacoes: { label: 'MEI & Impostos', desc: 'Limite anual do MEI, DAS e provisão de impostos para autônomos.', tier: 'basic' },
@@ -4192,6 +4443,7 @@ function renderCurrentTab() {
     perfilrenda: () => renderPerfilRenda(c),
     obrigacoes: () => renderObrigacoes(c),
     caixapj: () => renderCaixaPJ(c),
+    simuladorclt: () => renderSimuladorCLT(c),
     regimepj: () => renderRegimePJ(c),
   };
   const _gTier = currentTab === 'regimepj' && (getCompanyType() === 'startup' || getCompanyType() === 'ong') ? 'basic' : (PLUS_ONLY_TABS[currentTab] && (PLUS_ONLY_TABS[currentTab].tier || 'plus'));

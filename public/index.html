@@ -4007,7 +4007,7 @@ function irrfCalc(rendTrib, inss, dependentes, pensao) {
   return { base: r2(base), tabela: r2(tabela), redutor: r2(redutor), valor: r2(Math.max(0, tabela - redutor)), usouSimplificado: ded === TAX2026.descontoSimplificado && legal < TAX2026.descontoSimplificado };
 }
 const SIM = { mode: 'ferias', holerites: [], salary: 0, variaveis: 0, consig: 0, dep: 0, ferias: { faltas: 0, opcao: '30', adiant13: false, outrosDesc: 0 },
-  resc: { admissao: '', saida: '', tipo: 'sem_justa', aviso: 'indenizado', feriasVenc: 0, fgts: 0, adiant13: 0, descEmpregador: 0, descConsig: 0 }, out: null, msg: '' };
+  dec: { adm: '', afast: 0, paga: 0, desc: 0 }, resc: { admissao: '', saida: '', tipo: 'sem_justa', aviso: 'indenizado', feriasVenc: 0, fgts: 0, adiant13: 0, descEmpregador: 0, descConsig: 0 }, out: null, msg: '' };
 const simBRL = v => (v < 0 ? '- ' : '') + 'R$ ' + Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const simR2 = v => Math.round(v * 100) / 100;
 const simNum = v => { const n = parseFloat(String(v).replace(/\./g, '').replace(',', '.')); return isNaN(n) ? 0 : n; };
@@ -4192,7 +4192,32 @@ function simCalcResc() {
   av.push('O valor oficial é o do TRCT emitido pela sua empresa; convenção coletiva e médias específicas podem alterar o resultado.');
   return { titulo: 'Rescisão', liquido, linhas: L, fgts: fgtsExtra, aviso: av.join(' ') };
 }
-function simRun() { SIM.out = SIM.mode === 'ferias' ? simCalcFerias() : simCalcResc(); renderCurrentTab(); }
+
+// ── Cálculo: 13º SALÁRIO ──
+function simCalcDecimo() {
+  const d = SIM.dec, remun = SIM.salary + SIM.variaveis, ano = new Date().getFullYear(), L = [];
+  if (SIM.salary <= 0) return { erro: 'Informe o salário base (ou envie um holerite).' };
+  const adm = simDate(d.adm);
+  const admNoAno = adm && adm.getFullYear() === ano;
+  const avosBase = admNoAno ? simAvos(adm, new Date(ano, 11, 31)) : 12;
+  const avos = Math.max(0, Math.min(12, avosBase - (d.afast || 0)));
+  if (avos === 0) return { erro: 'Sem meses com direito ao 13º neste ano.' };
+  const total = simR2(remun * avos / 12);
+  const p1 = simR2(total / 2), p1paga = d.paga > 0 ? d.paga : p1;
+  const inss = inssCalc(total), ir = irrfCalc(total, inss, SIM.dep, 0);
+  const desc = d.desc || 0;
+  const p2 = simR2(total - p1paga - inss - ir.valor - desc);
+  L.push({ k: 'info', t: 'Remuneração de referência', v: simBRL(remun), n: 'Salário ' + simBRL(SIM.salary) + (SIM.variaveis ? ' + média de variáveis ' + simBRL(SIM.variaveis) : '') });
+  L.push({ k: 'info', t: 'Meses com direito (avos)', v: avos + '/12', n: (admNoAno ? 'Admissão em ' + d.adm.split('-').reverse().join('/') + ': conta o mês com 15 dias ou mais. ' : '') + (d.afast ? d.afast + ' mês(es) sem direito descontado(s).' : (admNoAno ? '' : 'Ano completo.')) });
+  L.push({ k: '+', t: '13º bruto', v: simBRL(total), n: 'remuneração × ' + avos + '/12' });
+  L.push({ k: '+', t: '1ª parcela (até 30/11)' + (d.paga > 0 ? ' — já recebida' : ''), v: simBRL(p1paga), n: 'Metade do 13º, sem descontos' });
+  L.push({ k: '-', t: 'INSS sobre o 13º', v: simBRL(inss), n: 'Calculado à parte do salário, tabela 2026' });
+  L.push({ k: '-', t: 'IRRF sobre o 13º', v: simBRL(ir.valor), n: 'Tributação exclusiva na fonte' + (ir.redutor ? '; redutor Lei 15.270: ' + simBRL(ir.redutor) + ' — confirme com o RH' : '') });
+  if (desc) L.push({ k: '-', t: 'Outros descontos na 2ª parcela', v: simBRL(desc), n: 'Consignado, adiantamentos etc. — valor informado por você' });
+  L.push({ k: 'info', t: '2ª parcela líquida (até 20/12)', v: simBRL(p2), n: 'Total − 1ª parcela − INSS − IRRF' + (desc ? ' − descontos' : '') });
+  return { titulo: '13º salário', liquido: simR2(p1paga + p2), linhas: L, aviso: 'O valor mostrado é o total líquido (1ª + 2ª parcela). Na prática: a 1ª parcela é paga sem desconto e todo o INSS e IRRF saem da 2ª. Se a empresa calcular a 1ª parcela sobre o salário do mês anterior, o valor pode diferir um pouco.' };
+}
+function simRun() { SIM.out = SIM.mode === 'ferias' ? simCalcFerias() : SIM.mode === 'dec' ? simCalcDecimo() : simCalcResc(); renderCurrentTab(); }
 function simMode(m) { SIM.mode = m; SIM.out = null; renderCurrentTab(); }
 
 // ── Interface ──
@@ -4208,6 +4233,7 @@ function renderSimuladorCLT(c) {
   const cardHol = '<div class="card mb-24 animate-in"><div class="card-title">1. Holerites (opcional, mas deixa a conta mais exata)</div><div class="occ-b-desc" style="margin:8px 0 12px">Envie até 12 holerites em <strong>PDF com texto</strong> (baixados do portal da empresa). A leitura acontece no seu navegador: os arquivos <strong>não são enviados nem guardados</strong>. Confira e corrija a classificação das linhas abaixo.</div><input type="file" accept="application/pdf" multiple onchange="simReadFiles(this.files)" class="form-input">' + (SIM.msg ? '<div class="occ-b-desc" style="margin-top:8px;color:var(--gold)">' + SIM.msg + '</div>' : '') + (SIM.holerites.length ? '<div class="occ-b-desc" style="margin-top:10px">Média de variáveis (' + SIM.holerites.length + ' holerite' + (SIM.holerites.length > 1 ? 's' : '') + '): <strong>' + simBRL(SIM.variaveis) + '</strong> · Parcela de consignado no último: <strong>' + simBRL(SIM.consig) + '</strong></div>' : '') + '</div>' + hol;
   const comum = '<div class="occ-grid-3">' + simInput('Salário base (R$)', 'salary', SIM.salary, 'num', '0,00') + simInput('Média mensal de variáveis (R$)', 'variaveis', SIM.variaveis, 'num', 'horas extras, comissões…') + simInput('Dependentes (IR)', 'dep', SIM.dep, 'num', '0') + '</div>';
   const formF = '<div class="occ-grid-3">' + simInput('Faltas injustificadas no período', 'ferias.faltas', f.faltas, 'num', '0') + '<div class="form-group"><label class="form-label">Como vai tirar</label><select class="form-input" onchange="simSet(\'ferias.opcao\', this.value)"><option value="30"' + (f.opcao === '30' ? ' selected' : '') + '>30 dias</option><option value="20+10"' + (f.opcao === '20+10' ? ' selected' : '') + '>20 dias + vender 10 (abono)</option><option value="15"' + (f.opcao === '15' ? ' selected' : '') + '>15 dias</option><option value="10"' + (f.opcao === '10' ? ' selected' : '') + '>10 dias</option></select></div><div class="form-group"><label class="form-label">1ª parcela do 13º junto?</label><select class="form-input" onchange="simSet(\'ferias.adiant13\', this.value===\'sim\')"><option value="nao">Não</option><option value="sim"' + (f.adiant13 ? ' selected' : '') + '>Sim</option></select></div>' + simInput('Descontos a abater (consignado, adiantamentos) R$', 'ferias.outrosDesc', f.outrosDesc, 'num', '0,00') + '</div>';
+  const formD = '<div class="occ-grid-3">' + simInput('Data de admissão (se foi neste ano)', 'dec.adm', SIM.dec.adm, 'date') + simInput('Meses sem direito (faltas/licença não remunerada)', 'dec.afast', SIM.dec.afast, 'num', '0') + simInput('1ª parcela já recebida (R$)', 'dec.paga', SIM.dec.paga, 'num', 'vazio = metade do 13º') + simInput('Descontos na 2ª parcela (consignado etc.) R$', 'dec.desc', SIM.dec.desc, 'num', '0,00') + '</div>';
   const sel = (path, cur, opts) => '<select class="form-input" onchange="simSet(\'' + path + '\', this.value)">' + opts.map(o => '<option value="' + o[0] + '"' + (o[0] === cur ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select>';
   const formR = '<div class="occ-grid-3">' + simInput('Data de admissão', 'resc.admissao', r.admissao, 'date') + simInput('Data de saída', 'resc.saida', r.saida, 'date') +
     '<div class="form-group"><label class="form-label">Tipo de desligamento</label>' + sel('resc.tipo', r.tipo, [['sem_justa', 'Sem justa causa'], ['pedido', 'Pedido de demissão'], ['acordo', 'Acordo (art. 484-A)'], ['justa_causa', 'Justa causa']]) + '</div>' +
@@ -4217,8 +4243,8 @@ function renderSimuladorCLT(c) {
   const o = SIM.out;
   const res = !o ? '' : o.erro ? '<div class="card animate-in" style="border-left:4px solid var(--expense)"><strong>' + o.erro + '</strong></div>' :
     '<div class="hero-card animate-in mb-24"><div class="hero-label">' + o.titulo + ' · valor líquido estimado</div><div class="hero-value">' + simBRL(o.liquido) + '</div><div class="hero-sub">Estimativa — confira com o RH/TRCT</div></div><div class="card mb-24 animate-in"><div class="card-title" style="margin-bottom:8px">Memória de cálculo</div>' + simLinhasHtml(o.linhas) + '</div>' + (o.fgts ? '<div class="card mb-24 animate-in"><div class="card-title" style="margin-bottom:8px">FGTS (pago à parte)</div>' + simLinhasHtml(o.fgts.linhas) + '</div>' : '') + '<div class="occ-b-desc">⚠️ ' + o.aviso + ' Tabelas de INSS e IRRF de 2026 (Lei 15.270/2025). Não substitui orientação de contador ou advogado trabalhista.</div>';
-  return '<div class="section-header animate-in"><div><div class="section-title">Simulador CLT</div><div class="section-desc">Estime férias ou rescisão com os descontos previstos em lei.</div></div></div>' + cardHol +
-    '<div class="card mb-24 animate-in"><div class="card-title">2. Dados do cálculo</div><div style="display:flex;gap:8px;margin:12px 0"><button class="btn-add" style="' + (SIM.mode === 'ferias' ? '' : 'opacity:.55') + '" onclick="simMode(\'ferias\')">🏖️ Férias</button><button class="btn-add" style="' + (SIM.mode === 'resc' ? '' : 'opacity:.55') + '" onclick="simMode(\'resc\')">📄 Rescisão</button></div>' + comum + (SIM.mode === 'ferias' ? formF : formR) + '<button class="btn-primary" style="margin-top:16px" onclick="simRun()">Calcular</button></div>' + res;
+  return '<div class="section-header animate-in"><div><div class="section-title">Simulador CLT</div><div class="section-desc">Estime férias, 13º salário ou rescisão com os descontos previstos em lei.</div></div></div>' + cardHol +
+    '<div class="card mb-24 animate-in"><div class="card-title">2. Dados do cálculo</div><div style="display:flex;gap:8px;margin:12px 0"><button class="btn-add" style="' + (SIM.mode === 'ferias' ? '' : 'opacity:.55') + '" onclick="simMode(\'ferias\')">🏖️ Férias</button><button class="btn-add" style="' + (SIM.mode === 'dec' ? '' : 'opacity:.55') + '" onclick="simMode(\'dec\')">🎄 13º salário</button><button class="btn-add" style="' + (SIM.mode === 'resc' ? '' : 'opacity:.55') + '" onclick="simMode(\'resc\')">📄 Rescisão</button></div>' + comum + (SIM.mode === 'ferias' ? formF : SIM.mode === 'dec' ? formD : formR) + '<button class="btn-primary" style="margin-top:16px" onclick="simRun()">Calcular</button></div>' + res;
 }
 
 
@@ -4429,7 +4455,7 @@ function tierLimit(key) {
 // "tier" é o menor plano que já libera a aba: plus | pro | business.
 var PLUS_ONLY_TABS = {
   perfilrenda: { label: 'Perfil de Renda', desc: 'Reserva de emergência sob medida, renda para planejar e histórico de renda por vínculo de trabalho.', tier: 'basic' },
-  simuladorclt: { label: 'Simulador CLT', desc: 'Simule férias e rescisão com INSS, IRRF e descontos previstos em lei, lendo seus holerites em PDF.', tier: 'plus' },
+  simuladorclt: { label: 'Simulador CLT', desc: 'Simule férias, 13º salário e rescisão com INSS, IRRF e descontos previstos em lei, lendo seus holerites em PDF.', tier: 'plus' },
   caixapj: { label: 'Caixa & Reserva', desc: 'Reserva de caixa sob medida, faturamento versus custos e leitura da sazonalidade da empresa.', tier: 'basic' },
   regimepj: { label: 'Painel do regime tributário', desc: 'Impostos, limites e obrigações específicos do tipo da sua empresa.', tier: 'business' },
   obrigacoes: { label: 'MEI & Impostos', desc: 'Limite anual do MEI, DAS e provisão de impostos para autônomos.', tier: 'basic' },

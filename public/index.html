@@ -3762,7 +3762,7 @@ function renderPerfilRenda(c) {
   '<div class="card animate-in stagger-3"><div class="card-header"><div><div class="card-title">Reserva de emergência</div><div class="card-subtitle">Alvo para ' + o.label + ' com renda ' + STABILITY[s].label.toLowerCase() + ': ' + r.months + ' meses de gastos</div></div></div>' +
     '<div class="occ-bar ' + barCls + '"><span style="width:' + pctRes + '%"></span></div>' +
     '<div style="display:flex;justify-content:space-between;font-size:12.5px;margin-top:8px"><span>Guardado (liquidez): <strong>' + fmt(r.current) + '</strong></span><span>Alvo: <strong>' + fmt(r.target) + '</strong></span></div>' +
-    '<div class="occ-b-desc" style="margin-top:8px">Considera contas e itens de patrimônio com nome como conta, poupança, reserva, CDB, Selic, caixa.</div></div></div>';
+    '<div class="occ-b-desc" style="margin-top:8px">Considera contas e itens de patrimônio com nome como conta, poupança, reserva, CDB, Selic, caixa.</div></div></div>' + (k === 'clt' ? renderPrevSalarioCLT(c) : '');
 }
 
 // ── Aba: MEI & DAS / Impostos do autônomo ──
@@ -4219,6 +4219,109 @@ function renderSimuladorCLT(c) {
     '<div class="hero-card animate-in mb-24"><div class="hero-label">' + o.titulo + ' · valor líquido estimado</div><div class="hero-value">' + simBRL(o.liquido) + '</div><div class="hero-sub">Estimativa — confira com o RH/TRCT</div></div><div class="card mb-24 animate-in"><div class="card-title" style="margin-bottom:8px">Memória de cálculo</div>' + simLinhasHtml(o.linhas) + '</div>' + (o.fgts ? '<div class="card mb-24 animate-in"><div class="card-title" style="margin-bottom:8px">FGTS (pago à parte)</div>' + simLinhasHtml(o.fgts.linhas) + '</div>' : '') + '<div class="occ-b-desc">⚠️ ' + o.aviso + ' Tabelas de INSS e IRRF de 2026 (Lei 15.270/2025). Não substitui orientação de contador ou advogado trabalhista.</div>';
   return '<div class="section-header animate-in"><div><div class="section-title">Simulador CLT</div><div class="section-desc">Estime férias ou rescisão com os descontos previstos em lei.</div></div></div>' + cardHol +
     '<div class="card mb-24 animate-in"><div class="card-title">2. Dados do cálculo</div><div style="display:flex;gap:8px;margin:12px 0"><button class="btn-add" style="' + (SIM.mode === 'ferias' ? '' : 'opacity:.55') + '" onclick="simMode(\'ferias\')">🏖️ Férias</button><button class="btn-add" style="' + (SIM.mode === 'resc' ? '' : 'opacity:.55') + '" onclick="simMode(\'resc\')">📄 Rescisão</button></div>' + comum + (SIM.mode === 'ferias' ? formF : formR) + '<button class="btn-primary" style="margin-top:16px" onclick="simRun()">Calcular</button></div>' + res;
+}
+
+
+// ═══════════════════════════════════════════════════════
+// PREVISÃO DO SALÁRIO LÍQUIDO (CLT) + EFEITO DE EMPRÉSTIMO CONSIGNADO
+// Regras: INSS/IRRF 2026 (mesmas tabelas do Simulador); VT = até 6% do salário básico
+// (limitado ao custo do vale); margem do consignado = 35% da remuneração após descontos
+// obrigatórios (estimativa — o banco usa a margem oficial da folha).
+// ═══════════════════════════════════════════════════════
+SIM.prev = { vtOn: false, vtCusto: 0, saude: 0, pensao: 0, outros: 0, consigAtual: null, novo: { parcela: 0, n: 0, liberado: 0, taxa: 0 }, out: null, msg: '' };
+const MARGEM_CONSIGNADO = 0.35, VT_PERC = 0.06;
+function prevPmtRate(pv, pmt, n) {   // taxa mensal implícita de um financiamento (bisseção)
+  if (!(pv > 0 && pmt > 0 && n > 0) || pmt * n <= pv) return 0;
+  let lo = 1e-6, hi = 1.5;
+  for (let i = 0; i < 80; i++) { const m = (lo + hi) / 2, v = pmt * (1 - Math.pow(1 + m, -n)) / m; if (v > pv) lo = m; else hi = m; }
+  return (lo + hi) / 2;
+}
+function prevCalc() {
+  const P = SIM.prev, salario = SIM.salary, bruto = SIM.salary + SIM.variaveis;
+  if (salario <= 0) return { erro: 'Informe o salário base (ou envie um holerite).' };
+  const inss = inssCalc(bruto), ir = irrfCalc(bruto, inss, SIM.dep, P.pensao || 0);
+  const vt = P.vtOn ? simR2(Math.min(salario * VT_PERC, P.vtCusto > 0 ? P.vtCusto : salario * VT_PERC)) : 0;
+  const consigAtual = P.consigAtual === null ? SIM.consig : P.consigAtual;
+  const L = [{ k: '+', t: 'Salário bruto', v: simBRL(bruto), n: 'Salário ' + simBRL(salario) + (SIM.variaveis ? ' + variáveis ' + simBRL(SIM.variaveis) : '') },
+    { k: '-', t: 'INSS', v: simBRL(inss), n: 'Tabela progressiva 2026' },
+    { k: '-', t: 'IRRF', v: simBRL(ir.valor), n: (ir.usouSimplificado ? 'Desconto simplificado' : 'Deduções legais') + (ir.redutor ? '; redutor Lei 15.270: ' + simBRL(ir.redutor) : '') }];
+  if (vt) L.push({ k: '-', t: 'Vale-transporte', v: simBRL(vt), n: 'Até 6% do salário básico, limitado ao custo do vale' });
+  if (P.saude) L.push({ k: '-', t: 'Plano de saúde / odonto', v: simBRL(P.saude) });
+  if (P.pensao) L.push({ k: '-', t: 'Pensão alimentícia', v: simBRL(P.pensao), n: 'Também reduz a base do IRRF' });
+  if (consigAtual) L.push({ k: '-', t: 'Consignado já em folha', v: simBRL(consigAtual), n: 'Parcela do último holerite' });
+  if (P.outros) L.push({ k: '-', t: 'Outros descontos', v: simBRL(P.outros) });
+  const descontos = inss + ir.valor + vt + (P.saude || 0) + (P.pensao || 0) + consigAtual + (P.outros || 0);
+  const liquidoAtual = simR2(bruto - descontos);
+  const disponivel = Math.max(0, bruto - inss - ir.valor - (P.pensao || 0));
+  const margem = simR2(disponivel * MARGEM_CONSIGNADO), livre = simR2(Math.max(0, margem - consigAtual));
+  const N = P.novo, out = { liquidoAtual, linhas: L, margem, livre, disponivel, consigAtual };
+  if (N.parcela > 0) {
+    out.novo = { liquido: simR2(liquidoAtual - N.parcela), excede: N.parcela > livre, excesso: simR2(Math.max(0, N.parcela - livre)) };
+    if (N.n > 0) {
+      out.novo.total = simR2(N.parcela * N.n);
+      if (N.liberado > 0) { out.novo.juros = simR2(out.novo.total - N.liberado); out.novo.taxaImpl = prevPmtRate(N.liberado, N.parcela, N.n); }
+    }
+  }
+  const taxa = N.taxa > 0 ? N.taxa / 100 : (out.novo && out.novo.taxaImpl) || 0;
+  if (taxa > 0 && N.n > 0 && livre > 0) out.capacidade = { taxa, valor: simR2(livre * (1 - Math.pow(1 + taxa, -N.n)) / taxa) };
+  return out;
+}
+function prevRun() { SIM.prev.out = prevCalc(); renderCurrentTab(); }
+
+// Leitura aproximada de contrato de consignado em PDF (texto)
+async function prevReadContract(fileList) {
+  const f = Array.from(fileList || [])[0]; if (!f) return;
+  const P = SIM.prev;
+  if (!window.pdfjsLib) { P.msg = 'Leitor de PDF indisponível agora. Preencha os campos manualmente.'; return renderCurrentTab(); }
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+  try {
+    const pdf = await pdfjsLib.getDocument({ data: await f.arrayBuffer() }).promise; let txt = '';
+    for (let p = 1; p <= Math.min(pdf.numPages, 8); p++) txt += (await (await pdf.getPage(p)).getTextContent()).items.map(i => i.str).join(' ') + '\n';
+    txt = txt.replace(/\s+/g, ' ');
+    const money = '(?:R\\$\\s*)?(\\d{1,3}(?:\\.\\d{3})*,\\d{2})';
+    const pick = re => { const m = re.exec(txt); return m ? m[1] : null; };
+    const parcela = pick(new RegExp('(?:valor\\s+(?:da|de\\s+cada)\\s+(?:parcela|presta[cç][aã]o)|parcela\\s+mensal|presta[cç][aã]o\\s+mensal)[^\\d]{0,40}' + money, 'i'));
+    const liberado = pick(new RegExp('(?:valor\\s+(?:liberado|l[ií]quido\\s+liberado|financiado|do\\s+empr[eé]stimo|contratado|principal))[^\\d]{0,40}' + money, 'i'));
+    const n = pick(/(?:n[úu]mero\s+de\s+parcelas|quantidade\s+de\s+parcelas|prazo(?:\s+total)?)[^\d]{0,30}(\d{1,3})/i);
+    const taxa = pick(/taxa\s+(?:de\s+)?juros(?:\s+mensal|\s+nominal)?[^\d]{0,40}(\d{1,2}(?:,\d{1,4})?)\s*%/i);
+    const got = [];
+    if (parcela) { P.novo.parcela = simNum(parcela); got.push('parcela'); }
+    if (liberado) { P.novo.liberado = simNum(liberado); got.push('valor liberado'); }
+    if (n) { P.novo.n = parseInt(n, 10); got.push('prazo'); }
+    if (taxa) { P.novo.taxa = simNum(taxa); got.push('taxa'); }
+    P.msg = got.length ? 'Encontrei: ' + got.join(', ') + '. Confira os valores abaixo — a leitura é aproximada.' : 'Não consegui identificar os dados no contrato (PDF escaneado ou formato diferente). Preencha manualmente.';
+  } catch (e) { P.msg = 'Não consegui ler esse PDF. Preencha manualmente.'; }
+  renderCurrentTab();
+}
+function renderPrevSalarioCLT(c) {
+  const P = SIM.prev, N = P.novo, o = P.out;
+  const fld = (label, path, val, ph) => simInput(label, path, val, 'num', ph);
+  let res = '';
+  if (o) {
+    if (o.erro) res = '<div class="occ-b-desc" style="color:var(--expense);margin-top:12px"><strong>' + o.erro + '</strong></div>';
+    else {
+      const pctM = o.margem > 0 ? Math.min(100, o.consigAtual / o.margem * 100) : 0;
+      res = '<div class="kpi-grid" style="margin:16px 0"><div class="kpi"><div class="kpi-label">Líquido previsto</div><div class="kpi-value teal">' + simBRL(o.liquidoAtual) + '</div></div><div class="kpi"><div class="kpi-label">Margem consignável (35%)</div><div class="kpi-value">' + simBRL(o.margem) + '</div></div><div class="kpi"><div class="kpi-label">Margem livre</div><div class="kpi-value">' + simBRL(o.livre) + '</div></div></div>' +
+        simLinhasHtml(o.linhas) +
+        '<div class="occ-bar ' + (pctM >= 100 ? 'danger' : pctM >= 70 ? 'warn' : '') + '" style="margin:14px 0 6px"><span style="width:' + pctM + '%"></span></div><div class="occ-b-desc">Margem usada por consignados atuais: ' + Math.round(pctM) + '%</div>';
+      if (o.novo) {
+        const nv = o.novo;
+        res += '<div class="card" style="margin-top:14px;border-left:4px solid ' + (nv.excede ? 'var(--expense)' : 'var(--gold)') + '"><div class="card-title">Com o novo empréstimo</div><div class="hero-value" style="font-size:26px;margin:8px 0">' + simBRL(nv.liquido) + '</div><div class="occ-b-desc">Salário líquido previsto após descontar a parcela de ' + simBRL(N.parcela) + '.' +
+          (nv.excede ? '<br><strong style="color:var(--expense)">⚠️ A parcela passa da margem livre em ' + simBRL(nv.excesso) + ' — o banco pode recusar ou reduzir o valor.</strong>' : '<br>Cabe na margem livre estimada.') +
+          (nv.total ? '<br>Total a pagar: <strong>' + simBRL(nv.total) + '</strong> em ' + N.n + 'x' + (nv.juros !== undefined ? ' · custo (juros e encargos): <strong>' + simBRL(nv.juros) + '</strong>' + (nv.taxaImpl ? ' · taxa efetiva ≈ <strong>' + (nv.taxaImpl * 100).toFixed(2).replace('.', ',') + '% ao mês</strong>' : '') : '') : '') + '</div></div>';
+      }
+      if (o.capacidade) res += '<div class="occ-b-desc" style="margin-top:12px">Com a margem livre de ' + simBRL(o.livre) + ', em ' + N.n + ' parcelas a ' + (o.capacidade.taxa * 100).toFixed(2).replace('.', ',') + '% ao mês, o empréstimo máximo seria de aproximadamente <strong>' + simBRL(o.capacidade.valor) + '</strong>.</div>';
+      res += '<div class="occ-b-desc" style="margin-top:12px">⚠️ Estimativa. A margem e os descontos reais seguem a folha da sua empresa e as regras do banco; convenção coletiva e benefícios podem alterar o valor. Tabelas de INSS e IRRF de 2026.</div>';
+    }
+  }
+  return '<div class="card animate-in" style="margin-top:24px"><div class="card-header"><div><div class="card-title">💵 Previsão do salário líquido</div><div class="card-subtitle">Quanto cai na conta, com vale-transporte, plano de saúde, consignado e outros descontos</div></div></div>' +
+    '<div class="occ-b-desc" style="margin:8px 0 12px">Os dados vêm dos holerites enviados no <a href="#" onclick="switchTab(\'simuladorclt\');return false">Simulador CLT</a> ou podem ser digitados aqui. A leitura de PDF acontece no seu navegador e nada é enviado.</div>' +
+    '<div class="occ-grid-3">' + fld('Salário base (R$)', 'salary', SIM.salary, '0,00') + fld('Média de variáveis (R$)', 'variaveis', SIM.variaveis, 'horas extras, comissões…') + fld('Dependentes (IR)', 'dep', SIM.dep, '0') +
+    '<div class="form-group"><label class="form-label">Recebe vale-transporte?</label><select class="form-input" onchange="simSet(\'prev.vtOn\', this.value===\'sim\')"><option value="nao">Não</option><option value="sim"' + (P.vtOn ? ' selected' : '') + '>Sim</option></select></div>' + fld('Custo mensal do VT (R$)', 'prev.vtCusto', P.vtCusto, 'vazio = desconta 6%') + fld('Plano de saúde / odonto (R$)', 'prev.saude', P.saude, '0,00') +
+    fld('Pensão alimentícia (R$)', 'prev.pensao', P.pensao, '0,00') + fld('Consignado já em folha (R$)', 'prev.consigAtual', P.consigAtual === null ? SIM.consig : P.consigAtual, '0,00') + fld('Outros descontos (R$)', 'prev.outros', P.outros, '0,00') + '</div>' +
+    '<div class="card-title" style="margin:18px 0 6px">Novo empréstimo (opcional)</div><div class="occ-b-desc" style="margin-bottom:8px">Envie o contrato em PDF (texto) para preencher automaticamente ou digite os valores.</div><input type="file" accept="application/pdf" class="form-input" onchange="prevReadContract(this.files)">' + (P.msg ? '<div class="occ-b-desc" style="margin-top:8px;color:var(--gold)">' + P.msg + '</div>' : '') +
+    '<div class="occ-grid-3" style="margin-top:10px">' + fld('Valor da parcela (R$)', 'prev.novo.parcela', N.parcela, '0,00') + fld('Nº de parcelas', 'prev.novo.n', N.n, '0') + fld('Valor liberado (R$)', 'prev.novo.liberado', N.liberado, '0,00') + fld('Taxa mensal (%)', 'prev.novo.taxa', N.taxa, 'opcional') + '</div>' +
+    '<button class="btn-primary" style="margin-top:14px" onclick="prevRun()">Calcular previsão</button>' + res + '</div>';
 }
 
 // ── Menu moldado pelo vínculo ──

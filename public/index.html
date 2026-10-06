@@ -252,10 +252,11 @@ body {
 .sidebar-plan, .sidebar-type-badge { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.02em; padding: 2px 7px; border-radius: 999px; white-space: nowrap; }
 .sidebar-plan { background: var(--gold-light); color: var(--gold-mid); }
 /* ─── Selos de plano com identidade própria por tier ───
-   Basic fica deliberadamente neutro (sem negrito, sem cor, sem relevo);
-   Plus/Pro/Business ganham um acabamento "3D" (gradiente + sombra em relevo). */
+   Free fica deliberadamente neutro (sem negrito, sem cor, sem relevo);
+   Basic/Plus/Pro/Business ganham um acabamento "3D" (gradiente + sombra em relevo). */
 .plan-badge-free { background: none; color: var(--ink-2); font-weight: 400; text-transform: none; letter-spacing: normal; padding: 0; border-radius: 0; box-shadow: none; }
-.plan-badge-plus, .plan-badge-pro, .plan-badge-business { border: none; text-shadow: 0 1px 1px rgba(0,0,0,0.18); }
+.plan-badge-basic, .plan-badge-plus, .plan-badge-pro, .plan-badge-business { border: none; text-shadow: 0 1px 1px rgba(0,0,0,0.18); }
+.plan-badge-basic { background: linear-gradient(160deg, #C4B5FD 0%, #8B5CF6 55%, #6D28D9 100%); color: #ffffff; box-shadow: 0 2px 0 #5B21B6, 0 3px 7px rgba(109,40,217,0.42), inset 0 1px 1px rgba(255,255,255,0.5), inset 0 -2px 2px rgba(0,0,0,0.14); }
 .plan-badge-plus { background: linear-gradient(160deg, #6EE7A8 0%, #22B573 55%, #16A34A 100%); color: #ffffff; box-shadow: 0 2px 0 #148A47, 0 3px 7px rgba(22,163,74,0.4), inset 0 1px 1px rgba(255,255,255,0.5), inset 0 -2px 2px rgba(0,0,0,0.12); }
 .plan-badge-pro { background: linear-gradient(160deg, #7FB4FB 0%, #3B82F6 55%, #1D4ED8 100%); color: #ffffff; box-shadow: 0 2px 0 #1A3FB0, 0 3px 7px rgba(37,99,235,0.4), inset 0 1px 1px rgba(255,255,255,0.5), inset 0 -2px 2px rgba(0,0,0,0.12); }
 .plan-badge-business { background: linear-gradient(160deg, #FCE388 0%, #E8B627 55%, #C4930E 100%); color: #3A2900; text-shadow: 0 1px 0 rgba(255,255,255,0.4); box-shadow: 0 2px 0 #9A7409, 0 3px 7px rgba(196,147,14,0.4), inset 0 1px 1px rgba(255,255,255,0.6), inset 0 -2px 2px rgba(0,0,0,0.1); }
@@ -1265,7 +1266,7 @@ svg text { font-family: var(--font-body); }
       <div class="sidebar-logo-col">
         <span class="sidebar-logo-name">SM Financial</span>
         <div class="sidebar-badges">
-          <span class="sidebar-plan" id="plan-badge">Basic</span>
+          <span class="sidebar-plan plan-badge-free" id="plan-badge">Free</span>
           <span class="sidebar-type-badge" id="profile-type-badge">Personal</span>
           <span class="sidebar-type-badge occ-chip" id="occ-chip" title="Alterar vínculo de trabalho" onclick="openOccupationModal()" hidden></span>
         </div>
@@ -1780,7 +1781,7 @@ function generateNotifications() {
   const c = compute();
 
   // ── Vínculo: MEI e reserva ──
-  if (!isPJ && getOccupation() === 'mei') {
+  if (!isPJ && getOccupation() === 'mei' && meetsTier('basic')) {
     const p = meiRevenueYearToDate() / MEI_ANNUAL_LIMIT * 100;
     if (p >= 100) notifs.push({ id: 'mei-over', icon: '🚨', title: 'Limite do MEI ultrapassado', desc: 'Faturamento no ano acima de ' + fmt(MEI_ANNUAL_LIMIT) + '. Fale com seu contador.', type: 'danger', time: 'Agora', tab: 'obrigacoes' });
     else if (p >= 80) notifs.push({ id: 'mei-80', icon: '⚠️', title: 'Perto do limite do MEI', desc: Math.round(p) + '% do limite anual já faturado', type: 'warning', time: 'Agora', tab: 'obrigacoes' });
@@ -3199,7 +3200,7 @@ function openTransactionModal(type, existing = null) {
     </div>`);
 }
 async function saveTransaction(type, editId) {
-  if (!editId && !checkPlanLimit(countThisMonth(state.transactions, 'date'), PLAN_LIMITS.maxTransactionsPerMonth, 'Plano Free permite até ' + PLAN_LIMITS.maxTransactionsPerMonth + ' lançamentos por mês. Faça upgrade para lançamentos ilimitados.')) return;
+  if (!editId && !checkPlanLimit(countThisMonth(state.transactions, 'date'), PLAN_LIMITS.maxTransactionsPerMonth, 'Plano ' + currentPlanLabel() + ' permite até ' + PLAN_LIMITS.maxTransactionsPerMonth + ' lançamentos por mês. Faça upgrade para lançamentos ilimitados.')) return;
   const dateStr = document.getElementById('m-date').value;
   const profile = readProfileField();
   const t = { id: editId || genId(), date: dateStr, desc: document.getElementById('m-desc').value, cat: document.getElementById('m-cat').value, amount: parseFloat(document.getElementById('m-amount').value) || 0, type, recur: document.getElementById('m-recur').value === 'true', profile };
@@ -3239,7 +3240,7 @@ function openGoalModal(existing = null) {
     <div class="modal-actions">${isEdit ? `<button class="btn-danger" onclick="deleteGoal('${existing.id}')">Excluir</button>` : ''}<button class="btn-cancel" onclick="closeModal()">Cancelar</button><button class="btn-save" onclick="saveGoal(${isEdit ? `'${existing.id}'` : 'null'})">Salvar</button></div>`);
 }
 async function saveGoal(editId) {
-  if (!editId && !checkPlanLimit(state.goals.length, PLAN_LIMITS.maxActiveGoals, 'Plano Free permite até ' + PLAN_LIMITS.maxActiveGoals + ' meta ativa. Exclua a atual ou faça upgrade para metas ilimitadas.')) return;
+  if (!editId && !checkPlanLimit(state.goals.length, PLAN_LIMITS.maxActiveGoals, 'Plano ' + currentPlanLabel() + ' permite até ' + PLAN_LIMITS.maxActiveGoals + ' meta ativa. Exclua a atual ou faça upgrade para metas ilimitadas.')) return;
   const profile = readProfileField();
   const g = { id: editId || genId(), icon: document.getElementById('m-icon').value || '🎯', name: document.getElementById('m-gname').value, target: parseFloat(document.getElementById('m-target').value) || 0, current: parseFloat(document.getElementById('m-current').value) || 0, monthly: parseFloat(document.getElementById('m-monthly').value) || 0, profile };
   if (editId) { const i = state.goals.findIndex(x => x.id === editId); if (i >= 0) state.goals[i] = g; } else state.goals.push(g);
@@ -3269,7 +3270,7 @@ function openDebtModal(existing = null) {
     <div class="modal-actions">${isEdit ? `<button class="btn-danger" onclick="deleteDebt('${existing.id}')">Excluir</button>` : ''}<button class="btn-cancel" onclick="closeModal()">Cancelar</button><button class="btn-save" onclick="saveDebt(${isEdit ? `'${existing.id}'` : 'null'})">Salvar</button></div>`);
 }
 async function saveDebt(editId) {
-  if (!editId && !checkPlanLimit(state.debts.length, PLAN_LIMITS.maxDebts, 'Plano Basic permite registrar até ' + PLAN_LIMITS.maxDebts + ' dívidas. Faça upgrade para o Plus (ilimitado).')) return;
+  if (!editId && !checkPlanLimit(state.debts.length, PLAN_LIMITS.maxDebts, 'Plano ' + currentPlanLabel() + ' permite registrar até ' + PLAN_LIMITS.maxDebts + ' dívidas. Faça upgrade para o Plus (ilimitado).')) return;
   const profile = readProfileField();
   const d = { id: editId || genId(), name: document.getElementById('m-dname').value, type: document.getElementById('m-dtype').value, saldo: parseFloat(document.getElementById('m-dsaldo').value) || 0, juros: parseFloat(document.getElementById('m-djuros').value) || 0, parcelas: parseInt(document.getElementById('m-dparcelas').value) || 0, mensal: parseFloat(document.getElementById('m-dmensal').value) || 0, profile };
   if (editId) { const i = state.debts.findIndex(x => x.id === editId); if (i >= 0) state.debts[i] = d; } else state.debts.push(d);
@@ -3298,7 +3299,7 @@ function openAssetModal(listKey, existing = null) {
     <div class="modal-actions">${isEdit ? `<button class="btn-danger" onclick="deleteAsset('${listKey}','${existing.id}')">Excluir</button>` : ''}<button class="btn-cancel" onclick="closeModal()">Cancelar</button><button class="btn-save" onclick="saveAsset('${listKey}',${isEdit ? `'${existing.id}'` : 'null'})">Salvar</button></div>`);
 }
 async function saveAsset(listKey, editId) {
-  if (!editId && listKey === 'assets' && !checkPlanLimit(state.assets.length, PLAN_LIMITS.maxPatrimonioItems, 'Plano Free permite até ' + PLAN_LIMITS.maxPatrimonioItems + ' itens em Patrimônio. Faça upgrade para itens ilimitados.')) return;
+  if (!editId && listKey === 'assets' && !checkPlanLimit(state.assets.length, PLAN_LIMITS.maxPatrimonioItems, 'Plano ' + currentPlanLabel() + ' permite até ' + PLAN_LIMITS.maxPatrimonioItems + ' itens em Patrimônio. Faça upgrade para itens ilimitados.')) return;
   const profile = readProfileField();
   const a = { id: editId || genId(), name: document.getElementById('m-aname').value, value: parseFloat(document.getElementById('m-aval').value) || 0, profile };
   if (editId) { const i = state[listKey].findIndex(x => x.id === editId); if (i >= 0) state[listKey][i] = a; } else state[listKey].push(a);
@@ -3335,7 +3336,7 @@ function openSubModal(existing = null) {
     <div class="modal-actions">${isEdit ? `<button class="btn-danger" onclick="deleteSub('${existing.id}')">Excluir</button>` : ''}<button class="btn-cancel" onclick="closeModal()">Cancelar</button><button class="btn-save" onclick="saveSub(${isEdit ? `'${existing.id}'` : 'null'})">Salvar</button></div>`);
 }
 async function saveSub(editId) {
-  if (!editId && !checkPlanLimit(state.subscriptions.length, PLAN_LIMITS.maxSubscriptions, 'Plano Free permite monitorar até ' + PLAN_LIMITS.maxSubscriptions + ' assinaturas. Faça upgrade para monitorar todas.')) return;
+  if (!editId && !checkPlanLimit(state.subscriptions.length, PLAN_LIMITS.maxSubscriptions, 'Plano ' + currentPlanLabel() + ' permite monitorar até ' + PLAN_LIMITS.maxSubscriptions + ' assinaturas. Faça upgrade para monitorar todas.')) return;
   const profile = readProfileField();
   const s = { id: editId || genId(), name: document.getElementById('m-sname').value, cat: document.getElementById('m-scat').value, price: parseFloat(document.getElementById('m-sprice').value) || 0, color: document.getElementById('m-scolor').value, profile };
   if (editId) { const i = state.subscriptions.findIndex(x => x.id === editId); if (i >= 0) state.subscriptions[i] = s; } else state.subscriptions.push(s);
@@ -3675,9 +3676,9 @@ function getShapedPFTabs() {
     if (t.id === 'metas' && s === 'variavel') t.label = 'Metas & Reserva';
   });
   const idx = tabs.findIndex(t => t.id === 'orcamento');
-  const extra = [{ id:'perfilrenda', label: s === 'fixa' ? 'Perfil de Renda' : 'Renda & Reserva', section:'Planejamento' }];
-  if (k === 'mei') extra.push({ id:'obrigacoes', label:'MEI & DAS', section:'Planejamento' });
-  else if (k === 'autonomo' || k === 'empresario') extra.push({ id:'obrigacoes', label:'Impostos', section:'Planejamento' });
+  const extra = [{ id:'perfilrenda', label: s === 'fixa' ? 'Perfil de Renda' : 'Renda & Reserva', section:'Planejamento', plus:true, tier:'basic' }];
+  if (k === 'mei') extra.push({ id:'obrigacoes', label:'MEI & DAS', section:'Planejamento', plus:true, tier:'basic' });
+  else if (k === 'autonomo' || k === 'empresario') extra.push({ id:'obrigacoes', label:'Impostos', section:'Planejamento', plus:true, tier:'basic' });
   tabs.splice(idx < 0 ? tabs.length : idx, 0, ...extra);
   // Renda variável: Planejamento sobe para logo depois de Operação (já é a 2ª seção; Ferramentas desce)
   return tabs;
@@ -3732,15 +3733,23 @@ function renderNav() {
 // ═══════════════════════════════════════════════════════
 // PLANOS — FREE vs PLUS: limites e bloqueios (fonte única da verdade)
 // ═══════════════════════════════════════════════════════
-var PLAN_LIMITS = {
-  maxTransactionsPerMonth: 20,
-  maxActiveGoals: 1,
-  maxBudgetCategories: 2,
-  maxPatrimonioItems: 2,
-  maxSubscriptions: 2,
-  maxDocumentsPerMonth: 3,
-  maxDebts: 3,
+var PLAN_LIMITS_BY_PLAN = {
+  // Free: o mais enxuto possível — serve para conhecer o app
+  free:  { maxTransactionsPerMonth: 10, maxActiveGoals: 1, maxBudgetCategories: 1, maxPatrimonioItems: 1, maxSubscriptions: 1, maxDocumentsPerMonth: 0, maxDebts: 1 },
+  // Basic: pago (R$ 8/semana) — os limites que o plano gratuito tinha antes
+  basic: { maxTransactionsPerMonth: 20, maxActiveGoals: 1, maxBudgetCategories: 2, maxPatrimonioItems: 2, maxSubscriptions: 2, maxDocumentsPerMonth: 3, maxDebts: 3 },
 };
+// PLAN_LIMITS lê sempre os limites do plano atual (free ou basic); Plus+ nunca passa por checkPlanLimit.
+var PLAN_LIMITS = {};
+Object.keys(PLAN_LIMITS_BY_PLAN.free).forEach(function(k) {
+  Object.defineProperty(PLAN_LIMITS, k, { enumerable: true, get: function() {
+    return PLAN_LIMITS_BY_PLAN[(typeof profile !== 'undefined' && profile && profile.plan === 'basic') ? 'basic' : 'free'][k];
+  } });
+});
+function currentPlanLabel() {
+  var p = (typeof profile !== 'undefined' && profile && profile.plan) || 'free';
+  return { free: 'Free', basic: 'Basic', plus: 'Plus', pro: 'Pro', business: 'Business' }[p] || 'Free';
+}
 
 // Limites que escalonam entre planos pagos (Plus recebe menos, Pro/Business recebem "premium")
 var TIER_LIMITS = {
@@ -3758,6 +3767,8 @@ function tierLimit(key) {
 // Abas inteiramente bloqueadas por plano (mostram uma tela de upgrade em vez do conteúdo).
 // "tier" é o menor plano que já libera a aba: plus | pro | business.
 var PLUS_ONLY_TABS = {
+  perfilrenda: { label: 'Perfil de Renda', desc: 'Reserva de emergência sob medida, renda para planejar e histórico de renda por vínculo de trabalho.', tier: 'basic' },
+  obrigacoes: { label: 'MEI & Impostos', desc: 'Limite anual do MEI, DAS e provisão de impostos para autônomos.', tier: 'basic' },
   projecao: { label: 'Projeção', desc: 'Simule cenários futuros de saldo e patrimônio com base nas suas receitas e despesas reais.', tier: 'plus' },
   estrategia: { label: 'Estratégia & Consultoria', desc: 'Consultoria personalizada em fases, dicas contextuais, simulador de decisões financeiras e recomendações de um especialista virtual — recurso do plano Pro.', tier: 'pro' },
   insights: { label: 'Insights', desc: 'Análises avançadas, detecção de anomalias de gastos e recomendações automáticas baseadas nos seus dados.', tier: 'plus' },
@@ -3769,8 +3780,9 @@ var PLUS_ONLY_TABS = {
 };
 
 // Ordem hierárquica dos planos — usada para comparar "plano mínimo exigido" x "plano do usuário"
-var PLAN_RANK = { free: 0, plus: 1, pro: 2, business: 3 };
+var PLAN_RANK = { free: 0, basic: 1, plus: 2, pro: 3, business: 4 };
 var PLAN_TIER_META = {
+  basic: { label: 'Basic', price: 'R$ 8/semana' },
   plus: { label: 'Plus', price: 'A partir de R$ 19,90/mês' },
   pro: { label: 'Pro', price: 'A partir de R$ 39,90/mês' },
   business: { label: 'Business', price: 'A partir de R$ 79,90/mês' },
@@ -3963,7 +3975,7 @@ function saveBudgets() {
     if (val > 0) entered.push({ cat, val });
   });
   if (!isPlusUser() && entered.length > PLAN_LIMITS.maxBudgetCategories) {
-    showToast('🔒 Plano Free permite orçamento em até ' + PLAN_LIMITS.maxBudgetCategories + ' categorias — as demais não foram salvas. Faça upgrade para categorias ilimitadas.', 'info');
+    showToast('🔒 Plano ' + currentPlanLabel() + ' permite orçamento em até ' + PLAN_LIMITS.maxBudgetCategories + ' categorias — as demais não foram salvas. Faça upgrade para categorias ilimitadas.', 'info');
     entered = entered.slice(0, PLAN_LIMITS.maxBudgetCategories);
   }
   const enteredCats = entered.map(e => e.cat);
@@ -4223,7 +4235,7 @@ function processUploadedFiles(files) {
   if (!isPlusUser()) {
     const remaining = PLAN_LIMITS.maxDocumentsPerMonth - countThisMonth(state.documents, 'date');
     if (remaining <= 0) {
-      showToast('🔒 Plano Free permite até ' + PLAN_LIMITS.maxDocumentsPerMonth + ' documentos por mês. Faça upgrade para enviar mais.', 'info');
+      showToast('🔒 Plano ' + currentPlanLabel() + ' permite até ' + PLAN_LIMITS.maxDocumentsPerMonth + ' documentos por mês. Faça upgrade para enviar mais.', 'info');
       setTimeout(function() { switchTab('plano'); }, 900);
       return;
     }
@@ -4309,7 +4321,7 @@ function pickDocType(el) {
 }
 
 function saveManualDoc() {
-  if (!checkPlanLimit(countThisMonth(state.documents, 'date'), PLAN_LIMITS.maxDocumentsPerMonth, 'Plano Free permite até ' + PLAN_LIMITS.maxDocumentsPerMonth + ' documentos por mês. Faça upgrade para enviar mais.')) return;
+  if (!checkPlanLimit(countThisMonth(state.documents, 'date'), PLAN_LIMITS.maxDocumentsPerMonth, 'Plano ' + currentPlanLabel() + ' permite até ' + PLAN_LIMITS.maxDocumentsPerMonth + ' documentos por mês. Faça upgrade para enviar mais.')) return;
   const selectedType = document.querySelector('#doc-type-pick .doc-type-btn.selected')?.dataset.dtype || 'outro';
   const doc = {
     id: genId(),
@@ -4549,7 +4561,7 @@ function openScanConfirmModal(parsed) {
 }
 
 function saveScannedDoc() {
-  if (!checkPlanLimit(countThisMonth(state.documents, 'date'), PLAN_LIMITS.maxDocumentsPerMonth, 'Plano Free permite até ' + PLAN_LIMITS.maxDocumentsPerMonth + ' documentos por mês. Faça upgrade para enviar mais.')) return;
+  if (!checkPlanLimit(countThisMonth(state.documents, 'date'), PLAN_LIMITS.maxDocumentsPerMonth, 'Plano ' + currentPlanLabel() + ' permite até ' + PLAN_LIMITS.maxDocumentsPerMonth + ' documentos por mês. Faça upgrade para enviar mais.')) return;
   const selectedType = document.querySelector('#doc-type-pick .doc-type-btn.selected')?.dataset.dtype || 'boleto';
   const doc = {
     id: genId(),
@@ -5427,16 +5439,26 @@ function renderPlano() {
   const status = profile?.plan_status || 'active';
   const L = PLAN_LIMITS;
   const plans = [
-    { id: 'free', name: 'Basic', price: 'R$ 8', period: '/semana', hotmartUrl: appConfig.hotmartCheckoutBasic, features: [
-      'Até ' + L.maxTransactionsPerMonth + ' lançamentos/mês',
-      'Até ' + L.maxActiveGoals + ' meta ativa',
-      'Orçamento em até ' + L.maxBudgetCategories + ' categorias',
-      'Até ' + L.maxPatrimonioItems + ' itens em Patrimônio',
-      'Até ' + L.maxSubscriptions + ' assinaturas monitoradas',
-      'Até ' + L.maxDocumentsPerMonth + ' documentos/mês',
-      'Dívidas ilimitadas e Saúde Financeira básica',
-      'Exportar dados (JSON/CSV)',
+    { id: 'free', name: 'Free', price: 'R$ 0', period: '/sempre', features: [
+      'Até ' + PLAN_LIMITS_BY_PLAN.free.maxTransactionsPerMonth + ' lançamentos/mês',
+      PLAN_LIMITS_BY_PLAN.free.maxActiveGoals + ' meta ativa',
+      'Orçamento em ' + PLAN_LIMITS_BY_PLAN.free.maxBudgetCategories + ' categoria',
+      PLAN_LIMITS_BY_PLAN.free.maxPatrimonioItems + ' item em Patrimônio',
+      PLAN_LIMITS_BY_PLAN.free.maxSubscriptions + ' assinatura monitorada',
+      PLAN_LIMITS_BY_PLAN.free.maxDebts + ' dívida registrada',
+      'Sem documentos, sem exportação',
+      'Somente o mês atual',
     ], cta: 'Plano atual', priceId: null },
+    { id: 'basic', name: 'Basic', price: 'R$ 8', period: '/semana', hotmartUrl: appConfig.hotmartCheckoutBasic, features: [
+      'Até ' + PLAN_LIMITS_BY_PLAN.basic.maxTransactionsPerMonth + ' lançamentos/mês',
+      'Até ' + PLAN_LIMITS_BY_PLAN.basic.maxActiveGoals + ' meta ativa',
+      'Orçamento em até ' + PLAN_LIMITS_BY_PLAN.basic.maxBudgetCategories + ' categorias',
+      'Até ' + PLAN_LIMITS_BY_PLAN.basic.maxPatrimonioItems + ' itens em Patrimônio',
+      'Até ' + PLAN_LIMITS_BY_PLAN.basic.maxSubscriptions + ' assinaturas monitoradas',
+      'Até ' + PLAN_LIMITS_BY_PLAN.basic.maxDocumentsPerMonth + ' documentos/mês',
+      'Perfil de Renda, reserva sob medida e MEI/Impostos',
+      'Exportar dados (JSON/CSV, últimos 30 dias)',
+    ], cta: 'Assinar Basic', priceId: null, tier: 'basic' },
     { id: 'plus', name: 'Plus', price: 'R$ 19,90', period: '/mês', features: [
       'Lançamentos, metas, dívidas e patrimônio ilimitados',
       'Histórico completo (sem limite de meses)',
@@ -5481,12 +5503,14 @@ function renderPlano() {
         (p.priceId ? `<button class="btn-sm" style="width:100%;margin-top:8px" onclick="startCheckout('${p.priceId}')">ou cartão internacional (Stripe)</button>` : '');
     } else if (p.priceId) {
       ctaHtml = `<button class="btn-pricing" onclick="startCheckout('${p.priceId}')">Fazer upgrade</button>`;
+    } else if (p.id === 'free') {
+      ctaHtml = `<button class="btn-pricing" disabled>Plano gratuito</button>`;
     } else {
       ctaHtml = `<button class="btn-pricing" disabled title="Configure o link de checkout">Em breve</button>`;
     }
     return `<div class="pricing-card${p.popular ? ' popular' : ''}${isCurrent ? ' current' : ''} animate-in stagger-${i + 1}">
       ${p.popular ? '<div class="pricing-popular">Mais popular</div>' : ''}
-      <div class="pricing-name">${p.name}</div>
+      <div class="pricing-name">${p.tier === 'basic' ? '<span class="sidebar-plan plan-badge-basic">Basic</span>' : p.name}</div>
       <div class="pricing-price">${p.price}<span class="pricing-period">${p.period}</span></div>
       <ul class="pricing-features">${p.features.map(f => `<li>✓ ${f}</li>`).join('')}</ul>
       ${ctaHtml}
@@ -5531,6 +5555,7 @@ document.addEventListener('click', (e) => {
 });
 
 function exportJSON() {
+  if (!meetsTier('basic')) { requirePlusFeature('Exportar dados', 'basic'); return; }
   // Basic: limita a exportação aos últimos 30 dias e adiciona marca d'água
   var stateToExport = state;
   if (!isPlusUser()) {
@@ -5554,6 +5579,7 @@ function exportJSON() {
 }
 
 function exportCSV() {
+  if (!meetsTier('basic')) { requirePlusFeature('Exportar dados', 'basic'); return; }
   const headers = ['Data', 'Tipo', 'Descrição', 'Categoria', 'Valor', 'Recorrente'];
   var txs = visibleList('transactions');
   var footer = '';
@@ -5624,10 +5650,10 @@ async function showApp() {
   document.getElementById('auth-screen').hidden = true;
   document.getElementById('onboarding-screen').hidden = true;
   document.getElementById('app-screen').hidden = false;
-  const planNames = { free: 'Basic', plus: 'Plus', pro: 'Pro', business: 'Business' };
+  const planNames = { free: 'Free', basic: 'Basic', plus: 'Plus', pro: 'Pro', business: 'Business' };
   const planKey = profile?.plan || (state.profile_type === 'PJ' ? 'business' : 'free');
   const planBadgeEl = document.getElementById('plan-badge');
-  planBadgeEl.textContent = planNames[planKey] || 'Basic';
+  planBadgeEl.textContent = planNames[planKey] || 'Free';
   planBadgeEl.className = 'sidebar-plan plan-badge-' + (planNames[planKey] ? planKey : 'free');
   updatePeriodDisplay();
   updateThemeIcon();

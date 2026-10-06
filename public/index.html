@@ -194,6 +194,10 @@ body {
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 .auth-footer { text-align: center; margin-top: 20px; font-size: 13px; color: var(--ink-3); }
 .auth-footer a { color: var(--teal); text-decoration: none; font-weight: 600; }
+.auth-forgot { background:none; border:none; padding:0; margin:-4px 0 14px; font:inherit; font-size:12.5px; font-weight:600; color:var(--teal-mid); cursor:pointer; text-decoration:underline; text-underline-offset:3px; }
+.auth-forgot:hover { color:var(--gold); }
+.auth-note { font-size:13px; color:var(--ink-2); line-height:1.6; margin-bottom:16px; }
+.auth-ok { color:var(--income); font-size:13px; margin-bottom:12px; padding:10px 14px; background:var(--income-light, rgba(22,163,74,.1)); border-radius:var(--radius-sm); display:none; }
 .auth-error { color: var(--expense); font-size: 13px; margin-bottom: 12px; display: none; padding: 10px 14px; background: var(--expense-light); border-radius: var(--radius-sm); animation: slideDown 0.2s ease; }
 .pass-wrap { position: relative; }
 .pass-wrap .pass-input { padding-right: 42px; }
@@ -1160,6 +1164,7 @@ svg text { font-family: var(--font-body); }
         <button class="auth-tab" data-auth="signup">Criar conta</button>
       </div>
       <div id="auth-error" class="auth-error"></div>
+      <div id="auth-ok" class="auth-ok"></div>
       <div id="auth-form-login">
         <div class="form-group"><label class="form-label">E-mail</label>
           <input class="form-input" type="email" id="login-email" placeholder="seu@email.com" autocomplete="email" /></div>
@@ -1169,7 +1174,23 @@ svg text { font-family: var(--font-body); }
             <button type="button" class="pass-eye" aria-label="Mostrar senha" onclick="togglePassEye('login-pass', this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
           </div>
         </div>
+        <div style="text-align:right"><button type="button" class="auth-forgot" onclick="showForgotForm()">Esqueci a senha</button></div>
         <button class="btn-primary" id="btn-login">Entrar</button>
+      </div>
+      <div id="auth-form-forgot" hidden>
+        <div class="auth-note"><strong>Recuperar senha</strong><br>Informe o e-mail da sua conta. Enviaremos um link para você criar uma nova senha.</div>
+        <div class="form-group"><label class="form-label">E-mail</label>
+          <input class="form-input" type="email" id="forgot-email" placeholder="seu@email.com" autocomplete="email" /></div>
+        <button class="btn-primary" id="btn-forgot">Enviar link de recuperação</button>
+        <div style="text-align:center;margin-top:14px"><button type="button" class="auth-forgot" onclick="backToLogin()">← Voltar ao login</button></div>
+      </div>
+      <div id="auth-form-reset" hidden>
+        <div class="auth-note"><strong>Criar nova senha</strong><br>Escolha uma senha nova para a sua conta.</div>
+        <div class="form-group"><label class="form-label">Nova senha</label>
+          <div class="pass-wrap"><input class="form-input pass-input" type="password" id="reset-pass" placeholder="Mínimo 8 caracteres" autocomplete="new-password" /><button type="button" class="pass-eye" aria-label="Mostrar senha" onclick="togglePassEye('reset-pass', this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg></button></div></div>
+        <div class="form-group"><label class="form-label">Confirmar nova senha</label>
+          <div class="pass-wrap"><input class="form-input pass-input" type="password" id="reset-pass2" placeholder="Digite a senha de novo" autocomplete="new-password" /><button type="button" class="pass-eye" aria-label="Mostrar senha" onclick="togglePassEye('reset-pass2', this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg></button></div></div>
+        <button class="btn-primary" id="btn-reset">Salvar nova senha</button>
       </div>
       <div id="auth-form-signup" hidden>
         <div class="form-group"><label class="form-label">Nome completo</label>
@@ -1400,6 +1421,10 @@ async function initSupabase() {
     appConfig = cfg;
     if (!cfg.supabaseUrl || !cfg.supabaseAnonKey || cfg.supabaseUrl === 'undefined') throw new Error('No Supabase config');
     sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+    // Link de "esqueci a senha": o Supabase abre o app com type=recovery — mostra a tela de nova senha em vez de logar direto
+    let recovering = /type=recovery/.test(window.location.hash) || /type=recovery/.test(window.location.search);
+    sb.auth.onAuthStateChange((ev) => { if (ev === 'PASSWORD_RECOVERY') { recovering = true; showResetForm(); } });
+    if (recovering) { await new Promise(r => setTimeout(r, 400)); showResetForm(); return; }
     const { data: { session } } = await sb.auth.getSession();
     if (session) {
       currentUser = session.user;
@@ -2856,7 +2881,10 @@ document.querySelectorAll('.auth-tab').forEach(tab => {
     const isLogin = tab.dataset.auth === 'login';
     document.getElementById('auth-form-login').hidden = !isLogin;
     document.getElementById('auth-form-signup').hidden = isLogin;
+    document.getElementById('auth-form-forgot').hidden = true;
+    document.getElementById('auth-form-reset').hidden = true;
     document.getElementById('auth-error').style.display = 'none';
+    document.getElementById('auth-ok').style.display = 'none';
   });
 });
 
@@ -2875,6 +2903,56 @@ document.getElementById('btn-login').addEventListener('click', async () => {
   btn.disabled = false;
   if (error) return showAuthError(error.message);
   currentUser = data.user; await loadProfile();
+  if (profile && profile.onboarding_done) { showApp(); } else { showOnboarding(); }
+});
+
+
+// ─── Esqueci a senha ─────────────────────────────────────────────
+function authShowOnly(id) {
+  ['auth-form-login', 'auth-form-signup', 'auth-form-forgot', 'auth-form-reset'].forEach(f => { document.getElementById(f).hidden = (f !== id); });
+  document.getElementById('auth-error').style.display = 'none';
+  document.getElementById('auth-ok').style.display = 'none';
+}
+function showForgotForm() {
+  authShowOnly('auth-form-forgot');
+  const e = document.getElementById('login-email').value; if (e) document.getElementById('forgot-email').value = e;
+}
+function backToLogin() {
+  authShowOnly('auth-form-login');
+  document.querySelectorAll('.auth-tab').forEach(t => t.classList.toggle('active', t.dataset.auth === 'login'));
+}
+document.getElementById('btn-forgot').addEventListener('click', async () => {
+  const email = document.getElementById('forgot-email').value.trim();
+  if (!email) return showAuthError('Informe o e-mail da sua conta.');
+  const ok = document.getElementById('auth-ok');
+  if (!sb) { ok.textContent = 'Modo demonstração: a recuperação de senha precisa do Supabase configurado.'; ok.style.display = 'block'; return; }
+  const btn = document.getElementById('btn-forgot'); btn.disabled = true;
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
+  btn.disabled = false;
+  if (error && /rate|limit|seconds/i.test(error.message)) return showAuthError('Muitas tentativas. Aguarde um minuto e tente de novo.');
+  // Mensagem igual exista a conta ou não (não revela quais e-mails estão cadastrados)
+  document.getElementById('auth-error').style.display = 'none';
+  ok.textContent = 'Se existir uma conta com esse e-mail, enviamos um link para criar a nova senha. Confira também o spam.'; ok.style.display = 'block';
+});
+function showResetForm() {
+  document.querySelector('.auth-tabs').style.display = 'none';
+  document.getElementById('auth-screen').hidden = false;
+  document.getElementById('onboarding-screen').hidden = true;
+  document.getElementById('app-screen').hidden = true;
+  authShowOnly('auth-form-reset');
+}
+document.getElementById('btn-reset').addEventListener('click', async () => {
+  const p1 = document.getElementById('reset-pass').value, p2 = document.getElementById('reset-pass2').value;
+  if (p1.length < 8) return showAuthError('A senha precisa ter pelo menos 8 caracteres.');
+  if (!/[A-Z]/.test(p1) || !/[a-z]/.test(p1) || !/[0-9]/.test(p1)) return showAuthError('Use letras maiúsculas, minúsculas e pelo menos um número.');
+  if (p1 !== p2) return showAuthError('As senhas não coincidem.');
+  const btn = document.getElementById('btn-reset'); btn.disabled = true;
+  const { data, error } = await sb.auth.updateUser({ password: p1 });
+  btn.disabled = false;
+  if (error) return showAuthError(error.message);
+  history.replaceState(null, '', window.location.pathname);
+  document.querySelector('.auth-tabs').style.display = '';
+  currentUser = data.user; await loadProfile(); showToast('Senha alterada com sucesso', 'success');
   if (profile && profile.onboarding_done) { showApp(); } else { showOnboarding(); }
 });
 
@@ -5745,7 +5823,7 @@ function renderPlano() {
     }
     return `<div class="pricing-card${p.popular ? ' popular' : ''}${isCurrent ? ' current' : ''} animate-in stagger-${i + 1}">
       ${p.popular ? '<div class="pricing-popular">Mais popular</div>' : ''}
-      <div class="pricing-name">${p.tier === 'basic' ? '<span class="sidebar-plan plan-badge-basic">Basic</span>' : p.name}</div>
+      <div class="pricing-name">${p.name}</div>
       <div class="pricing-price">${p.price}<span class="pricing-period">${p.period}</span></div>
       <ul class="pricing-features">${p.features.map(f => `<li>✓ ${f}</li>`).join('')}</ul>
       ${ctaHtml}

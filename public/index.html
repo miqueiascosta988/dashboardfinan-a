@@ -6011,6 +6011,18 @@ async function showApp() {
 // ═══════════════════════════════════════════════════════
 // BOOT
 // ═══════════════════════════════════════════════════════
+// Link de e-mail inválido/vencido (ex.: #error_code=otp_expired): avisa e abre o pedido de novo link
+(function handleAuthLinkError() {
+  const raw = (window.location.hash || '').replace(/^#/, '') || (window.location.search || '').replace(/^\?/, '');
+  const q = new URLSearchParams(raw);
+  if (!q.get('error_code') && !q.get('error')) return;
+  const code = q.get('error_code') || q.get('error');
+  history.replaceState(null, '', window.location.pathname);
+  setTimeout(function() {
+    try { showForgotForm(); } catch (e) { return; }
+    showAuthError(code === 'otp_expired' ? 'Esse link de recuperação expirou ou já foi usado. Peça um novo abaixo e abra-o logo em seguida.' : 'Não foi possível validar o link. Peça um novo abaixo.');
+  }, 300);
+})();
 initSupabase();
 </script>
 </body>

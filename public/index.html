@@ -4374,7 +4374,7 @@ function getShapedPFTabs() {
 const tabsPF = [
   {id:'dashboard',label:'Visão Geral',section:'Operação'},{id:'receitas',label:'Renda',section:'Operação'},{id:'despesas',label:'Despesas',section:'Operação'},{id:'documentos',label:'Documentos',section:'Operação'},
   {id:'orcamento',label:'Orçamento',section:'Planejamento'},{id:'metas',label:'Metas',section:'Planejamento'},{id:'projecao',label:'Projeção',plus:true,tier:'plus',section:'Planejamento'},{id:'estrategia',label:'Estratégia',plus:true,tier:'pro',section:'Planejamento'},
-  {id:'patrimonio',label:'Patrimônio',section:'Patrimônio & Dívidas'},{id:'dividas',label:'Dívidas',section:'Patrimônio & Dívidas'},
+  {id:'patrimonio',label:'Patrimônio',section:'Patrimônio & Dívidas'},{id:'dividas',label:'Dívidas',section:'Patrimônio & Dívidas'},{id:'investir',label:'Investimentos',plus:true,tier:'basic',section:'Patrimônio & Dívidas'},{id:'credito',label:'Crédito & Nome Sujo',plus:true,tier:'basic',section:'Patrimônio & Dívidas'},
   {id:'insights',label:'Insights',plus:true,tier:'plus',section:'Ferramentas'},{id:'assinaturas',label:'Assinaturas',section:'Ferramentas'},{id:'openfinance',label:'Extratos Bancários',plus:true,tier:'plus',section:'Ferramentas'},{id:'cambio',label:'Câmbio',plus:true,tier:'plus',section:'Ferramentas'},
   {id:'saude',label:'Saúde Financeira',section:'Conta'},{id:'plano',label:'Plano',section:'Conta'},
 ];
@@ -4453,7 +4453,210 @@ function tierLimit(key) {
 
 // Abas inteiramente bloqueadas por plano (mostram uma tela de upgrade em vez do conteúdo).
 // "tier" é o menor plano que já libera a aba: plus | pro | business.
+// ═══════════════════════════════════════════════════════
+// INVESTIMENTOS (perfil + sugestões) e CRÉDITO & NOME SUJO
+// Referência de mercado: Selic 13,75% a.a. (Copom, set/2026). Tenta ler o valor ao vivo do
+// Banco Central; se o navegador/CSP bloquear, usa a referência fixa abaixo. Conteúdo
+// educativo — não é recomendação individual de investimento nem de crédito.
+// ═══════════════════════════════════════════════════════
+const MKT = { ref: 'Copom, set/2026', selic: 13.75, cdi: 13.65, poupanca: 6.17, live: false, tried: false };
+function mktLoad() {
+  if (MKT.tried) return; MKT.tried = true;
+  try {
+    fetch('https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/1?formato=json')
+      .then(r => r.json()).then(j => {
+        const v = parseFloat(j[0].valor);
+        if (v > 0 && v < 40) { MKT.selic = v; MKT.cdi = Math.round((v - 0.10) * 100) / 100; MKT.live = true; MKT.ref = 'Banco Central (ao vivo)'; if (currentTab === 'investir') renderCurrentTab(); }
+      }).catch(() => {});
+  } catch (e) {}
+}
+const FX = { inv: { has: '', tipos: [], total: 0, aporte: 0, obj: '', prazo: '', reacao: '', run: false },
+             crd: { status: '', rows: [], renda: 0, obj: '', disp: 0, desc: 50, run: false }, loaded: false };
+const fxKey = n => 'financa-' + n + '-' + ((currentUser && currentUser.id) || 'anon');
+function fxInit() {
+  if (FX.loaded) return; FX.loaded = true;
+  ['inv', 'crd'].forEach(n => { try { const s = JSON.parse(localStorage.getItem(fxKey(n)) || 'null'); if (s) Object.assign(FX[n], s); } catch (e) {} });
+}
+function fxSave(n) { try { localStorage.setItem(fxKey(n), JSON.stringify(FX[n])); } catch (e) {} }
+const fxEsc = s => String(s == null ? '' : s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+const fxPct = v => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
+function fxSet(n, k, v, isNum, rerender) { FX[n][k] = isNum ? simNum(v) : v; fxSave(n); if (rerender) renderCurrentTab(); }
+function fxToggleTipo(t) { const a = FX.inv.tipos, i = a.indexOf(t); if (i >= 0) a.splice(i, 1); else a.push(t); fxSave('inv'); renderCurrentTab(); }
+function fxRun(n) { FX[n].run = true; fxSave(n); renderCurrentTab(); }
+function fxReset(n) { FX[n].run = false; fxSave(n); renderCurrentTab(); }
+function fxChip(n, k, val, label) {
+  const on = FX[n][k] === val;
+  return '<button class="btn-add" style="margin:0 6px 6px 0;' + (on ? '' : 'opacity:.55') + '" onclick="fxSet(\'' + n + '\',\'' + k + '\',\'' + val + '\',false,true)">' + label + '</button>';
+}
+function fxIn(n, k, label, ph) {
+  const v = FX[n][k];
+  return '<div class="form-group"><label class="form-label">' + label + '</label><input class="form-input" type="text" inputmode="decimal" value="' + (v ? v : '') + '" placeholder="' + (ph || '') + '" oninput="fxSet(\'' + n + '\',\'' + k + '\',this.value,true,false)"></div>';
+}
+const FX_DISCLAIMER = '<div class="occ-b-desc" style="margin-top:14px;font-size:11.5px;opacity:.8">Conteúdo educativo e estimativo, baseado em taxas de referência e em regras gerais. Não é recomendação individual de investimento nem oferta de crédito. Rentabilidade passada não garante resultado futuro; confirme as condições na instituição e, se preciso, com um profissional certificado (CVM/ANBIMA).</div>';
+
+// ── Investimentos ──
+const INV_TIPOS = { poupanca: 'Poupança', cdb: 'CDB / RDB', tesouro: 'Tesouro Direto', lci: 'LCI / LCA', fundos: 'Fundos', acoes: 'Ações / FIIs / ETFs', cripto: 'Criptomoedas', prev: 'Previdência', outros: 'Outros' };
+const INV_IR = { ate6m: 0.225, ate1a: 0.20, '1a2a': 0.175, '2a+': 0.15 };
+const INV_PRAZO = { ate6m: 'Até 6 meses', ate1a: '6 a 12 meses', '1a2a': '1 a 2 anos', '2a+': 'Mais de 2 anos' };
+const INV_OBJ = { reserva: 'Reserva de emergência', curto: 'Meta de curto prazo (viagem, carro…)', imovel: 'Entrada de imóvel', aposent: 'Aposentadoria / longo prazo', renda: 'Renda passiva' };
+function invProdutos(prazo) {
+  const ir = INV_IR[prazo] != null ? INV_IR[prazo] : INV_IR['2a+'];
+  return [
+    { nome: 'Poupança', bruto: MKT.poupanca, liq: MKT.poupanca, nota: 'Isenta de IR; liquidez diária. Regra atual: 0,5% ao mês + TR com Selic acima de 8,5%.' },
+    { nome: 'Tesouro Selic', bruto: MKT.selic, liq: MKT.selic * (1 - ir), nota: 'Segue a Selic; liquidez diária; há taxa de custódia B3 (0,20% a.a.) acima de R$ 10 mil.' },
+    { nome: 'CDB 100% do CDI', bruto: MKT.cdi, liq: MKT.cdi * (1 - ir), nota: 'Cobertura do FGC até R$ 250 mil por CPF e instituição; confira a liquidez.' },
+    { nome: 'LCI / LCA 90% do CDI', bruto: MKT.cdi * 0.9, liq: MKT.cdi * 0.9, nota: 'Isentas de IR para pessoa física; costumam ter carência; cobertura do FGC.' },
+  ];
+}
+function invPerfil(c) {
+  const I = FX.inv, k = getOccupation(), o = OCCUPATIONS[k] || { reserve: 6 }, s = getStability();
+  let pts = 0;
+  pts += ({ vender: 0, esperar: 2, comprar: 4 })[I.reacao] || 0;
+  pts += ({ ate6m: 0, ate1a: 1, '1a2a': 2, '2a+': 4 })[I.prazo] || 0;
+  const varTipos = ['fundos', 'acoes', 'cripto'];
+  if (I.has === 'sim') pts += I.tipos.some(t => varTipos.includes(t)) ? 2 : 1;
+  if (s === 'fixa') pts += 1; else if (s === 'variavel') pts -= 1;
+  const liquido = visibleList('assets').filter(a => LIQUID_ASSET_RE.test(a.name)).reduce((t, a) => t + a.value, 0);
+  const gasto = c.totalExpense || 0;
+  const alvo = gasto * (o.reserve || 6);
+  const reservaOk = gasto > 0 ? liquido >= alvo : null;
+  const caras = visibleList('debts').filter(d => d.juros >= 2);
+  const dividaCara = caras.reduce((t, d) => t + d.saldo, 0);
+  let perfil = pts <= 3 ? 'conservador' : pts <= 7 ? 'moderado' : 'arrojado';
+  const travado = reservaOk === false || dividaCara > 0;
+  if (travado && perfil === 'arrojado') perfil = 'moderado';
+  return { pts, perfil, liquido, gasto, alvo, meses: o.reserve || 6, reservaOk, caras, dividaCara, travado };
+}
+const INV_ALOC = {
+  conservador: [['Renda fixa pós-fixada (Tesouro Selic, CDB liquidez diária)', 70], ['LCI/LCA, CDB prefixado ou Tesouro IPCA+ curto', 25], ['Renda variável (ETFs/FIIs de baixo risco)', 5]],
+  moderado: [['Renda fixa pós-fixada (Tesouro Selic, CDB)', 40], ['Tesouro IPCA+ / LCI / LCA / CDB prefixado', 30], ['Ações, FIIs e ETFs diversificados', 25], ['Internacional / outros', 5]],
+  arrojado: [['Renda fixa pós-fixada (reserva e caixa)', 25], ['Tesouro IPCA+ / crédito privado', 25], ['Ações, FIIs e ETFs diversificados', 35], ['Internacional', 10], ['Cripto (limite sugerido: até 5%)', 5]],
+};
+function renderInvestir(c) {
+  fxInit(); mktLoad();
+  const I = FX.inv, prazo = I.prazo || '2a+';
+  const prods = invProdutos(prazo);
+  const mercado = '<div class="card mb-24 animate-in"><div class="card-title">📈 Mercado hoje <span style="font-size:11.5px;font-weight:400;color:var(--ink-3)">· ref. ' + fxEsc(MKT.ref) + '</span></div><div class="kpi-grid" style="margin-top:12px"><div class="kpi"><div class="kpi-label">Selic (meta)</div><div class="kpi-value">' + fxPct(MKT.selic) + ' a.a.</div></div><div class="kpi"><div class="kpi-label">CDI (aprox.)</div><div class="kpi-value">' + fxPct(MKT.cdi) + ' a.a.</div></div><div class="kpi"><div class="kpi-label">Poupança</div><div class="kpi-value">≈ ' + fxPct(MKT.poupanca) + ' a.a.</div></div></div><div class="occ-b-desc" style="margin-top:10px">Com a Selic em patamar alto, a renda fixa paga bem: a poupança rende bem menos que Tesouro Selic ou CDB. Em set/2026 o Copom reduziu a Selic (próxima reunião: 3 e 4 de novembro); se os juros seguirem caindo, prefira não ficar só em pós-fixados para dinheiro que não será usado tão cedo.</div></div>';
+  const tipos = Object.keys(INV_TIPOS).map(t => '<button class="btn-add" style="margin:0 6px 6px 0;' + (I.tipos.includes(t) ? '' : 'opacity:.55') + '" onclick="fxToggleTipo(\'' + t + '\')">' + INV_TIPOS[t] + '</button>').join('');
+  const form = '<div class="card mb-24 animate-in"><div class="card-title">🧭 Seu perfil de investidor</div><div class="occ-b-desc" style="margin:8px 0 12px">Responda rápido; seus dados de renda, despesas e dívidas já cadastrados no app entram na análise. As respostas ficam salvas só neste navegador.</div>'
+    + '<div class="form-group"><label class="form-label">Você já investe?</label>' + fxChip('inv', 'has', 'sim', 'Sim, já invisto') + fxChip('inv', 'has', 'nao', 'Ainda não') + '</div>'
+    + (I.has === 'sim' ? '<div class="form-group"><label class="form-label">Onde você investe hoje?</label>' + tipos + '</div><div class="occ-grid-3">' + fxIn('inv', 'total', 'Total investido (R$)', '0,00') + fxIn('inv', 'aporte', 'Aporte mensal (R$)', '0,00') + '</div>' : '<div class="occ-grid-3">' + fxIn('inv', 'aporte', 'Quanto poderia investir por mês (R$)', '0,00') + '</div>')
+    + '<div class="form-group"><label class="form-label">Objetivo principal</label>' + Object.keys(INV_OBJ).map(k => fxChip('inv', 'obj', k, INV_OBJ[k])).join('') + '</div>'
+    + '<div class="form-group"><label class="form-label">Por quanto tempo pode deixar o dinheiro parado?</label>' + Object.keys(INV_PRAZO).map(k => fxChip('inv', 'prazo', k, INV_PRAZO[k])).join('') + '</div>'
+    + '<div class="form-group"><label class="form-label">Se seus investimentos caíssem 20% em um mês, você…</label>' + fxChip('inv', 'reacao', 'vender', 'Venderia tudo') + fxChip('inv', 'reacao', 'esperar', 'Esperaria recuperar') + fxChip('inv', 'reacao', 'comprar', 'Aproveitaria para comprar mais') + '</div>'
+    + '<button class="btn-add" onclick="fxRun(\'inv\')">Analisar meu perfil</button></div>';
+  if (!I.run) return '<div class="section-header animate-in"><div><div class="section-title">Investimentos</div><div class="section-desc">Descubra seu perfil e onde faz sentido investir agora.</div></div></div>' + mercado + form + FX_DISCLAIMER;
+  const P = invPerfil(c);
+  const perfilLbl = { conservador: '🛡️ Conservador', moderado: '⚖️ Moderado', arrojado: '🚀 Arrojado' }[P.perfil];
+  const passos = [];
+  if (P.dividaCara > 0) passos.push('<strong>1. Quite as dívidas caras primeiro.</strong> Você tem ' + simBRL(P.dividaCara) + ' em dívidas com juros a partir de 2% ao mês (' + P.caras.map(d => fxEsc(d.name)).join(', ') + '). Nenhum investimento seguro rende isso — pagar a dívida é o melhor "investimento". Veja a aba Crédito & Nome Sujo.');
+  if (P.reservaOk === false) passos.push('<strong>' + (passos.length + 1) + '. Monte a reserva de emergência.</strong> Alvo: ' + P.meses + ' meses de gastos = ' + simBRL(P.alvo) + '; você tem ' + simBRL(P.liquido) + ' em ativos líquidos. Guarde em Tesouro Selic ou CDB de liquidez diária (100% do CDI) — rende mais que a poupança e você saca quando precisar.');
+  else if (P.reservaOk === null) passos.push('<strong>' + (passos.length + 1) + '. Registre suas despesas</strong> para calcularmos o tamanho ideal da reserva de emergência (' + P.meses + ' meses de gastos para o seu vínculo de trabalho).');
+  else passos.push('<strong>' + (passos.length + 1) + '. Reserva de emergência em dia</strong> (' + simBRL(P.liquido) + ' de ' + simBRL(P.alvo) + '). Mantenha em liquidez diária.');
+  passos.push('<strong>' + (passos.length + 1) + '. Invista o excedente conforme seu perfil ' + P.perfil + '</strong>' + (P.travado ? ' — depois de resolver os passos acima.' : '.'));
+  const aloc = INV_ALOC[P.perfil].map(a => '<tr><td style="padding:6px 4px">' + a[0] + '</td><td style="padding:6px 4px;text-align:right"><strong>' + a[1] + '%</strong></td></tr>').join('');
+  const tbl = prods.map(p => '<tr><td style="padding:6px 4px"><strong>' + p.nome + '</strong><div style="font-size:11.5px;color:var(--ink-3)">' + p.nota + '</div></td><td style="padding:6px 4px;text-align:right">' + fxPct(p.bruto) + '</td><td style="padding:6px 4px;text-align:right"><strong>' + fxPct(p.liq) + '</strong></td></tr>').join('');
+  const diag = [];
+  if (I.tipos.includes('poupanca')) diag.push('A poupança rende ≈ ' + fxPct(MKT.poupanca) + ' ao ano; Tesouro Selic ou CDB 100% CDI rendem cerca de ' + fxPct(prods[1].liq) + ' líquidos (prazo de ' + INV_PRAZO[prazo].toLowerCase() + '). Em ' + simBRL(I.total || 10000) + ', a diferença passa de ' + simBRL((I.total || 10000) * (prods[1].liq - MKT.poupanca) / 100) + ' por ano.');
+  if (I.tipos.includes('cripto')) diag.push('Criptomoedas são muito voláteis: como regra de bolso, mantenha até 5% da carteira e nunca a reserva de emergência.');
+  if (I.tipos.length === 1 && I.has === 'sim') diag.push('Toda a carteira está em um único tipo de ativo. Diversificar reduz o risco sem exigir mais dinheiro.');
+  if (I.has === 'nao') diag.push('Começar é mais importante que começar grande: com Tesouro Selic é possível aplicar desde cerca de R$ 1, com liquidez diária.');
+  if (P.perfil !== 'conservador' && I.prazo === 'ate6m') diag.push('Para dinheiro que será usado em até 6 meses, renda variável não é indicada, mesmo com perfil mais arrojado.');
+  const aporte = I.aporte || 0;
+  const taxa = prods[1].liq; const sim = (anos) => { const i = Math.pow(1 + (MKT.selic * 0.85) / 100, 1 / 12) - 1, ip = Math.pow(1 + MKT.poupanca / 100, 1 / 12) - 1, n = anos * 12; const f = r => r === 0 ? aporte * n : aporte * ((Math.pow(1 + r, n) - 1) / r); return { rf: f(i), pp: f(ip), tot: aporte * n }; };
+  const simRows = aporte > 0 ? [1, 5, 10].map(a => { const r = sim(a); return '<tr><td style="padding:6px 4px">' + a + (a === 1 ? ' ano' : ' anos') + '</td><td style="padding:6px 4px;text-align:right">' + simBRL(r.tot) + '</td><td style="padding:6px 4px;text-align:right">' + simBRL(r.pp) + '</td><td style="padding:6px 4px;text-align:right"><strong>' + simBRL(r.rf) + '</strong></td></tr>'; }).join('') : '';
+  return '<div class="section-header animate-in"><div><div class="section-title">Investimentos</div><div class="section-desc">Análise do seu perfil e caminhos possíveis.</div></div><button class="btn-sm" onclick="fxReset(\'inv\')">Refazer perguntas</button></div>'
+    + '<div class="card mb-24 animate-in occ-banner"><div><div class="occ-b-title">' + perfilLbl + '</div><div class="occ-b-desc">Pontuação ' + P.pts + ' (considera sua reação a perdas, prazo, experiência e estabilidade de renda' + (getStability() ? ': ' + STABILITY[getStability()].label.toLowerCase() : '') + ').' + (P.travado ? ' Antes de investir mais, há prioridades abaixo.' : '') + '</div></div></div>'
+    + '<div class="card mb-24 animate-in"><div class="card-title">🪜 Sua ordem de prioridades</div><div class="occ-b-desc" style="margin-top:10px;line-height:1.7">' + passos.join('<br>') + '</div></div>'
+    + mercado
+    + '<div class="charts-grid"><div class="card animate-in"><div class="card-title">Alocação de referência — ' + P.perfil + '</div><table class="data-table" style="width:100%;margin-top:8px"><tbody>' + aloc + '</tbody></table></div>'
+    + '<div class="card animate-in"><div class="card-title">Rendimento estimado (prazo: ' + INV_PRAZO[prazo].toLowerCase() + ')</div><table class="data-table" style="width:100%;margin-top:8px"><thead><tr><th style="text-align:left">Produto</th><th style="text-align:right">Bruto a.a.</th><th style="text-align:right">Líquido a.a.</th></tr></thead><tbody>' + tbl + '</tbody></table><div class="occ-b-desc" style="margin-top:8px;font-size:11.5px">IR regressivo sobre o ganho: 22,5% até 180 dias, 20% de 181 a 360, 17,5% de 361 a 720 e 15% acima de 720 dias.</div></div></div>'
+    + (diag.length ? '<div class="card mb-24 animate-in" style="margin-top:20px"><div class="card-title">🔎 Diagnóstico</div><ul style="margin:10px 0 0 18px;line-height:1.7">' + diag.map(d => '<li>' + d + '</li>').join('') + '</ul></div>' : '')
+    + (aporte > 0 ? '<div class="card mb-24 animate-in"><div class="card-title">💰 Aportando ' + simBRL(aporte) + ' por mês</div><table class="data-table" style="width:100%;margin-top:8px"><thead><tr><th style="text-align:left">Prazo</th><th style="text-align:right">Total aportado</th><th style="text-align:right">Na poupança</th><th style="text-align:right">Renda fixa (≈ ' + fxPct(MKT.selic * 0.85) + ' líq.)</th></tr></thead><tbody>' + simRows + '</tbody></table><div class="occ-b-desc" style="margin-top:8px;font-size:11.5px">Simulação com taxa constante, líquida de IR (prazo longo) e sem inflação; os juros reais variam.</div></div>' : '')
+    + FX_DISCLAIMER;
+}
+
+// ── Crédito & Nome Sujo ──
+const CRD_TIPOS = { cartao: 'Cartão de crédito', cheque: 'Cheque especial', pessoal: 'Empréstimo pessoal', financ: 'Financiamento (veículo/imóvel)', conta: 'Conta (luz, água, telefone)', varejo: 'Loja / crediário', outro: 'Outro' };
+const CRD_CARO = ['cartao', 'cheque', 'pessoal'];
+const CRD_OBJ = { limpar: 'Só limpar o nome', cartao: 'Conseguir cartão', emprestimo: 'Empréstimo', imovel: 'Financiar imóvel', veiculo: 'Financiar veículo' };
+const SM2026 = 1621;
+function crdAdd() { FX.crd.rows.push({ cred: '', tipo: 'cartao', val: 0, meses: 12 }); fxSave('crd'); renderCurrentTab(); }
+function crdDel(i) { FX.crd.rows.splice(i, 1); fxSave('crd'); renderCurrentTab(); }
+function crdRow(i, k, v, isNum) { FX.crd.rows[i][k] = isNum ? simNum(v) : v; fxSave('crd'); }
+function crdImport() {
+  const ds = visibleList('debts'); if (!ds.length) { showToast('Você ainda não cadastrou dívidas na aba Dívidas', 'info'); return; }
+  ds.forEach(d => { if (!FX.crd.rows.some(r => r.cred === d.name && r.val === d.saldo)) FX.crd.rows.push({ cred: d.name, tipo: 'outro', val: d.saldo, meses: 6 }); });
+  fxSave('crd'); renderCurrentTab(); showToast('Dívidas importadas — ajuste o tipo e o tempo de cada uma', 'success');
+}
+function crdBancos(R) {
+  const k = getOccupation(), neg = FX.crd.status === 'sujo', obj = FX.crd.obj, out = [];
+  if (neg) out.push(['1. Resolva as restrições primeiro', 'Com o nome negativado, a maioria dos bancos recusa cartão e financiamento. Negociar com desconto costuma ser o caminho mais barato (veja o plano abaixo); após o pagamento, a baixa nos cadastros deve ocorrer em até 5 dias úteis.']);
+  if (k === 'clt') out.push(['Consignado do trabalhador (CLT)', 'O consignado privado, com desconto em folha, tem juros bem menores que cartão, cheque especial e empréstimo pessoal e a análise pesa menos o score. Consulte no app Carteira de Trabalho Digital e no banco onde você tem relacionamento. Evite usá-lo para pagar gastos do dia a dia.']);
+  else if (k === 'servidor' || k === 'aposentado') out.push(['Consignado (servidor / INSS)', 'Costuma ser a linha mais barata disponível, com aprovação menos dependente de score. Compare as taxas em pelo menos 3 bancos e respeite a margem de 35% (consignado) mais 5% do cartão consignado.']);
+  else if (k === 'autonomo' || k === 'mei' || k === 'empresario') out.push(['Microcrédito e conta PJ', 'Com renda variável, bancos olham movimentação e faturamento: concentre recebimentos numa conta, emita notas e comprove renda. Procure microcrédito produtivo (CrediAmigo do Banco do Nordeste, Caixa, Banco do Brasil, Sebrae) — as taxas são menores que as de crédito pessoal.']);
+  else out.push(['Conta digital + cartão pré-pago', 'Bancos digitais (por exemplo Nubank, Inter, C6 Bank, Mercado Pago, PicPay) abrem conta mesmo com restrição e oferecem cartão pré-pago ou limite inicial baixo; com uso regular e pagamento em dia, o limite pode crescer.']);
+  if (obj === 'cartao' || obj === 'emprestimo' || neg) out.push(['Cartão com garantia', 'Alguns bancos liberam cartão com limite garantido por um valor aplicado (CDB) — o dinheiro fica rendendo e o risco para o banco é menor. Verifique no seu banco se a oferta existe e as tarifas.']);
+  if (obj === 'imovel') out.push(['Financiamento imobiliário', 'Caixa Econômica Federal e Banco do Brasil concentram o crédito habitacional (FGTS e Minha Casa Minha Vida); Itaú, Bradesco e Santander também financiam. Exige nome limpo, renda comprovada e entrada; simule em mais de um banco e compare o CET.']);
+  if (obj === 'veiculo') out.push(['Financiamento de veículo', 'Bancos das próprias montadoras e grandes bancos costumam oferecer taxas melhores que financeiras. Negativado só consegue com garantia forte ou entrada alta; compare o CET, não só a parcela.']);
+  out.push(['Fortaleça seu histórico', 'Ative o Cadastro Positivo, mantenha contas e PIX na mesma instituição, pague tudo em dia e ative o compartilhamento Open Finance para os bancos verem seu histórico real. Consulte seu score e dívidas de graça (Serasa, SPC, Boa Vista) e o Registrato do Banco Central para ver empréstimos ativos.']);
+  out.push(['Compare taxas antes de contratar', 'O Banco Central publica as taxas médias por banco e modalidade (bcb.gov.br, "Taxas de juros"). Compare sempre o CET, que inclui tarifas e seguros.']);
+  out.push(['Cuidado com golpes', 'Nunca pague para "limpar o nome" nem para "liberar crédito" antes de receber; desconfie de empréstimo "sem consulta" com juros altíssimos e de agiotas. Negocie só nos canais oficiais (gov.br, Serasa Limpa Nome, app do banco credor).']);
+  return out;
+}
+function renderCredito(c) {
+  fxInit();
+  const C = FX.crd, renda = C.renda || c.totalIncome || state.monthlyIncome || 0;
+  const statusBtns = fxChip('crd', 'status', 'limpo', 'Nome limpo') + fxChip('crd', 'status', 'sujo', 'Estou negativado') + fxChip('crd', 'status', 'nsei', 'Não sei');
+  const rows = C.rows.map((r, i) => '<div class="card" style="padding:12px;margin-bottom:10px"><div class="occ-grid-3">'
+    + '<div class="form-group"><label class="form-label">Credor</label><input class="form-input" value="' + fxEsc(r.cred) + '" placeholder="Ex.: banco, loja" oninput="crdRow(' + i + ',\'cred\',this.value,false)"></div>'
+    + '<div class="form-group"><label class="form-label">Tipo</label><select class="form-input" onchange="crdRow(' + i + ',\'tipo\',this.value,false)">' + Object.keys(CRD_TIPOS).map(t => '<option value="' + t + '"' + (r.tipo === t ? ' selected' : '') + '>' + CRD_TIPOS[t] + '</option>').join('') + '</select></div>'
+    + '<div class="form-group"><label class="form-label">Valor atual (R$)</label><input class="form-input" inputmode="decimal" value="' + (r.val || '') + '" oninput="crdRow(' + i + ',\'val\',this.value,true)"></div>'
+    + '<div class="form-group"><label class="form-label">Meses desde o vencimento</label><input class="form-input" inputmode="numeric" value="' + (r.meses || '') + '" oninput="crdRow(' + i + ',\'meses\',this.value,true)"></div>'
+    + '</div><button class="btn-sm btn-danger" onclick="crdDel(' + i + ')">Remover</button></div>').join('');
+  const form = '<div class="card mb-24 animate-in"><div class="card-title">💳 Sua situação de crédito</div><div class="occ-b-desc" style="margin:8px 0 12px">Informe o que você tem em atraso. Os dados ficam salvos só neste navegador.</div>'
+    + '<div class="form-group"><label class="form-label">Como está seu nome?</label>' + statusBtns + '</div>'
+    + (C.status === 'sujo' ? '<div class="form-group"><label class="form-label">Dívidas negativadas</label>' + rows + '<button class="btn-add" onclick="crdAdd()">+ Adicionar dívida</button> <button class="btn-sm" onclick="crdImport()">Importar da aba Dívidas</button></div>' : '')
+    + '<div class="occ-grid-3">' + fxIn('crd', 'renda', 'Renda mensal (R$)', renda ? String(renda) : '0,00') + (C.status === 'sujo' ? fxIn('crd', 'disp', 'Quanto pode pagar por mês (R$)', '0,00') + fxIn('crd', 'desc', 'Desconto esperado na negociação (%)', '50') : '') + '</div>'
+    + '<div class="form-group"><label class="form-label">O que você quer conseguir?</label>' + Object.keys(CRD_OBJ).map(k => fxChip('crd', 'obj', k, CRD_OBJ[k])).join('') + '</div>'
+    + '<button class="btn-add" onclick="fxRun(\'crd\')">Gerar plano</button></div>';
+  const head = '<div class="section-header animate-in"><div><div class="section-title">Crédito & Nome Sujo</div><div class="section-desc">Entenda o tamanho da dívida, como limpar o nome e onde buscar crédito.</div></div>' + (C.run ? '<button class="btn-sm" onclick="fxReset(\'crd\')">Editar respostas</button>' : '') + '</div>';
+  if (!C.run) return head + form + FX_DISCLAIMER;
+  const R = {}; const neg = C.status === 'sujo';
+  let body = '';
+  if (neg && C.rows.length) {
+    const rs = C.rows.filter(r => r.val > 0), total = rs.reduce((t, r) => t + r.val, 0), maior = rs.reduce((m, r) => Math.max(m, r.val), 0);
+    const meses = renda > 0 ? total / renda : 0;
+    const nivel = renda <= 0 ? ['—', ''] : meses < 1 ? ['Leve', 'income'] : meses < 3 ? ['Moderada', ''] : meses < 6 ? ['Grave', 'expense'] : ['Crítica', 'expense'];
+    const dc = Math.min(Math.max(C.desc || 0, 0), 90) / 100;
+    const ord = rs.slice().sort((a, b) => (CRD_CARO.includes(b.tipo) - CRD_CARO.includes(a.tipo)) || a.val - b.val);
+    let cum = 0;
+    const linhas = ord.map((r, i) => { const neg2 = r.val * (1 - dc); cum += neg2; const mes = C.disp > 0 ? Math.ceil(cum / C.disp) : null; const antiga = r.meses >= 60; return '<tr><td style="padding:6px 4px">' + (i + 1) + '</td><td style="padding:6px 4px">' + fxEsc(r.cred || CRD_TIPOS[r.tipo]) + '<div style="font-size:11.5px;color:var(--ink-3)">' + CRD_TIPOS[r.tipo] + (antiga ? ' · ⚠ mais de 5 anos' : '') + '</div></td><td style="padding:6px 4px;text-align:right">' + simBRL(r.val) + '</td><td style="padding:6px 4px;text-align:right"><strong>' + simBRL(neg2) + '</strong></td><td style="padding:6px 4px;text-align:right">' + (mes ? 'mês ' + mes : '—') + '</td></tr>'; }).join('');
+    const totalNeg = total * (1 - dc);
+    const antigas = rs.filter(r => r.meses >= 60);
+    const desenrola = renda > 0 && renda <= SM2026 * 5;
+    body += '<div class="kpi-grid mb-24 animate-in"><div class="kpi"><div class="kpi-label">Total em atraso</div><div class="kpi-value">' + simBRL(total) + '</div></div><div class="kpi"><div class="kpi-label">Nº de dívidas</div><div class="kpi-value">' + rs.length + '</div></div><div class="kpi"><div class="kpi-label">Maior dívida</div><div class="kpi-value">' + simBRL(maior) + '</div></div><div class="kpi"><div class="kpi-label">Equivale a</div><div class="kpi-value">' + (renda > 0 ? meses.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '× a renda' : '—') + '</div></div><div class="kpi"><div class="kpi-label">Gravidade</div><div class="kpi-value ' + nivel[1] + '">' + nivel[0] + '</div></div></div>'
+      + '<div class="card mb-24 animate-in"><div class="card-title">🧹 Plano para limpar o nome</div><div class="occ-b-desc" style="margin:8px 0">Ordem sugerida: dívidas de juros mais altos (cartão, cheque especial, empréstimo) primeiro, e entre elas as menores, para ganhar fôlego. Valor negociado estimado com ' + Math.round(dc * 100) + '% de desconto; o desconto real depende do credor e do tempo de atraso.</div><div style="overflow-x:auto"><table class="data-table" style="width:100%"><thead><tr><th>#</th><th style="text-align:left">Dívida</th><th style="text-align:right">Valor atual</th><th style="text-align:right">Negociado (est.)</th><th style="text-align:right">Quitada em</th></tr></thead><tbody>' + linhas + '</tbody></table></div><div class="occ-b-desc" style="margin-top:10px">Total estimado a pagar: <strong>' + simBRL(totalNeg) + '</strong>' + (C.disp > 0 ? ' — com ' + simBRL(C.disp) + ' por mês, cerca de <strong>' + Math.ceil(totalNeg / C.disp) + ' meses</strong>.' : '. Informe quanto pode pagar por mês para ver o prazo.') + '</div></div>'
+      + '<div class="card mb-24 animate-in"><div class="card-title">📍 Onde negociar</div><ul style="margin:10px 0 0 18px;line-height:1.7">'
+      + '<li><strong>Desenrola Brasil (gov.br):</strong> ' + (desenrola ? 'sua renda parece dentro do teto de até 5 salários mínimos (≈ ' + simBRL(SM2026 * 5) + '), então você pode se enquadrar.' : 'o programa em 2026 atende quem ganha até 5 salários mínimos (≈ ' + simBRL(SM2026 * 5) + ') ou está no CadÚnico; confira se você se enquadra.') + ' Cobre cartão, cheque especial, crédito pessoal rotativo e parcelados em atraso, com descontos de até 90%, juros de até 1,99% ao mês e até 48 parcelas. Exige conta gov.br prata ou ouro.</li>'
+      + '<li><strong>Serasa Limpa Nome:</strong> ofertas de bancos, lojas e concessionárias de serviços, com pagamento via Pix ou parcelado.</li>'
+      + '<li><strong>App ou canal do próprio banco credor</strong> e feirões da Caixa para dívidas habitacionais.</li>'
+      + '<li><strong>Procon e consumidor.gov.br:</strong> se o credor se recusar a negociar ou cobrar valor abusivo.</li></ul>'
+      + '<div class="occ-b-desc" style="margin-top:10px">Regras, prazos e limites dos programas mudam; confirme sempre no site oficial. Guarde todos os comprovantes e a confirmação da baixa.</div></div>'
+      + (antigas.length ? '<div class="card mb-24 animate-in" style="border-left:3px solid var(--gold,#AD8A2A)"><div class="card-title">⏳ Dívidas com mais de 5 anos</div><div class="occ-b-desc" style="margin-top:8px">' + antigas.length + ' dívida(s) informada(s) com mais de 60 meses de atraso. O nome costuma sair dos cadastros de proteção ao crédito após 5 anos do vencimento (Súmula 323 do STJ), e a cobrança judicial também prescreve em 5 anos na maioria dos casos. Antes de pagar, confira no Serasa/SPC a data real do vencimento e, se tiver dúvida, procure o Procon ou a Defensoria Pública — um pagamento ou acordo pode reabrir a cobrança.</div></div>' : '');
+  } else if (neg) {
+    body += '<div class="card mb-24 animate-in"><div class="occ-b-desc">Adicione suas dívidas (ou importe da aba Dívidas) para calcular o tamanho do problema e o plano de pagamento. Para descobrir o que está em seu nome, consulte grátis o Serasa, o SPC e o Registrato do Banco Central.</div></div>';
+  } else {
+    body += '<div class="card mb-24 animate-in"><div class="card-title">✅ ' + (C.status === 'limpo' ? 'Nome limpo: ótimo ponto de partida' : 'Primeiro passo: descobrir sua situação') + '</div><div class="occ-b-desc" style="margin-top:8px">' + (C.status === 'limpo' ? 'Agora o foco é construir histórico e conseguir taxas melhores.' : 'Consulte grátis seu CPF no Serasa, SPC/Boa Vista e no Registrato (Banco Central) para ver restrições, score e empréstimos ativos.') + '</div></div>';
+  }
+  const bancos = crdBancos(R).map(b => '<div class="card" style="padding:14px;margin-bottom:10px"><strong>' + b[0] + '</strong><div class="occ-b-desc" style="margin-top:4px">' + b[1] + '</div></div>').join('');
+  body += '<div class="card mb-24 animate-in"><div class="card-title">🏦 Como conseguir crédito e onde olhar primeiro</div><div style="margin-top:12px">' + bancos + '</div></div>';
+  return head + body + FX_DISCLAIMER;
+}
+
 var PLUS_ONLY_TABS = {
+  investir: { label: 'Investimentos', desc: 'Perfil de investidor, ordem de prioridades e onde investir com base na Selic atual e na sua situação.', tier: 'basic' },
+  credito: { label: 'Crédito & Nome Sujo', desc: 'Tamanho da dívida, plano para limpar o nome, programas de renegociação e onde conseguir crédito.', tier: 'basic' },
   perfilrenda: { label: 'Perfil de Renda', desc: 'Reserva de emergência sob medida, renda para planejar e histórico de renda por vínculo de trabalho.', tier: 'basic' },
   simuladorclt: { label: 'Simulador CLT', desc: 'Simule férias, 13º salário e rescisão com INSS, IRRF e descontos previstos em lei, lendo seus holerites em PDF.', tier: 'plus' },
   caixapj: { label: 'Caixa & Reserva', desc: 'Reserva de caixa sob medida, faturamento versus custos e leitura da sazonalidade da empresa.', tier: 'basic' },
@@ -4573,6 +4776,8 @@ function renderCurrentTab() {
     obrigacoes: () => renderObrigacoes(c),
     caixapj: () => renderCaixaPJ(c),
     simuladorclt: () => renderSimuladorCLT(c),
+    investir: () => renderInvestir(c),
+    credito: () => renderCredito(c),
     regimepj: () => renderRegimePJ(c),
   };
   const _gTier = currentTab === 'regimepj' && (getCompanyType() === 'startup' || getCompanyType() === 'ong') ? 'basic' : (PLUS_ONLY_TABS[currentTab] && (PLUS_ONLY_TABS[currentTab].tier || 'plus'));

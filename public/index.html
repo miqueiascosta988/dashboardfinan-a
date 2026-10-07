@@ -1122,6 +1122,20 @@ svg text { font-family: var(--font-body); }
 .occ-bar.warn > span { background:var(--gold); } .occ-bar.danger > span { background:var(--expense); }
 .occ-grid-3 { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; }
 .occ-modal-grid { max-height:46vh; overflow:auto; }
+
+.btn-demo{width:100%;margin-top:10px;padding:11px 14px;border-radius:10px;border:1.5px dashed var(--border);background:transparent;color:var(--ink-2);font:600 13.5px inherit;font-family:inherit;cursor:pointer}
+.btn-demo:hover{border-color:var(--gold,#AD8A2A);color:var(--ink)}
+#demo-banner{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:9000;display:flex;gap:10px;align-items:center;flex-wrap:nowrap;white-space:nowrap;justify-content:center;max-width:calc(100vw - 24px);padding:8px 12px;border-radius:999px;background:#1d1a14;color:#f5efe2;box-shadow:0 8px 28px rgba(0,0,0,.35);font-size:12.5px}
+#demo-banner .demo-pill{background:#AD8A2A;color:#fff;font-weight:800;letter-spacing:.06em;font-size:10.5px;padding:3px 9px;border-radius:999px}
+#demo-banner select{max-width:190px;background:#2b2720;color:#f5efe2;border:1px solid #4a4435;border-radius:8px;padding:4px 6px;font-size:12px}
+#demo-banner button{background:transparent;color:#f5efe2;border:1px solid #6b6350;border-radius:8px;padding:4px 10px;font-size:12px;cursor:pointer}
+.demo-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:640px){.demo-grid{grid-template-columns:1fr}}
+.demo-card{display:flex;gap:10px;text-align:left;align-items:flex-start;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--surface,transparent);color:var(--ink);cursor:pointer;font-family:inherit}
+.demo-card:hover{border-color:var(--gold,#AD8A2A)}
+.demo-card-ic{font-size:24px}.demo-card b{display:block;font-size:14px}.demo-card em{display:block;font-style:normal;font-size:12px;color:var(--gold,#AD8A2A);font-weight:700;margin:1px 0 4px}.demo-card small{display:block;font-size:12px;color:var(--ink-2);line-height:1.4}
+body.demo-on{padding-bottom:56px}
+@media(max-width:900px){#demo-banner .demo-txt{display:none}}
 </style>
 </head>
 <body>
@@ -1183,6 +1197,7 @@ svg text { font-family: var(--font-body); }
         </div>
         <div style="text-align:right"><button type="button" class="auth-forgot" onclick="showForgotForm()">Esqueci a senha</button></div>
         <button class="btn-primary" id="btn-login">Entrar</button>
+        <button type="button" class="btn-demo" id="btn-demo" onclick="demoOpenPicker()">👀 Ver demonstração com dados fictícios</button>
       </div>
       <div id="auth-form-forgot" hidden>
         <div class="auth-note"><strong>Recuperar senha</strong><br>Informe o e-mail da sua conta. Enviaremos um link para você criar uma nova senha.</div>
@@ -2033,6 +2048,7 @@ function updateNotifBadge() {
 var NOTIF_MAX_TOASTS_AT_ONCE = 3;
 
 function checkForNewNotifToasts(notifs) {
+  if (typeof DEMO !== 'undefined' && DEMO.on) return;
   const toasted = notifStorageGet(NOTIF_TOASTED_KEY);
   const activeIds = {};
   const severity = { danger: 0, warning: 1, success: 2, info: 3 };
@@ -3180,7 +3196,10 @@ document.getElementById('btn-signup').addEventListener('click', async () => {
 });
 
 document.getElementById('btn-logout').addEventListener('click', async () => {
+  if (typeof DEMO !== 'undefined' && DEMO.on) { demoExit(); return; }
+  if (sb && currentUser && PREFS.timer) { clearTimeout(PREFS.timer); PREFS.timer = null; await prefsFlush(); }
   if (sb) await sb.auth.signOut();
+  PREFS.data = {}; FX.inv = { has: '', tipos: [], total: 0, aporte: 0, obj: '', prazo: '', reacao: '', run: false }; FX.crd = { status: '', rows: [], renda: 0, obj: '', disp: 0, desc: 50, run: false }; FX.dpl = { extra: 0, lump: 0, fin: { valor: 0, entrada: 0, aTaxa: 1.2, aPrazo: 48, bTaxa: 2.5, bPrazo: 48 }, troca: { debt: '', saldo: 0, parcela: 0, restam: 0, taxa: 0, prazo: 0, custo: 0 } }; FX.loaded = false;
   currentUser = null; profile = null;
   state = { profile_type: 'PF', currency: 'BRL', name: '', monthlyIncome: 5000, transactions: [], goals: [], debts: [], assets: [], liabilities: [], subscriptions: [], budgets: {}, documents: [], pj_faturamento_anual: 0, pj_regime: 'MEI' };
   document.getElementById('app-screen').hidden = true; document.getElementById('auth-screen').hidden = false;
@@ -3403,6 +3422,7 @@ async function loadAllData() {
   state.subscriptions = (subs.data || []).map(r => ({ id: r.id, name: r.name, cat: r.category, price: parseFloat(r.price), color: r.color, profile: r.profile || 'ambos' }));
   state.documents = (docs.data || []).map(r => ({ id: r.id, name: r.name, type: r.type, category: r.category, amount: parseFloat(r.amount), date: r.date, status: r.status, fileSize: r.file_size, mimeType: r.mime_type, extractedData: r.extracted_data || {} }));
   await loadRequests();
+  await prefsLoad();
   // Load budgets as object { category: amount }
   state.budgets = {};
   (budgets.data || []).forEach(r => { state.budgets[r.category] = parseFloat(r.amount); });
@@ -4460,14 +4480,50 @@ function mktLoad() {
       }).catch(() => {});
   } catch (e) {}
 }
+// ─── PREFERÊNCIAS NA NUVEM (user_prefs) ───
+// Dados que antes ficavam só no navegador (Investimentos, Crédito, Resolver, checklist da Reforma, extratos importados)
+// agora são espelhados na conta. localStorage segue como cache/fallback offline.
+var PREFS = { data: {}, timer: null, ok: true };
+function prefsPush(name, value) {
+  PREFS.data[name] = value;
+  if (!(sb && currentUser) || !PREFS.ok) return;
+  clearTimeout(PREFS.timer);
+  PREFS.timer = setTimeout(prefsFlush, 700);
+}
+async function prefsFlush() {
+  if (!(sb && currentUser)) return;
+  try {
+    const r = await sb.from('user_prefs').upsert({ user_id: currentUser.id, data: PREFS.data, updated_at: new Date().toISOString() });
+    if (r && r.error) { console.warn('preferências não salvas na nuvem (rode a migração 011):', r.error.message); PREFS.ok = false; }
+  } catch (e) { console.warn(e); }
+}
+async function prefsLoad() {
+  PREFS.data = {}; PREFS.ok = true; clearTimeout(PREFS.timer);
+  if (!(sb && currentUser)) return;
+  let cloud = {};
+  try {
+    const r = await sb.from('user_prefs').select('data').eq('user_id', currentUser.id).maybeSingle();
+    if (r && r.error) { console.warn('user_prefs indisponível (rode a migração 011):', r.error.message); PREFS.ok = false; return; }
+    cloud = (r && r.data && r.data.data) || {};
+  } catch (e) { console.warn(e); return; }
+  const keyOf = { inv: fxKey('inv'), crd: fxKey('crd'), dpl: fxKey('dpl'), reforma: fxKey('reforma'), of: ofKey() };
+  let needPush = false;
+  Object.keys(keyOf).forEach(n => {
+    if (cloud[n] != null) { try { localStorage.setItem(keyOf[n], JSON.stringify(cloud[n])); } catch (e) {} PREFS.data[n] = cloud[n]; }
+    else { let l = null; try { l = JSON.parse(localStorage.getItem(keyOf[n]) || 'null'); } catch (e) {}
+      if (l != null && !(Array.isArray(l) && !l.length)) { PREFS.data[n] = l; needPush = true; } }
+  });
+  FX.loaded = false; fxInit();
+  if (needPush) prefsFlush();
+}
 const FX = { inv: { has: '', tipos: [], total: 0, aporte: 0, obj: '', prazo: '', reacao: '', run: false },
              crd: { status: '', rows: [], renda: 0, obj: '', disp: 0, desc: 50, run: false }, loaded: false };
-const fxKey = n => 'financa-' + n + '-' + ((currentUser && currentUser.id) || 'anon');
+const fxKey = n => 'financa-' + n + '-' + ((currentUser && currentUser.id) || (typeof DEMO !== 'undefined' && DEMO.on ? 'demo-' + DEMO.id : 'anon'));
 function fxInit() {
   if (FX.loaded) return; FX.loaded = true;
   ['inv', 'crd', 'dpl'].forEach(n => { try { const s = JSON.parse(localStorage.getItem(fxKey(n)) || 'null'); if (s) Object.assign(FX[n], s); } catch (e) {} });
 }
-function fxSave(n) { try { localStorage.setItem(fxKey(n), JSON.stringify(FX[n])); } catch (e) {} }
+function fxSave(n) { try { localStorage.setItem(fxKey(n), JSON.stringify(FX[n])); } catch (e) {} prefsPush(n, FX[n]); }
 const fxEsc = s => String(s == null ? '' : s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 const fxPct = v => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
 function fxSet(n, k, v, isNum, rerender) { FX[n][k] = isNum ? simNum(v) : v; fxSave(n); if (rerender) renderCurrentTab(); }
@@ -4684,7 +4740,7 @@ const REF_POR_ATIV = {
 };
 const REF_CHECK = ['Marcar conversa com o contador sobre o impacto no meu regime', 'Confirmar que meu emissor de notas está atualizado com os campos de IBS/CBS', 'Mapear meus fornecedores e quais geram crédito', 'Revisar preços e contratos de longo prazo (cláusula de reequilíbrio)', 'Planejar o caixa para o split payment (imposto retido no pagamento)', 'Se for do Simples: avaliar a opção pelo regime regular de IBS/CBS', 'Treinar quem emite notas e faz o financeiro'];
 function refChecked() { try { return JSON.parse(localStorage.getItem(fxKey('reforma')) || '[]'); } catch (e) { return []; } }
-function refToggle(i) { var a = refChecked(), p = a.indexOf(i); if (p >= 0) a.splice(p, 1); else a.push(i); try { localStorage.setItem(fxKey('reforma'), JSON.stringify(a)); } catch (e) {} renderCurrentTab(); }
+function refToggle(i) { var a = refChecked(), p = a.indexOf(i); if (p >= 0) a.splice(p, 1); else a.push(i); try { localStorage.setItem(fxKey('reforma'), JSON.stringify(a)); } catch (e) {} prefsPush('reforma', a); renderCurrentTab(); }
 function reformaLink(c) {
   return '<div class="card mb-24 animate-in" style="margin-top:20px;border-left:3px solid var(--gold,#AD8A2A)"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div><div class="card-title">🔗 Reforma Tributária</div><div class="occ-b-desc" style="margin-top:4px">Veja o que muda para sua empresa em ICMS, ISS, IPI, PIS/Cofins, CBS e IBS entre 2026 e 2033.</div></div><button class="btn-add" onclick="switchTab(\'reforma\')">Ver o que muda</button></div></div>';
 }
@@ -5166,7 +5222,7 @@ function renderDashboard(c) {
 // ─── TRANSACTIONS LIST ──────────────────────────
 function renderTransactionList(type, c) {
   const isPJ = state.profile_type === 'PJ';
-  let items = visibleList('transactions').filter(t => t.type === type);
+  let items = filterByPeriod(visibleList('transactions').filter(t => t.type === type), 'date');
   if (searchQuery) { items = items.filter(t => t.desc.toLowerCase().includes(searchQuery) || t.cat.toLowerCase().includes(searchQuery)); }
   const total = items.reduce((s, t) => s + t.amount, 0);
   const recur = items.filter(t => t.recur).reduce((s, t) => s + t.amount, 0);
@@ -5377,7 +5433,7 @@ function renderFiscal_core(c) {
   <div class="budget-track" style="height:12px;margin-bottom:8px"><div class="budget-fill ${pctLimite>100?'over':''}" style="width:${Math.min(100,pctLimite)}%;background:${meiOk?'var(--teal)':'var(--expense)'}"></div></div>
   <div style="display:flex;justify-content:space-between;font-size:12px"><span style="color:var(--ink-3)">${pctLimite.toFixed(0)}% utilizado</span><span class="fiscal-tag ${meiOk?'ok':'due'}">${meiOk?'Dentro do limite':'Excedeu o limite!'}</span></div></div>` : ''}
   <div class="card animate-in stagger-6"><div class="card-title" style="margin-bottom:12px">Obrigações do mês</div>
-  <div class="fiscal-row"><div class="fiscal-label">📄 DAS ${MONTHS[currentMonth()]}</div><div><span class="fiscal-value" style="margin-right:8px">${regime==='MEI'?fmtD(dasMei):fmt(irrpj)}</span><span class="fiscal-tag warn">Vence dia 20</span></div></div>
+  <div class="fiscal-row"><div class="fiscal-label">📄 ${regime==='Lucro Presumido'?'Guias federais':'DAS'} ${MONTHS[currentMonth()]}</div><div><span class="fiscal-value" style="margin-right:8px">${regime==='MEI'?fmtD(dasMei):fmt(irrpj)}</span><span class="fiscal-tag warn">Vence dia 20</span></div></div>
   <div class="fiscal-row"><div class="fiscal-label">📊 Declaração anual (DASN)</div><div><span class="fiscal-tag ok">Em dia</span></div></div>
   <div class="fiscal-row"><div class="fiscal-label">📑 Nota fiscal eletrônica</div><div><span class="fiscal-value">${c.incomes.length} emitidas</span></div></div></div>`;
 }
@@ -6285,8 +6341,9 @@ function generateInsights(c, isPJ) {
 
 // Extratos já importados ficam listados localmente (nome dado pelo usuário,
 // formato, data do último import e quantidade de transações trazidas).
-function ofGetAccounts() { try { return JSON.parse(localStorage.getItem('financa-of-accounts') || '[]'); } catch(e) { return []; } }
-function ofSaveAccounts(list) { try { localStorage.setItem('financa-of-accounts', JSON.stringify(list)); } catch(e) {} }
+const ofKey = () => 'financa-of-accounts-' + ((currentUser && currentUser.id) || (typeof DEMO !== 'undefined' && DEMO.on ? 'demo-' + DEMO.id : 'anon'));
+function ofGetAccounts() { try { return JSON.parse(localStorage.getItem(ofKey()) || '[]'); } catch(e) { return []; } }
+function ofSaveAccounts(list) { try { localStorage.setItem(ofKey(), JSON.stringify(list)); } catch(e) {} prefsPush('of', list); }
 
 let pendingStatementImport = null;
 
@@ -7123,6 +7180,186 @@ async function showApp() {
 }
 
 // ═══════════════════════════════════════════════════════
+// MODO DEMONSTRAÇÃO — perfis fictícios (somente no navegador; nada é gravado no banco)
+// Acesso: botão "Ver demonstração" na tela de login ou ?demo=clt|autonomo|mei|simples|presumido|negativado
+// ═══════════════════════════════════════════════════════
+var DEMO = { on: false, id: null };
+var DEMO_PERSONAS = {
+  clt:        { icon: '💼', pf: true,  name: 'Ana Beatriz', tag: 'CLT · renda fixa', desc: 'Salário fixo, reserva de emergência em construção e meta de viagem. Mostra o painel pessoal "ideal".' },
+  autonomo:   { icon: '🎨', pf: true,  name: 'Carlos Eduardo', tag: 'Autônomo · renda variável', desc: 'Renda que oscila mês a mês. Mostra reserva por variabilidade, provisão de impostos e metas.' },
+  negativado: { icon: '🆘', pf: true,  name: 'Marcos Vinícius', tag: 'Endividado', desc: 'Várias dívidas com juros altos. Mostra o Plano de Quitação, o Resolver Dívidas e os alertas.' },
+  mei:        { icon: '🧾', pf: false, name: 'Studio Luz Design', tag: 'MEI', desc: 'Microempreendedor com limite anual de R$ 81 mil e DAS mensal. Mostra o painel MEI & DAS.' },
+  simples:    { icon: '📘', pf: false, name: 'Tecnova Soluções em TI', tag: 'ME · Simples Nacional', desc: 'Prestadora de serviços com notas fiscais (XML), Fator R e pedido de documentos da equipe.' },
+  presumido:  { icon: '📙', pf: false, name: 'Distribuidora Horizonte', tag: 'Lucro Presumido', desc: 'Comércio com faturamento alto, folha, fornecedores e guias federais.' }
+};
+function demoRand(seed) { var s = seed >>> 0; return function() { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
+function demoISO(monthsAgo, day) {
+  var n = new Date(), d = new Date(n.getFullYear(), n.getMonth() - monthsAgo, 1);
+  var last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  d.setDate(Math.min(day, last));
+  if (monthsAgo === 0 && d > n) d = new Date(n.getFullYear(), n.getMonth(), Math.max(1, n.getDate()));
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function demoBuild(id) {
+  var P = DEMO_PERSONAS[id], R = demoRand(id.split('').reduce(function(a, c) { return a * 31 + c.charCodeAt(0); }, 7));
+  var tx = [], seq = 0;
+  function add(mo, day, desc, cat, amount, type, recur) {
+    tx.push({ id: 'demo-' + id + '-t' + (++seq), date: demoISO(mo, day), desc: desc, cat: cat, amount: Math.round(amount * 100) / 100, type: type, recur: !!recur, profile: P.pf ? 'PF' : 'PJ' });
+  }
+  function jit(base, pct) { return base * (1 + (R() * 2 - 1) * pct); }
+  var st = { profile_type: P.pf ? 'PF' : 'PJ', name: P.name, currency: 'BRL', goals: [], debts: [], assets: [], liabilities: [], subscriptions: [], budgets: {}, documents: [], requests: [] };
+  var prof = { plan: 'business', onboarding_done: true, name: P.name };
+  function G(icon, name, target, current, monthly) { st.goals.push({ id: 'demo-' + id + '-g' + st.goals.length, icon: icon, name: name, target: target, current: current, monthly: monthly, profile: st.profile_type }); }
+  function D(name, type, saldo, juros, parcelas, mensal) { st.debts.push({ id: 'demo-' + id + '-d' + st.debts.length, name: name, type: type, saldo: saldo, juros: juros, parcelas: parcelas, mensal: mensal, profile: st.profile_type }); st.liabilities.push({ id: 'demo-' + id + '-l' + st.liabilities.length, name: name, value: saldo, profile: st.profile_type }); }
+  function A(name, value) { st.assets.push({ id: 'demo-' + id + '-a' + st.assets.length, name: name, value: value, profile: st.profile_type }); }
+  function S(name, cat, price, color) { st.subscriptions.push({ id: 'demo-' + id + '-s' + st.subscriptions.length, name: name, cat: cat, price: price, color: color, profile: st.profile_type }); }
+  var m;
+  if (P.pf) { st.doc_type = 'cpf'; st.doc_number = '52998224725'; }
+  if (id === 'clt') {
+    st.monthlyIncome = 6500; st.occupation = 'clt'; st.income_stability = 'fixa';
+    for (m = 11; m >= 0; m--) {
+      add(m, 5, 'Salário', 'Trabalho', 6500, 'income', true);
+      if (m % 4 === 1) add(m, 20, 'Freela de design', 'Extra', jit(600, .3), 'income');
+      add(m, 10, 'Aluguel', 'Moradia', 1800, 'expense', true); add(m, 12, 'Condomínio + luz', 'Moradia', jit(420, .12), 'expense', true);
+      add(m, 8, 'Supermercado', 'Alimentação', jit(980, .12), 'expense'); add(m, 18, 'Restaurantes e delivery', 'Alimentação', jit(430, .3), 'expense');
+      add(m, 6, 'Combustível e app', 'Transporte', jit(380, .2), 'expense'); add(m, 14, 'Plano de saúde', 'Saúde', 420, 'expense', true);
+      add(m, 22, 'Cinema e passeios', 'Lazer', jit(260, .4), 'expense'); add(m, 15, 'Curso de inglês', 'Educação', 290, 'expense', true);
+      if (m % 3 === 0) add(m, 25, 'Roupas', 'Vestuário', jit(350, .3), 'expense');
+    }
+    G('🛟', 'Reserva de emergência', 39000, 18500, 1200); G('✈️', 'Viagem para Portugal', 18000, 6200, 600); G('🚗', 'Entrada do carro', 25000, 4000, 500);
+    D('Financiamento do notebook', 'Financiamento', 2400, 1.9, 8, 320); A('Conta corrente', 3200); A('Reserva (CDB)', 18500); A('Tesouro Selic', 6200);
+    S('Netflix', 'Streaming', 44.9, '#E50914'); S('Spotify', 'Streaming', 23.9, '#1DB954'); S('Academia', 'Saúde', 119.9, '#6C5CE7');
+    st.budgets = { 'Alimentação': 1400, 'Lazer': 350, 'Transporte': 450 };
+  } else if (id === 'autonomo') {
+    st.monthlyIncome = 5200; st.occupation = 'autonomo'; st.income_stability = 'variavel';
+    var inc = [3100, 6800, 4200, 7900, 2800, 5600, 8400, 3900, 6100, 4700, 7200, 5300];
+    for (m = 11; m >= 0; m--) {
+      add(m, 7, 'Projeto — cliente A', 'Trabalho', inc[11 - m] * 0.6, 'income'); add(m, 19, 'Projeto — cliente B', 'Trabalho', inc[11 - m] * 0.4, 'income');
+      add(m, 5, 'Aluguel', 'Moradia', 1500, 'expense', true); add(m, 11, 'Internet e celular', 'Moradia', 230, 'expense', true);
+      add(m, 9, 'Mercado', 'Alimentação', jit(820, .15), 'expense'); add(m, 16, 'Combustível', 'Transporte', jit(320, .25), 'expense');
+      add(m, 13, 'Plano de saúde', 'Saúde', 380, 'expense', true); add(m, 21, 'Lazer', 'Lazer', jit(300, .5), 'expense');
+      add(m, 10, 'INSS / carnê-leão', 'Outros', 290, 'expense', true);
+    }
+    G('🛟', 'Reserva de 8 meses', 36000, 9800, 900); G('💻', 'Novo computador', 9000, 3400, 500);
+    D('Cartão — parcelado', 'Cartão', 3100, 4.2, 10, 360); A('Conta', 2100); A('Reserva (CDB)', 9800);
+    S('Adobe', 'Software', 135, '#FA0F00'); S('Spotify', 'Streaming', 23.9, '#1DB954');
+    st.budgets = { 'Alimentação': 1000, 'Lazer': 350 };
+  } else if (id === 'negativado') {
+    st.monthlyIncome = 3200; st.occupation = 'clt'; st.income_stability = 'fixa';
+    for (m = 11; m >= 0; m--) {
+      add(m, 5, 'Salário', 'Trabalho', 3200, 'income', true); if (m % 3 === 0) add(m, 18, 'Bico de fim de semana', 'Extra', jit(350, .3), 'income');
+      add(m, 8, 'Aluguel', 'Moradia', 1100, 'expense', true); add(m, 11, 'Luz e água', 'Moradia', jit(230, .15), 'expense', true);
+      add(m, 7, 'Mercado', 'Alimentação', jit(720, .12), 'expense'); add(m, 15, 'Transporte', 'Transporte', jit(260, .1), 'expense');
+      add(m, 20, 'Parcelas e juros do cartão', 'Outros', jit(520, .1), 'expense', true); add(m, 24, 'Empréstimo pessoal', 'Outros', 410, 'expense', true);
+      add(m, 26, 'Lazer', 'Lazer', jit(150, .5), 'expense');
+    }
+    G('🛟', 'Primeira reserva', 3000, 150, 100);
+    D('Cartão de crédito (rotativo)', 'Cartão', 3200, 12.5, 0, 520); D('Cheque especial', 'Cheque especial', 900, 8.2, 0, 150);
+    D('Empréstimo pessoal', 'Empréstimo', 8200, 5.6, 24, 410); D('Loja de móveis', 'Crediário', 2600, 3.9, 12, 260);
+    A('Conta', 180); S('Streaming', 'Streaming', 39.9, '#E50914');
+    st.budgets = { 'Alimentação': 700, 'Lazer': 100 };
+  } else {
+    // ── Empresas ──
+    var cfg = {
+      mei:       { ct: 'mei', act: 'servicos', bill: 'projeto', doc: '12.345.678/0001-95', razao: 'LUZ DESIGN E COMUNICACAO VISUAL LTDA ME', fant: 'Studio Luz Design', cnae: 7410202, cnaed: 'Design de produto / comunicação visual', porte: 'MICRO EMPRESA', simples: true, mei: true, nat: 'Empresário Individual', rev: 5600, revVar: .25 },
+      simples:   { ct: 'simples', act: 'servicos', bill: 'recorrente', doc: '23.456.789/0001-05', razao: 'TECNOVA SOLUCOES EM TECNOLOGIA LTDA', fant: 'Tecnova', cnae: 6201501, cnaed: 'Desenvolvimento de programas de computador sob encomenda', porte: 'MICRO EMPRESA', simples: true, mei: false, nat: 'Sociedade Empresária Limitada', rev: 48000, revVar: .15 },
+      presumido: { ct: 'presumido', act: 'comercio', bill: 'recorrente', doc: '34.567.890/0001-15', razao: 'DISTRIBUIDORA HORIZONTE DE ALIMENTOS LTDA', fant: 'Horizonte Distribuidora', cnae: 4639701, cnaed: 'Comércio atacadista de produtos alimentícios em geral', porte: 'DEMAIS', simples: false, mei: false, nat: 'Sociedade Empresária Limitada', rev: 185000, revVar: .12 }
+    }[id];
+    st.company_type = cfg.ct; st.pj_activity = cfg.act; st.pj_billing = cfg.bill; st.doc_type = 'cnpj'; st.doc_number = cfg.doc.replace(/\D/g, '');
+    st.cnpj_data = { razao_social: cfg.razao, nome_fantasia: cfg.fant, cnae: cfg.cnae, cnae_desc: cfg.cnaed, porte: cfg.porte, situacao: 'ATIVA', simples: cfg.simples, mei: cfg.mei, natureza: cfg.nat, uf: 'SP', municipio: 'SAO PAULO', abertura: '2021-03-15' };
+    st.monthlyIncome = cfg.rev; st.pj_regime = ({ mei: 'MEI', simples: 'Simples', presumido: 'Lucro Presumido' })[id];
+    for (m = 11; m >= 0; m--) {
+      var rev = jit(cfg.rev, cfg.revVar);
+      if (id === 'mei') {
+        add(m, 6, 'Projeto de identidade visual', 'Serviços prestados', rev * .6, 'income'); add(m, 20, 'Social media — mensalidade', 'Serviços prestados', rev * .4, 'income', true);
+        add(m, 20, 'DAS MEI', 'Impostos', 75.9, 'expense', true); add(m, 5, 'Software (Adobe, Figma)', 'Serviços', 260, 'expense', true); add(m, 12, 'Anúncios', 'Marketing', jit(300, .3), 'expense');
+        add(m, 15, 'Coworking', 'Aluguel/Sede', 450, 'expense', true); if (m % 4 === 0) add(m, 22, 'Equipamento', 'Equipamentos', jit(700, .4), 'expense');
+        add(m, 28, 'Pró-labore (retirada)', 'Outros', 2600, 'expense', true);
+      } else if (id === 'simples') {
+        add(m, 5, 'Contrato mensal — Cliente Alfa', 'Serviços prestados', 22000, 'income', true); add(m, 10, 'Contrato mensal — Cliente Beta', 'Serviços prestados', 12000, 'income', true);
+        add(m, 20, 'Projetos avulsos', 'Consultoria', Math.max(2000, rev - 34000), 'income');
+        add(m, 20, 'DAS Simples Nacional', 'Impostos', rev * 0.115, 'expense', true); add(m, 5, 'Folha de pagamento', 'Folha de pagamento', 11500, 'expense', true);
+        add(m, 28, 'Pró-labore sócios', 'Folha de pagamento', 7000, 'expense', true); add(m, 1, 'Aluguel do escritório', 'Aluguel/Sede', 3200, 'expense', true);
+        add(m, 12, 'Google Ads', 'Marketing', jit(2500, .25), 'expense'); add(m, 15, 'Cloud e licenças', 'Serviços', jit(2300, .1), 'expense', true);
+        add(m, 8, 'Freelancers', 'Subcontratados', jit(2400, .3), 'expense'); add(m, 25, 'Contabilidade', 'Serviços', 650, 'expense', true);
+        if (m % 5 === 0) add(m, 18, 'Notebooks', 'Equipamentos', jit(6000, .2), 'expense');
+      } else {
+        add(m, 4, 'Vendas — atacado', 'Vendas', rev * .7, 'income'); add(m, 16, 'Vendas — varejo parceiro', 'Vendas', rev * .3, 'income');
+        add(m, 3, 'Mercadorias — fornecedores', 'Estoque / Mercadorias', rev * .52, 'expense'); add(m, 10, 'Frete e logística', 'Frete', rev * .06, 'expense');
+        add(m, 5, 'Folha de pagamento', 'Folha de pagamento', 21000, 'expense', true); add(m, 1, 'Aluguel do galpão', 'Aluguel/Sede', 9500, 'expense', true);
+        add(m, 20, 'Impostos federais (guias)', 'Impostos', rev * .075, 'expense', true); add(m, 15, 'ICMS', 'Impostos', rev * .05, 'expense', true);
+        add(m, 14, 'Marketing', 'Marketing', jit(2200, .3), 'expense'); add(m, 22, 'Contabilidade', 'Serviços', 1400, 'expense', true);
+        add(m, 28, 'Pró-labore sócios', 'Folha de pagamento', 12000, 'expense', true);
+      }
+    }
+    if (id === 'mei') { G('🛟', 'Reserva da empresa', 16800, 6200, 600); G('💻', 'Computador novo', 8000, 2500, 400); A('Conta PJ', 7400); A('Equipamentos', 9500); S('Adobe Creative Cloud', 'Software', 249, '#FA0F00'); S('Figma', 'Software', 75, '#A259FF'); st.budgets = { 'Marketing': 400, 'Serviços': 300 }; }
+    if (id === 'simples') {
+      G('🏢', 'Reserva de 4 meses', 220000, 98000, 6000); G('📈', 'Contratar 2 devs', 60000, 21000, 3000); D('Capital de giro', 'Empréstimo', 38000, 2.1, 24, 1950); A('Conta PJ', 74000); A('Aplicações', 98000); A('Equipamentos', 52000);
+      S('HubSpot CRM', 'Software', 199, '#FF7A59'); S('Slack', 'Software', 89, '#4A154B'); st.budgets = { 'Marketing': 3000, 'Serviços': 4000 };
+      var notes = [['emitida', 1, 5, 'ALFA INDUSTRIA S.A.', 22000], ['emitida', 2, 10, 'BETA COMERCIO LTDA', 12000], ['emitida', 3, 20, 'GAMA LOGISTICA', 9400], ['recebida', 4, 12, 'GOOGLE BRASIL', 2500]];
+      notes.forEach(function(nt, i) {
+        var iso = demoISO(1, nt[2]), emit = nt[0] === 'emitida' ? { doc: cfg.doc.replace(/\D/g, ''), nome: cfg.razao } : { doc: '06990590000123', nome: nt[3] }, dest = nt[0] === 'emitida' ? { doc: '11222333000181', nome: nt[3] } : { doc: cfg.doc.replace(/\D/g, ''), nome: cfg.razao };
+        st.documents.push({ id: 'demo-simples-doc' + i, name: 'NFS-e nº ' + (100 + nt[1]) + ' · ' + nt[3], type: nt[0] === 'recebida' ? 'expense' : 'income', category: 'nf', amount: nt[4], date: iso.slice(8, 10) + '/' + iso.slice(5, 7), status: 'processado', fileSize: 4200, mimeType: 'application/xml', extractedData: { fonte: 'xml', kind: 'nfse', dir: nt[0], chave: '', numero: String(100 + nt[1]), serie: '', emissao: iso, natOp: 'Prestação de serviço', fin: 'normal', valor: nt[4], emit: emit, dest: dest, status: 'autorizada' } });
+      });
+      st.documents.push({ id: 'demo-simples-doc9', name: 'Contrato — Cliente Alfa.pdf', type: 'expense', category: 'contrato', amount: 0, date: demoISO(2, 3).slice(8, 10) + '/' + demoISO(2, 3).slice(5, 7), status: 'processado', fileSize: 180000, mimeType: 'application/pdf', extractedData: {} });
+      st.requests = [{ id: 'demo-req-1', status: 'aberto', title: 'Extrato bancário PJ dos últimos 3 meses', detail: 'Precisamos do extrato (OFX ou CSV) da conta PJ para conciliar com as notas emitidas.', period: 'Últimos 3 meses', created_at: new Date(Date.now() - 2 * 86400000).toISOString(), answered_at: null },
+        { id: 'demo-req-2', status: 'aberto', title: 'XML das notas de serviço emitidas', detail: 'Envie os XMLs das NFS-e do último mês.', period: 'Mês anterior', created_at: new Date(Date.now() - 86400000).toISOString(), answered_at: null }];
+    }
+    if (id === 'presumido') {
+      G('🏭', 'Novo galpão', 600000, 140000, 12000); G('🛟', 'Reserva de 5 meses', 480000, 210000, 15000); D('Financiamento de empilhadeiras', 'Financiamento', 92000, 1.6, 30, 3600); D('Capital de giro', 'Empréstimo', 70000, 2.3, 18, 4800);
+      A('Conta PJ', 120000); A('Aplicações', 210000); A('Estoque', 310000); A('Veículos e máquinas', 260000); S('ERP', 'Software', 690, '#2D9CDB'); st.budgets = { 'Marketing': 2500, 'Frete': 12000 };
+    }
+  }
+  st.requests = st.requests || [];
+  st.transactions = tx;
+  return { st: st, prof: prof };
+}
+function demoSeedFX(id) {
+  FX.loaded = true;
+  if (id === 'clt') { Object.assign(FX.inv, { has: 'sim', tipos: ['CDB', 'Tesouro'], total: 24700, aporte: 1200, obj: 'Aposentadoria', prazo: 'longo', reacao: 'espera' }); }
+  if (id === 'autonomo') { Object.assign(FX.inv, { has: 'sim', tipos: ['CDB'], total: 9800, aporte: 500, obj: 'Reserva', prazo: 'curto', reacao: 'resgata' }); }
+  if (id === 'negativado') { Object.assign(FX.crd, { status: 'negativado', renda: 3200, obj: 'Limpar o nome', disp: 300, desc: 50, rows: [] }); }
+}
+function startDemo(id) {
+  var P = DEMO_PERSONAS[id]; if (!P) return;
+  var b = demoBuild(id);
+  DEMO.on = true; DEMO.id = id; sb = null; currentUser = null; profile = b.prof; PREFS.ok = false;
+  PREFS.data = {};
+  Object.keys(b.st).forEach(function(k) { state[k] = b.st[k]; });
+  ['company_type', 'pj_activity', 'pj_billing', 'doc_type', 'doc_number', 'cnpj_data', 'occupation', 'income_stability'].forEach(function(k) { if (!(k in b.st)) state[k] = null; });
+  if (P.pf) { state.pj_regime = 'MEI'; }
+  FX.inv = { has: '', tipos: [], total: 0, aporte: 0, obj: '', prazo: '', reacao: '', run: false }; FX.crd = { status: '', rows: [], renda: 0, obj: '', disp: 0, desc: 50, run: false };
+  FX.dpl = { extra: 0, lump: 0, fin: { valor: 0, entrada: 0, aTaxa: 1.2, aPrazo: 48, bTaxa: 2.5, bPrazo: 48 }, troca: { debt: '', saldo: 0, parcela: 0, restam: 0, taxa: 0, prazo: 0, custo: 0 } };
+  demoSeedFX(id);
+  try { selectedPeriod.mode = 'month'; selectedPeriod.month = new Date().getMonth(); selectedPeriod.year = new Date().getFullYear(); } catch (e) {}
+  try { localStorage.setItem('financa-welcome-done', '1'); localStorage.setItem('financa-tour-done', '1'); } catch (e) {}
+  currentTab = 'dashboard';
+  document.body.classList.toggle('pj-mode', state.profile_type === 'PJ');
+  demoBanner();
+  try { showApp(); } catch (e) { console.warn(e); }
+}
+function demoBanner() {
+  var el = document.getElementById('demo-banner');
+  if (!el) { el = document.createElement('div'); el.id = 'demo-banner'; document.body.appendChild(el); }
+  var P = DEMO_PERSONAS[DEMO.id];
+  var opts = Object.keys(DEMO_PERSONAS).map(function(k) { return '<option value="' + k + '"' + (k === DEMO.id ? ' selected' : '') + '>' + DEMO_PERSONAS[k].icon + ' ' + DEMO_PERSONAS[k].name + ' — ' + DEMO_PERSONAS[k].tag + '</option>'; }).join('');
+  el.innerHTML = '<span class="demo-pill">MODO DEMONSTRAÇÃO</span><span class="demo-txt">Dados fictícios · nada é salvo</span><select id="demo-switch" aria-label="Trocar perfil" onchange="demoSwitch(this.value)">' + opts + '</select><button type="button" onclick="demoExit()">Sair da demonstração</button>';
+  document.body.classList.add('demo-on');
+}
+function demoSwitch(id) { try { history.replaceState(null, '', location.pathname + '?demo=' + id); } catch (e) {} location.reload(); }
+function demoExit() { location.href = location.pathname; }
+function demoOpenPicker() {
+  var cards = Object.keys(DEMO_PERSONAS).map(function(k) { var p = DEMO_PERSONAS[k]; return '<button type="button" class="demo-card" onclick="closeModal();startDemo(\'' + k + '\')"><span class="demo-card-ic">' + p.icon + '</span><span><b>' + p.name + '</b><em>' + p.tag + '</em><small>' + p.desc + '</small></span></button>'; }).join('');
+  openModal('Ver demonstração', '<div class="occ-b-desc" style="margin-bottom:12px">Escolha um perfil fictício para explorar o sistema com dados de exemplo. Nada é salvo e nenhum dado real é usado.</div><div class="demo-grid">' + cards + '</div>');
+}
+function demoBoot() {
+  var q = new URLSearchParams(location.search), id = q.get('demo');
+  if (!id || !DEMO_PERSONAS[id]) return false;
+  setTimeout(function() { startDemo(id); }, 50);
+  return true;
+}
+
+// ═══════════════════════════════════════════════════════
 // BOOT
 // ═══════════════════════════════════════════════════════
 // Link de e-mail inválido/vencido (ex.: #error_code=otp_expired): avisa e abre o pedido de novo link
@@ -7137,7 +7374,7 @@ async function showApp() {
     showAuthError(code === 'otp_expired' ? 'Esse link de recuperação expirou ou já foi usado. Peça um novo abaixo e abra-o logo em seguida.' : 'Não foi possível validar o link. Peça um novo abaixo.');
   }, 300);
 })();
-initSupabase();
+if (!demoBoot()) initSupabase();
 </script>
 </body>
 </html>

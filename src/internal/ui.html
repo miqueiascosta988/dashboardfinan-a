@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow">
+<title>Auditoria Interna</title>
+<style>
+:root{--bg:#f4f6fa;--card:#fff;--ink:#17202e;--ink2:#46526a;--ink3:#7a869c;--line:#e3e8f0;--teal:#0f766e;--red:#b42318;--gold:#a3791a;--green:#0f7a4a;--navy:#17304f}
+@media (prefers-color-scheme:dark){:root{--bg:#10151d;--card:#18202b;--ink:#e8edf5;--ink2:#b5c0d2;--ink3:#8593a8;--line:#27313f;--teal:#2dd4bf;--red:#f97066;--gold:#e0b44c;--green:#4ade80;--navy:#223a5c}}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+header{display:flex;align-items:center;gap:12px;padding:12px 20px;background:var(--navy);color:#fff;flex-wrap:wrap}
+header h1{font-size:16px;margin:0;flex:1}header small{opacity:.75}
+button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:7px 12px}
+button.pri{background:var(--teal);color:#fff;border-color:var(--teal)}header button{background:transparent;color:#fff;border-color:rgba(255,255,255,.4)}
+main{display:grid;grid-template-columns:320px 1fr;gap:16px;padding:16px 20px;max-width:1400px;margin:0 auto}
+@media(max-width:860px){main{grid-template-columns:1fr;padding:12px 16px}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+input{width:100%;font:inherit;padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+.cl{padding:10px;border:1px solid var(--line);border-radius:10px;margin-top:8px;cursor:pointer}.cl:hover,.cl.sel{border-color:var(--teal);background:var(--bg)}
+.cl b{display:block;font-size:14px}.cl span{font-size:12px;color:var(--ink3)}
+.muted{color:var(--ink3);font-size:12.5px;line-height:1.6}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px}.kpi small{color:var(--ink3);font-size:11px;text-transform:uppercase;letter-spacing:.04em}.kpi div{font-size:26px;font-weight:700;margin-top:4px}
+details.it{border:1px solid var(--line);border-left:4px solid var(--line);border-radius:10px;margin-bottom:9px;background:var(--card)}
+details.it.crit{border-left-color:var(--red)}details.it.warn{border-left-color:var(--gold)}details.it.ok{border-left-color:var(--green)}details.it.info{border-left-color:var(--teal)}
+details.it summary{cursor:pointer;padding:11px 13px;list-style:none;display:flex;gap:10px;align-items:flex-start}details.it summary::-webkit-details-marker{display:none}
+.sv{font-size:10px;font-weight:700;text-transform:uppercase;padding:2px 8px;border-radius:8px;color:#fff;flex:none;margin-top:2px}
+.bd{padding:0 13px 13px;font-size:13px;line-height:1.6;color:var(--ink2)}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:7px 6px;border-top:1px solid var(--line);text-align:left}th{color:var(--ink3);font-size:11px;text-transform:uppercase}td.r,th.r{text-align:right}
+.tag{align-self:flex-start;white-space:nowrap;font-size:10px;padding:2px 7px;border-radius:9px;background:var(--bg);border:1px solid var(--line);margin-left:6px}
+.row{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid var(--line);font-size:13px}
+.plan{display:flex;gap:12px;padding:9px 0;border-top:1px solid var(--line)}
+@media print{header button,#side,.noprint{display:none!important}main{display:block}body{background:#fff}}
+</style></head><body>
+<header><h1>🕵️ Auditoria Interna <small>· uso exclusivo da equipe · estimativa</small></h1><small id="who"></small><button onclick="logout()">Sair</button></header>
+<main>
+ <aside id="side"><div class="card"><div style="font-weight:700;margin-bottom:8px">Empresas</div><input id="q" placeholder="Buscar por razão social ou CNPJ" oninput="debounce()"><div id="list" class="muted" style="margin-top:8px">Carregando…</div></div>
+ <div class="card muted">As consultas ficam registradas (quem auditou qual empresa). Use os dados só para a auditoria. Resultado é estimativa e não substitui parecer contábil.</div></aside>
+ <section id="out"><div class="card muted">Escolha uma empresa à esquerda para auditar.</div></section>
+</main>
+<script>
+(function(){
+var TOKEN=null;try{TOKEN=sessionStorage.getItem('sm_int_token')}catch(e){}
+var STEPS=['Lendo o cadastro e o CNPJ','Conferindo limites de faturamento','Simulando alíquota e Fator R','Cruzando receitas com notas fiscais','Verificando pagamento de impostos','Revisando pró-labore e distribuição de lucros','Procurando mistura PF/PJ e lançamentos duplicados','Comparando regimes tributários','Montando o relatório'];
+var cur=null,last=null,timer=null;
+function $(i){return document.getElementById(i)}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function brl(v){return 'R$ '+Math.round(v).toLocaleString('pt-BR')}function brlD(v){return 'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
+function pct(v){return (v*100).toFixed(1).replace('.',',')+'%'}
+function relogin(){try{sessionStorage.removeItem('sm_int_token')}catch(e){}location.href='/interno/?relogin=1'}
+window.logout=function(){try{sessionStorage.removeItem('sm_int_token')}catch(e){}location.href='/interno/?logout=1'};
+function api(p,o){o=o||{};o.headers=Object.assign({Authorization:'Bearer '+TOKEN},o.headers||{});return fetch('/api/interno'+p,o).then(function(r){if(r.status===401||r.status===403){relogin();throw new Error('auth')}return r.json().then(function(j){if(!r.ok)throw new Error(j.error||'Erro');return j})})}
+if(!TOKEN){relogin()}
+var dt=null;window.debounce=function(){clearTimeout(dt);dt=setTimeout(load,350)};
+function load(){api('/clients?q='+encodeURIComponent($('q').value)).then(function(d){
+ var L=d.clients;$('list').innerHTML=L.length?L.map(function(c){return '<div class="cl'+(cur===c.id?' sel':'')+'" data-id="'+esc(c.id)+'"><b>'+esc(c.razao||'(sem razão social)')+'</b><span>'+esc(c.doc||'sem documento')+' · '+esc(c.tipo||'tipo não definido')+' · plano '+esc(c.plano||'free')+'</span></div>'}).join(''):'Nenhuma empresa encontrada.';
+ [].forEach.call($('list').querySelectorAll('.cl'),function(e){e.onclick=function(){run(e.getAttribute('data-id'))}})}).catch(function(e){if(e.message!=='auth')$('list').textContent=e.message})}
+function run(id){cur=id;load();var step=0,done=false,res=null,err=null;clearInterval(timer);
+ function paint(){$('out').innerHTML='<div class="card"><div style="font-weight:700;margin-bottom:12px">Auditando…</div>'+STEPS.map(function(s,i){var d=i<step,c=i===step;return '<div style="padding:6px 0;color:'+(d?'var(--green)':c?'var(--ink)':'var(--ink3)')+'">'+(d?'✓ ':c?'⏳ ':'○ ')+esc(s)+'</div>'}).join('')+'</div>'}
+ paint();
+ api('/audit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({clientId:id})}).then(function(j){res=j.report;done=true}).catch(function(e){err=e;done=true});
+ timer=setInterval(function(){if(step<STEPS.length)step++;if(step>=STEPS.length&&done){clearInterval(timer);if(err){if(err.message!=='auth')$('out').innerHTML='<div class="card">⚠️ '+esc(err.message)+'</div>'}else{last=res;render(res)}}else paint()},330)}
+var TAG={crit:['Crítico','var(--red)'],warn:['Atenção','var(--gold)'],info:['Info','var(--teal)'],ok:['OK','var(--green)']};
+function render(r){
+ var col=r.nc?'var(--red)':r.nw?'var(--gold)':'var(--green)',c=r.client||{};
+ var h='<div class="card"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><div><div style="font-weight:700;font-size:17px">'+esc(c.razao||'Empresa sem razão social')+'</div><div class="muted">'+esc(c.tipo||'tipo não definido')+(c.atividade?' · '+esc(c.atividade):'')+' · plano '+esc(c.plano)+' · auditado em '+new Date(r.when).toLocaleString('pt-BR')+'</div></div><div class="noprint"><button onclick="copyS()">Copiar resumo</button> <button onclick="window.print()">Imprimir / PDF</button></div></div>'+
+ '<div class="muted" style="margin-top:10px">Analisados <b>'+r.nTx+'</b> lançamento(s) dos últimos 12 meses e <b>'+r.nDocs+'</b> documento(s). '+(r.nc?'<b>'+r.nc+'</b> ponto(s) crítico(s)':'Nenhum ponto crítico')+(r.nw?' e <b>'+r.nw+'</b> de atenção':'')+'.'+(r.exposure>0?' Exposição estimada de <b>'+brl(r.exposure)+'</b> (ordem de grandeza, não é cobrança).':'')+'</div></div>';
+ h+='<div class="kpis"><div class="kpi"><small>Nota</small><div style="color:'+col+'">'+r.score+'/100</div></div><div class="kpi"><small>Nível</small><div style="color:'+col+';font-size:19px">'+esc(r.level)+'</div></div><div class="kpi"><small>Críticos</small><div>'+r.nc+'</div></div><div class="kpi"><small>Atenções</small><div>'+r.nw+'</div></div><div class="kpi"><small>Exposição</small><div style="font-size:20px">'+(r.exposure>0?brl(r.exposure):'—')+'</div></div></div>';
+ if(r.plan.length)h+='<div class="card"><b>📌 Plano de ação</b>'+r.plan.map(function(p){return '<div class="plan"><b style="color:var(--teal)">'+p.n+'</b><div style="flex:1"><b>'+esc(p.title)+'</b><div class="muted">'+esc(p.fix)+'</div></div><span class="tag">'+esc(p.prazo)+'</span></div>'}).join('')+'</div>';
+ h+='<div class="card"><b>Achados</b><div style="margin-top:10px">'+r.items.map(function(x){var t=TAG[x.sev];return '<details class="it '+x.sev+'"'+(x.sev==='crit'?' open':'')+'><summary><span class="sv" style="background:'+t[1]+'">'+t[0]+'</span><span style="flex:1"><b style="font-size:13.5px">'+esc(x.title)+'</b><span class="muted" style="display:block">'+esc(x.area)+'</span></span></summary><div class="bd">'+(x.detail?'<div>'+esc(x.detail)+'</div>':'')+(x.why?'<div style="margin-top:7px"><b>Por que importa:</b> '+esc(x.why)+'</div>':'')+(x.fix?'<div style="margin-top:6px"><b>Como corrigir:</b> '+esc(x.fix)+'</div>':'')+(x.exposure>0?'<div style="margin-top:6px"><b>Exposição estimada:</b> '+brl(x.exposure)+' <span class="muted">('+esc(x.expLabel||'estimativa')+')</span></div>':'')+(x.base?'<div class="muted" style="margin-top:6px">Referência: '+esc(x.base)+'</div>':'')+'</div></details>'}).join('')+'</div></div>';
+ if(r.cmp){var mn=Math.min.apply(null,r.cmp.map(function(x){return x.monthly}));h+='<div class="card"><b>Comparativo de regimes (estimativa)</b><div class="muted" style="margin:4px 0 8px">Receita '+(r.projected?'anualizada':'dos últimos 12 meses')+': '+brl(r.annual)+'. Não inclui INSS, folha, ICMS/IPI nem particularidades municipais.</div><table><thead><tr><th>Regime</th><th class="r">Imposto/mês</th><th class="r">% receita</th><th>Obs.</th></tr></thead><tbody>'+r.cmp.map(function(x){return '<tr><td><b>'+esc(x.label)+'</b>'+(x.id===(r.regimeAtual||'')?'<span class="tag">regime atual</span>':'')+(x.monthly===mn?'<span class="tag">menor custo</span>':'')+'</td><td class="r">'+brlD(x.monthly)+'</td><td class="r">'+pct(x.pct)+'</td><td class="muted">'+esc(x.note)+'</td></tr>'}).join('')+'</tbody></table></div>'}
+ if(r.calendar&&r.calendar.length)h+='<div class="card"><b>📅 Calendário de obrigações (referência)</b>'+r.calendar.map(function(x){return '<div class="row"><span>'+esc(x[0])+'</span><span class="muted">'+esc(x[1])+'</span></div>'}).join('')+'</div>';
+ h+='<div class="card"><b>Cobertura da análise</b><div class="muted">'+r.executed+' verificação(ões) executada(s).'+(r.skipped.length?' Não executadas por falta de dados:':' Nenhuma ficou de fora.')+'</div>'+(r.skipped.length?'<ul class="muted">'+r.skipped.map(function(s){return '<li>'+esc(s)+'</li>'}).join('')+'</ul>':'')+'<div class="muted" style="margin-top:8px">⚠️ Estimativa por regras sobre os dados lançados pelo cliente. Não é parecer contábil ou jurídico; limites e alíquotas mudam por lei.</div></div>';
+ $('out').innerHTML=h}
+window.copyS=function(){if(!last)return;var r=last,L=['AUDITORIA FISCAL (estimativa) — '+(r.client&&r.client.razao||'empresa'),'Nota: '+r.score+'/100 · '+r.level+' · críticos: '+r.nc+' · atenções: '+r.nw+(r.exposure>0?' · exposição: '+brl(r.exposure):''),''];
+ r.items.filter(function(x){return x.sev==='crit'||x.sev==='warn'}).forEach(function(x){L.push((x.sev==='crit'?'[CRÍTICO] ':'[ATENÇÃO] ')+x.title+' — '+(x.fix||''))});
+ try{navigator.clipboard.writeText(L.join('\n'))}catch(e){}};
+if(TOKEN)load();
+})();
+</script></body></html>

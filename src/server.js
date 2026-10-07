@@ -78,6 +78,11 @@ app.get('/api/config', (req, res) => {
 // Cálculos protegidos (login + plano + limite de requisições)
 app.use('/api/calc', require('./routes/calc'));
 
+// Área INTERNA da equipe (Auditoria Fiscal): só entra quem está na tabela `staff`
+app.use('/api/interno', require('./routes/interno'));
+// A página de entrada da área interna não deve ser indexada nem guardada em cache
+app.use('/interno', (req, res, next) => { res.set({ 'X-Robots-Tag': 'noindex, nofollow', 'Cache-Control': 'no-store' }); next(); });
+
 // Rotas /api desconhecidas devolvem JSON 404 (e não a página do app)
 app.use('/api', (req, res) => res.status(404).json({ error: 'Não encontrado.' }));
 

@@ -1243,6 +1243,13 @@ svg text { font-family: var(--font-body); }
       </div>
       <button class="btn-primary" onclick="nextOnboard(state.profile_type==='PF'?'occ':'pjtype')">Continuar</button>
     </div>
+    <div class="onboard-inner" id="onboard-step-doc" hidden>
+      <div class="onboard-step" data-step-label>Passo 2</div>
+      <div class="onboard-title">Seu CPF ou CNPJ</div>
+      <div class="onboard-desc">Com ele identificamos seu perfil e deixamos as análises sob medida.</div>
+      <div id="onboard-doc-body"></div>
+      <button class="btn-primary" style="margin-top:14px" onclick="docContinue()">Continuar</button>
+    </div>
     <div class="onboard-inner" id="onboard-step-pjtype" hidden>
       <div class="onboard-step" data-step-label>Passo 2 de 6</div>
       <div class="onboard-title">Qual é o tipo da sua empresa?</div>
@@ -1254,7 +1261,7 @@ svg text { font-family: var(--font-body); }
       <div class="onboard-step" data-step-label>Passo 3 de 6</div>
       <div class="onboard-title">Qual é a atividade principal?</div>
       <div class="onboard-desc">Ajusta categorias, anexo tributário e indicadores.</div>
-      <div class="option-grid"><button class="option-btn" data-pact="comercio" onclick="selectPJActivity(this)"><div class="opt-icon">🛒</div><div class="opt-label">Comércio</div><div class="opt-desc">Revenda de produtos</div></button><button class="option-btn" data-pact="servicos" onclick="selectPJActivity(this)"><div class="opt-icon">🛠️</div><div class="opt-label">Serviços</div><div class="opt-desc">Prestação de serviços</div></button><button class="option-btn" data-pact="industria" onclick="selectPJActivity(this)"><div class="opt-icon">🏭</div><div class="opt-label">Indústria</div><div class="opt-desc">Fabricação / produção</div></button><button class="option-btn" data-pact="misto" onclick="selectPJActivity(this)"><div class="opt-icon">🔀</div><div class="opt-label">Misto</div><div class="opt-desc">Mais de uma atividade</div></button></div>
+      <div class="option-grid"><button class="option-btn" data-pact="comercio" onclick="selectPJActivity(this)"><div class="opt-icon">🛒</div><div class="opt-label">Comércio</div><div class="opt-desc">Revenda de produtos</div></button><button class="option-btn" data-pact="servicos" onclick="selectPJActivity(this)"><div class="opt-icon">🛠️</div><div class="opt-label">Serviços</div><div class="opt-desc">Prestação de serviços</div></button><button class="option-btn" data-pact="misto" onclick="selectPJActivity(this)"><div class="opt-icon">🔀</div><div class="opt-label">Misto</div><div class="opt-desc">Mais de uma atividade</div></button></div>
       <button class="btn-primary" onclick="nextOnboard('pjbill')">Continuar</button>
     </div>
     <div class="onboard-inner" id="onboard-step-pjbill" hidden>
@@ -1448,7 +1455,8 @@ let state = {
   pj_faturamento_anual: 0,
   pj_regime: 'MEI', // MEI, Simples, Lucro Presumido
   company_type: null,      // mei | simples | epp | presumido | real | liberal | ong | startup
-  pj_activity: null,       // comercio | servicos | industria | misto
+  pj_activity: null,       // comercio | servicos | misto
+  doc_type: null, doc_number: null, cnpj_data: null,
   pj_billing: null,        // recorrente | sazonal | projeto
   occupation: null,        // clt | servidor | autonomo | mei | empresario | aposentado | estudante | mista | sem_renda
   income_stability: null,  // fixa | media | variavel
@@ -2689,6 +2697,135 @@ var CHAT_FALLBACK = {
 };
 
 var CHAT_QUICK_TOPICS = ['Como funciona o Orçamento?', 'Planos e pagamento', 'Como uso o calendário?', 'Falar com atendente'];
+// ═══════════════════════════════════════════════════════
+// CHAT GUIADO: conversa para identificar o perfil e ajudar a preencher os dados
+// (aplica vínculo de trabalho, renda, dívidas e perfil de investidor e aponta o que falta)
+// ═══════════════════════════════════════════════════════
+var CHFLOW = { active: false, step: '', data: {} };
+var CH_OCC_WORDS = { clt: ['clt', 'carteira assinada', 'registrado', 'empregado'], servidor: ['servidor', 'concursado', 'funcionario publico', 'publico'], autonomo: ['autonomo', 'freelancer', 'freela', 'por conta propria', 'uber', 'motorista'], mei: ['mei', 'microempreendedor'], empresario: ['empresario', 'dono de empresa', 'socio', 'tenho empresa'], aposentado: ['aposentado', 'pensionista', 'inss'], estudante: ['estudante', 'estagiario', 'estagio', 'faculdade'], mista: ['mista', 'varias fontes', 'mais de uma'], sem_renda: ['sem renda', 'desempregado', 'nao trabalho'] };
+function chIsPF() { return state.profile_type !== 'PJ'; }
+function chParseNum(t) { var m = String(t).replace(/\./g, '').replace(',', '.').match(/\d+(\.\d+)?/); return m ? parseFloat(m[0]) : 0; }
+function chOccFromText(norm) {
+  var keys = Object.keys(CH_OCC_WORDS);
+  for (var i = 0; i < keys.length; i++) { if (CH_OCC_WORDS[keys[i]].some(function(w) { return norm.indexOf(w) !== -1; })) return keys[i]; }
+  var byLabel = Object.keys(OCCUPATIONS).filter(function(k) { return normalizeChat(OCCUPATIONS[k].label) === norm; });
+  return byLabel[0] || null;
+}
+function chSay(html, chips) { chatBotSay(html, chips); }
+function chatFlowStart() {
+  if (!chIsPF()) {
+    CHFLOW.active = false;
+    chSay('Você está no perfil <b>Empresa (PJ)</b>. Para adaptar o painel, informe o tipo da empresa, a atividade e como ela fatura. Vou abrir essa janela para você.', ['➡️ Abrir perfil da empresa']);
+    return;
+  }
+  CHFLOW = { active: true, step: 'occ', data: {} };
+  chSay('Vamos nos conhecer em ~1 minuto 🙂 Com isso eu ajusto o menu, calculo sua reserva ideal e preparo as análises de <b>investimentos</b> e <b>crédito</b>. Nada é enviado: as respostas ficam salvas só neste navegador (o vínculo de trabalho é salvo na sua conta).<br><br><b>Como você ganha dinheiro hoje?</b>', Object.keys(OCCUPATIONS).map(function(k) { return OCCUPATIONS[k].icon + ' ' + OCCUPATIONS[k].label; }).concat(['Cancelar conversa guiada']));
+}
+function chatFlowStep(text) {
+  var norm = normalizeChat(text.replace(/^[^\wÀ-ſ]+/, ''));
+  if (norm.indexOf('cancelar') !== -1 || norm.indexOf('agora nao') !== -1 || norm === 'voltar ao inicio') { CHFLOW.active = false; chSay('Tudo bem! Quando quiser, é só pedir para <b>montar meu perfil</b>.', CHAT_QUICK_TOPICS); return; }
+  var D = CHFLOW.data;
+  if (CHFLOW.step === 'occ') {
+    var k = chOccFromText(norm);
+    if (!k) { chSay('Não entendi. Escolha uma das opções ou escreva, por exemplo, “sou CLT” ou “trabalho por conta própria”.', Object.keys(OCCUPATIONS).map(function(x) { return OCCUPATIONS[x].icon + ' ' + OCCUPATIONS[x].label; })); return; }
+    D.occ = k; state.occupation = k; state.income_stability = OCCUPATIONS[k].stab;
+    persistOccupation(); renderNav(); renderCurrentTab();
+    CHFLOW.step = 'renda';
+    chSay('Anotado: <b>' + OCCUPATIONS[k].label + '</b> ✔ (já ajustei seu menu). ' + OCCUPATIONS[k].tip + '<br><br><b>Quanto você recebe por mês, em média?</b> Pode ser um valor aproximado (ex.: 4500).', ['Prefiro não informar']);
+    return;
+  }
+  if (CHFLOW.step === 'renda') {
+    var v = chParseNum(text);
+    if (v > 0) { D.renda = v; state.monthlyIncome = v; FX.crd.renda = v; fxSave('crd'); }
+    CHFLOW.step = 'divida';
+    chSay((v > 0 ? 'Obrigado! Renda de ' + simBRL(v) + ' registrada como referência. ' : 'Sem problema. ') + '<br><br><b>Como estão suas dívidas?</b>', ['Tudo em dia', 'Tenho dívidas, mas pago em dia', 'Estou com o nome sujo']);
+    return;
+  }
+  if (CHFLOW.step === 'divida') {
+    if (norm.indexOf('sujo') !== -1 || norm.indexOf('negativ') !== -1 || norm.indexOf('atras') !== -1) {
+      D.divida = 'sujo'; FX.crd.status = 'sujo'; fxSave('crd'); CHFLOW.step = 'valdivida';
+      chSay('Entendi, e vamos resolver isso juntos 💪 <b>Qual o valor total aproximado em atraso?</b> (ex.: 6000)', ['Não sei dizer']);
+    } else {
+      D.divida = norm.indexOf('dia') !== -1 && norm.indexOf('tudo') === -1 ? 'dividas' : 'limpo'; FX.crd.status = 'limpo'; fxSave('crd'); CHFLOW.step = 'invest';
+      chSay('Ótimo! <b>Você já investe?</b>', ['Sim, já invisto', 'Ainda não']);
+    }
+    return;
+  }
+  if (CHFLOW.step === 'valdivida') {
+    var d = chParseNum(text);
+    if (d > 0) { D.valdivida = d; if (!FX.crd.rows.length) FX.crd.rows.push({ cred: 'Total informado no chat', tipo: 'outro', val: d, meses: 12 }); fxSave('crd'); }
+    CHFLOW.step = 'invest';
+    chSay((d > 0 ? 'Registrei ' + simBRL(d) + ' na aba Crédito & Nome Sujo (você pode detalhar por credor lá). ' : 'Sem problema, dá para detalhar depois. ') + '<br><br><b>Você já investe?</b>', ['Sim, já invisto', 'Ainda não']);
+    return;
+  }
+  if (CHFLOW.step === 'invest') {
+    if (norm.indexOf('sim') === 0 || norm.indexOf('ja invisto') !== -1) {
+      FX.inv.has = 'sim'; fxSave('inv'); CHFLOW.step = 'onde';
+      chSay('Boa! <b>Onde você investe?</b> Pode escrever várias: poupança, CDB, Tesouro, LCI, fundos, ações, cripto…', ['Só poupança', 'Poupança e CDB', 'Tesouro Direto', 'Ações e FIIs']);
+    } else { FX.inv.has = 'nao'; fxSave('inv'); CHFLOW.step = 'obj'; chSay('Tudo bem, começar é o mais importante. <b>Qual é seu principal objetivo com o dinheiro?</b>', Object.keys(INV_OBJ).map(function(x) { return INV_OBJ[x]; })); }
+    return;
+  }
+  if (CHFLOW.step === 'onde') {
+    var map = { poupanca: ['poupanc'], cdb: ['cdb', 'rdb'], tesouro: ['tesouro', 'selic'], lci: ['lci', 'lca'], fundos: ['fundo'], acoes: ['acoes', 'acao', 'fii', 'etf', 'bolsa'], cripto: ['cripto', 'bitcoin'], prev: ['previd'] };
+    FX.inv.tipos = Object.keys(map).filter(function(t) { return map[t].some(function(w) { return norm.indexOf(w) !== -1; }); });
+    fxSave('inv'); CHFLOW.step = 'obj';
+    chSay((FX.inv.tipos.length ? 'Anotei: ' + FX.inv.tipos.map(function(t) { return INV_TIPOS[t]; }).join(', ') + '. ' : '') + '<br><br><b>Qual é seu principal objetivo com o dinheiro?</b>', Object.keys(INV_OBJ).map(function(x) { return INV_OBJ[x]; }));
+    return;
+  }
+  if (CHFLOW.step === 'obj') {
+    var ok = Object.keys(INV_OBJ).filter(function(x) { return normalizeChat(INV_OBJ[x]) === norm || norm.indexOf(normalizeChat(INV_OBJ[x]).split(' ')[0]) !== -1; })[0] || 'reserva';
+    FX.inv.obj = ok; fxSave('inv'); CHFLOW.step = 'prazo';
+    chSay('Combinado. <b>Por quanto tempo poderia deixar esse dinheiro aplicado sem mexer?</b>', Object.keys(INV_PRAZO).map(function(x) { return INV_PRAZO[x]; }));
+    return;
+  }
+  if (CHFLOW.step === 'prazo') {
+    var pk = Object.keys(INV_PRAZO).filter(function(x) { return normalizeChat(INV_PRAZO[x]) === norm; })[0] || (/(mais|longo|anos)/.test(norm) ? '2a+' : '1a2a');
+    FX.inv.prazo = pk; fxSave('inv'); CHFLOW.step = 'reacao';
+    chSay('Última: se seus investimentos caíssem 20% em um mês, você…', ['Venderia tudo', 'Esperaria recuperar', 'Compraria mais']);
+    return;
+  }
+  if (CHFLOW.step === 'reacao') {
+    FX.inv.reacao = norm.indexOf('vend') !== -1 ? 'vender' : norm.indexOf('compr') !== -1 ? 'comprar' : 'esperar'; fxSave('inv');
+    CHFLOW.active = false; CHFLOW.step = '';
+    chatFlowFinish();
+  }
+}
+function chatFlowFinish() {
+  var c = compute(), falta = [];
+  if (!visibleList('transactions').length) falta.push('registrar <b>renda e despesas</b> do mês (é a base de toda análise)');
+  if (!visibleList('assets').length) falta.push('cadastrar seu <b>patrimônio</b> e o dinheiro guardado (para calcular a reserva de emergência)');
+  if (FX.crd.status === 'sujo' && !visibleList('debts').length) falta.push('cadastrar suas <b>dívidas</b> com juros e parcelas');
+  if (!state.doc_number) falta.push('informar seu <b>CPF ou CNPJ</b> para personalizar a leitura de perfil');
+  if (!visibleList('goals').length) falta.push('criar ao menos uma <b>meta</b>');
+  var chips = [];
+  if (!visibleList('transactions').length) chips.push('➡️ Registrar renda');
+  if (!visibleList('assets').length) chips.push('➡️ Cadastrar patrimônio');
+  if (FX.crd.status === 'sujo') chips.push('➡️ Abrir Crédito & Nome Sujo');
+  if (!state.doc_number) chips.unshift('➡️ Informar CPF/CNPJ');
+  chips.push('➡️ Abrir Investimentos');
+  chSay('Pronto, perfil montado ✅ Já deixei suas respostas nas abas <b>Investimentos</b> e <b>Crédito & Nome Sujo</b> — falta só clicar em “Analisar”.' + (falta.length ? '<br><br>Para a análise ficar mais precisa, vale ainda:<ul><li>' + falta.join('</li><li>') + '</li></ul>' : '<br><br>Seus dados principais já estão cadastrados. 👏') + '<br>Posso te levar direto para cada passo:', chips);
+}
+var CHAT_ACTIONS = {
+  '➡️ Abrir Investimentos': function() { switchTab('investir'); },
+  '➡️ Abrir Crédito & Nome Sujo': function() { switchTab('credito'); },
+  '➡️ Registrar renda': function() { switchTab('receitas'); openTransactionModal('income'); },
+  '➡️ Cadastrar patrimônio': function() { switchTab('patrimonio'); openAssetModal('assets'); },
+  '➡️ Abrir perfil da empresa': function() { openCompanyModal(); },
+  '➡️ Informar CPF/CNPJ': function() { openDocModal(); },
+  '➡️ Abrir Resolver Dívidas': function() { switchTab('resolver'); },
+  '➡️ Abrir Reforma Tributária': function() { switchTab('reforma'); },
+};
+var CHAT_START_WORDS = ['montar meu perfil', 'meu perfil', 'me conhecer', 'preencher', 'me guia', 'me ajuda a comecar', 'por onde comeco', 'por onde começo', 'comecar', 'conversa guiada', 'analise do meu perfil', 'quero investir', 'nome sujo', 'limpar meu nome', 'onde investir'];
+(function() {
+  CHAT_QUICK_TOPICS.unshift('🧭 Montar meu perfil');
+  CHAT_KB.push({ id: 'investir', keywords: ['investimentos', 'investir', 'onde investir', 'selic', 'poupanca ou cdb', 'perfil de investidor'], answer: 'A aba <b>Investimentos</b> descobre seu perfil (conservador, moderado ou arrojado), mostra a ordem certa de prioridades (dívidas caras → reserva → investir) e compara poupança, Tesouro Selic, CDB e LCI/LCA com a Selic atual. Posso te fazer as perguntas aqui no chat.', related: ['🧭 Montar meu perfil', '➡️ Abrir Investimentos'] });
+  CHAT_KB.push({ id: 'credito', keywords: ['credito', 'crédito', 'nome sujo', 'negativado', 'limpar nome', 'serasa', 'desenrola', 'score'], answer: 'A aba <b>Crédito & Nome Sujo</b> calcula o tamanho da sua dívida, monta um plano de pagamento com desconto estimado, indica onde negociar (Desenrola, Serasa Limpa Nome, bancos) e sugere caminhos para conseguir crédito. Quer que eu comece perguntando sua situação?', related: ['🧭 Montar meu perfil', '➡️ Abrir Crédito & Nome Sujo'] });
+  CHAT_KB.push({ id: 'resolver', keywords: ['pagar divida', 'quitar divida', 'quitar dividas', 'bola de neve', 'avalanche', 'financiar', 'financiamento', 'emprestimo', 'portabilidade', 'consignado', 'juros altos'], answer: 'A aba <b>Resolver Dívidas</b> compara as formas de pagar (bola de neve x avalanche), mostra quanto você economiza usando um valor disponível agora, compara financiar com juros baixos ou altos e com juntar o dinheiro, avalia se vale trocar uma dívida cara por uma mais barata e explica como conseguir crédito com condições especiais. Cada opção mostra benefícios e riscos.', related: ['➡️ Abrir Resolver Dívidas'] });
+  CHAT_KB.push({ id: 'reforma', keywords: ['reforma tributaria', 'icms', 'ipi', 'iss', 'cbs', 'ibs', 'imposto seletivo', 'split payment', 'pis cofins', 'tributos'], answer: 'A aba <b>Reforma Tributária</b> (perfil Empresa) mostra o cronograma 2026–2033, o mapa de tributos (ICMS, ISS, IPI, PIS/Cofins, CBS, IBS e Imposto Seletivo), o que muda para o seu tipo de empresa e um checklist de preparação. Resumo: PIS/Cofins/IPI/ICMS/ISS dão lugar a CBS (federal) e IBS (estados e municípios) até 2033.', related: ['➡️ Abrir Reforma Tributária'] });
+  CHAT_KB.push({ id: 'documento', keywords: ['cpf', 'cnpj', 'documento', 'meu cadastro'], answer: 'Você pode informar seu <b>CPF</b> ou o <b>CNPJ</b> da empresa em Perfil (menu lateral → seu perfil) ou clicando no botão abaixo. Com o CNPJ, o app busca o porte, o CNAE e o regime para ajustar o painel da empresa.', related: ['➡️ Informar CPF/CNPJ'] });
+  CHAT_KB.push({ id: 'cambio', keywords: ['cambio', 'câmbio', 'cotacao', 'cotação', 'dolar', 'dólar', 'euro', 'fonte do cambio', 'indice'], answer: 'A aba <b>Câmbio</b> usa as <b>taxas de referência do Banco Central Europeu</b>, publicadas pela API Frankfurter (atualizadas em dias úteis). Elas são referência de mercado: a cotação de compra/venda de bancos e casas de câmbio inclui spread e IOF, então o valor final costuma ser maior.', related: ['Planos e pagamento'] });
+})();
+
 
 function normalizeChat(str) {
   return (str || '').toLowerCase()
@@ -2769,7 +2906,9 @@ function chatRenderSuggestions(list) {
 
 function chatChipClick(el) {
   var text = el.textContent;
+  if (CHAT_ACTIONS[text]) { try { CHAT_ACTIONS[text](); } catch (e) {} toggleChat(false); return; }
   chatUserSay(text);
+  if (text === '🧭 Montar meu perfil') { chatShowTyping(); setTimeout(function() { chatHideTyping(); chatFlowStart(); }, 400); return; }
   var query = chatTopicToQuery(text);
   chatBotRespond(query);
 }
@@ -2818,6 +2957,9 @@ function chatBotRespond(userText) {
   chatShowTyping();
   setTimeout(function() {
     chatHideTyping();
+    if (CHFLOW.active) { chatFlowStep(userText); return; }
+    var _n = normalizeChat(userText);
+    if (CHAT_START_WORDS.some(function(w) { return _n.indexOf(normalizeChat(w)) !== -1; }) && _n.indexOf('o que') !== 0) { chatFlowStart(); return; }
     var entry = findChatAnswer(userText);
     var answer = entry.answer;
     var isFallback = (entry === CHAT_FALLBACK);
@@ -2848,7 +2990,7 @@ function chatSend() {
 }
 
 function chatClear() {
-  chatHistory = [];
+  chatHistory = []; CHFLOW = { active: false, step: '', data: {} };
   document.getElementById('chat-body').innerHTML = '';
   chatRenderSuggestions([]);
   chatBotSay(CHAT_KB[0].answer, CHAT_QUICK_TOPICS);
@@ -3106,11 +3248,14 @@ function selectCurrency(el) {
   el.classList.add('selected'); state.currency = el.dataset.cur;
 }
 function nextOnboard(step) {
+  if ((step === 'occ' || step === 'pjtype') && !state._docDone && !state.doc_number) { state._docNext = step; step = 'doc'; }
+  if (step === 'doc') { state.doc_type = docDefaultType(); document.getElementById('onboard-doc-body').innerHTML = docBody('onboard-doc'); }
   document.querySelectorAll('[id^="onboard-step-"]').forEach(s => s.hidden = true);
   const el = document.getElementById('onboard-step-' + step); el.hidden = false;
-  const seq = state.profile_type === 'PF' ? [1, 'occ', 'stab', 2, 3] : [1, 'pjtype', 'pjact', 'pjbill', 2, 3];
+  const seq = state.profile_type === 'PF' ? [1, 'doc', 'occ', 'stab', 2, 3] : [1, 'doc', 'pjtype', 'pjact', 'pjbill', 2, 3];
   const lbl = el.querySelector('[data-step-label]');
   if (lbl) lbl.textContent = 'Passo ' + (seq.indexOf(step) + 1) + ' de ' + seq.length;
+  docApplyHighlights();
 }
 async function finishOnboard() {
   state.monthlyIncome = parseFloat(document.getElementById('onboard-income').value) || 5000;
@@ -3121,6 +3266,7 @@ async function finishOnboard() {
       monthly_income: state.monthlyIncome, name: state.name || currentUser.email.split('@')[0],
       onboarding_done: true,
     }).eq('id', currentUser.id);
+    await persistDocument();
     if (state.profile_type === 'PF' && getOccupation()) await persistOccupation();
     if (state.profile_type === 'PJ' && getCompanyType()) await persistCompany();
   }
@@ -3216,6 +3362,7 @@ async function loadProfile() {
     state.currency = data.currency; state.monthlyIncome = parseFloat(data.monthly_income) || 5000;
     state.occupation = data.occupation || null; state.income_stability = data.income_stability || null;
     state.company_type = data.company_type || null; state.pj_activity = data.pj_activity || null; state.pj_billing = data.billing_pattern || null; syncRegimeFromCompany();
+    state.doc_type = data.document_type || null; state.doc_number = data.document_number || null; state.cnpj_data = data.cnpj_data || null; docRestoreLocal();
   }
 }
 
@@ -3710,7 +3857,7 @@ function openOccupationModal() {
   openModal('Seu vínculo de trabalho',
     '<div class="form-label" style="margin-bottom:8px">Como você trabalha?</div><div class="option-grid occ-modal-grid">' + occBtns + '</div>' +
     '<div class="form-label" style="margin:16px 0 8px">Como é a sua renda?</div><div class="option-grid" id="modal-stab-grid">' + stBtns + '</div>' +
-    '<button class="btn-primary" style="margin-top:16px" onclick="saveOccupation()">Salvar</button>');
+    '<button class="btn-primary" style="margin-top:16px" onclick="saveOccupation()">Salvar</button>' + docModalRow());
 }
 function modalPickOcc(el) {
   el.parentElement.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
@@ -3802,7 +3949,6 @@ const PJ_TYPES = {
 const PJ_ACTIVITIES = {
   comercio: { icon:'🛒', label:'Comércio',  recLabel:'Vendas',              annex:'I',   dasExtra:1, income:['Vendas','Comissões','Serviços prestados','Outros'],            expenseExtra:['Estoque / Mercadorias','Frete'] },
   servicos: { icon:'🛠️', label:'Serviços',  recLabel:'Receita de serviços', annex:'III', dasExtra:5, income:['Serviços prestados','Consultoria','Comissões','Vendas','Outros'], expenseExtra:['Subcontratados'] },
-  industria:{ icon:'🏭', label:'Indústria', recLabel:'Produção & Vendas',   annex:'II',  dasExtra:1, income:['Vendas','Serviços prestados','Comissões','Outros'],            expenseExtra:['Matéria-prima','Produção','Frete'] },
   misto:    { icon:'🔀', label:'Misto',     recLabel:'Faturamento',         annex:'III', dasExtra:6, income:['Vendas','Serviços prestados','Consultoria','Comissões','Outros'], expenseExtra:['Estoque / Mercadorias','Subcontratados'] },
 };
 const PJ_BILLINGS = {
@@ -3817,7 +3963,7 @@ const SIMPLES_TABLE = {
   III: [[180000,.06,0],[360000,.112,9360],[720000,.135,17640],[1800000,.16,35640],[3600000,.21,125640],[4800000,.33,648000]],
 };
 function getCompanyType() { return PJ_TYPES[state.company_type] ? state.company_type : null; }
-function getPJActivity() { return PJ_ACTIVITIES[state.pj_activity] ? state.pj_activity : null; }
+function getPJActivity() { if (state.pj_activity === 'industria') return 'misto'; return PJ_ACTIVITIES[state.pj_activity] ? state.pj_activity : null; }
 function getPJBilling() { return PJ_BILLINGS[state.pj_billing] ? state.pj_billing : null; }
 function syncRegimeFromCompany() { const t = PJ_TYPES[getCompanyType()]; if (t) state.pj_regime = t.regime; }
 function getPJReserveMonths() {
@@ -3861,7 +4007,7 @@ function openCompanyModal() {
     '<div class="form-label" style="margin-bottom:8px">Tipo de empresa</div><div class="option-grid occ-modal-grid">' + mk(PJ_TYPES, getCompanyType(), 'ptype', 'selectPJType') + '</div>' +
     '<div class="form-label" style="margin:16px 0 8px">Atividade principal</div><div class="option-grid">' + mk(PJ_ACTIVITIES, getPJActivity(), 'pact', 'selectPJActivity') + '</div>' +
     '<div class="form-label" style="margin:16px 0 8px">Como a empresa fatura?</div><div class="option-grid">' + mk(PJ_BILLINGS, getPJBilling(), 'pbill', 'selectPJBilling') + '</div>' +
-    '<button class="btn-primary" style="margin-top:16px" onclick="saveCompany()">Salvar</button>');
+    '<button class="btn-primary" style="margin-top:16px" onclick="saveCompany()">Salvar</button>' + docModalRow());
 }
 async function saveCompany() {
   if (!getCompanyType()) { showToast('Escolha o tipo da empresa', 'info'); return; }
@@ -3912,7 +4058,7 @@ function renderCaixaPJ(c) {
 }
 
 // Aba específica do tipo de empresa
-function renderRegimePJ(c) {
+function renderRegimePJ_core(c) {
   const k = getCompanyType(); if (!k) return renderCaixaPJ(c);
   const t = PJ_TYPES[k], act = getPJActivity(), a = PJ_ACTIVITIES[act];
   const head = '<div class="section-header animate-in"><div><div class="section-title">' + t.tab + '</div><div class="section-desc">' + t.icon + ' ' + t.label + (a ? ' · ' + a.label : '') + '</div></div><button class="btn-add" onclick="openCompanyModal()">Alterar</button></div>';
@@ -3922,7 +4068,7 @@ function renderRegimePJ(c) {
     const rev = meiRevenueYearToDate(), p = rev / MEI_ANNUAL_LIMIT * 100, cls = p >= 100 ? 'danger' : p >= 80 ? 'warn' : '';
     const dasExtra = a ? a.dasExtra : 5;
     return head + '<div class="card mb-24 animate-in"><div class="card-title">Limite anual de faturamento</div><div class="occ-bar ' + cls + '" style="margin:12px 0"><span style="width:' + Math.min(100, p) + '%"></span></div><div style="display:flex;justify-content:space-between;font-size:13px"><span>Faturado no ano: <strong>' + fmt(rev) + '</strong></span><span>Limite: <strong>' + fmt(MEI_ANNUAL_LIMIT) + '</strong></span></div><div class="occ-b-desc" style="margin-top:10px">' + (p >= 100 ? 'Limite ultrapassado: até 20% acima o excesso paga imposto extra; acima disso há desenquadramento.' : p >= 80 ? 'Atenção: mais de 80% do limite anual.' : 'Dentro do limite anual.') + ' Faltam <strong>' + fmt(Math.max(0, MEI_ANNUAL_LIMIT - rev)) + '</strong>.</div></div>' +
-      '<div class="card animate-in"><div class="card-title">DAS mensal</div><div class="occ-b-desc" style="font-size:13px;margin-top:6px">5% do salário mínimo + R$ ' + dasExtra + ' (' + (act === 'comercio' || act === 'industria' ? 'ICMS' : act === 'misto' ? 'ICMS + ISS' : 'ISS') + '). Vence todo dia 20.</div></div>';
+      '<div class="card animate-in"><div class="card-title">DAS mensal</div><div class="occ-b-desc" style="font-size:13px;margin-top:6px">5% do salário mínimo + R$ ' + dasExtra + ' (' + (act === 'comercio' ? 'ICMS' : act === 'misto' ? 'ICMS + ISS' : 'ISS') + '). Vence todo dia 20.</div></div>';
   }
   if (k === 'simples' || k === 'epp') {
     const rbt = revenueLast12Months(), est = simplesEstimate(rbt, act), monthRev = c.totalIncome || (st.n ? st.avg : 0), das = monthRev * est.effective;
@@ -4374,15 +4520,15 @@ function getShapedPFTabs() {
 const tabsPF = [
   {id:'dashboard',label:'Visão Geral',section:'Operação'},{id:'receitas',label:'Renda',section:'Operação'},{id:'despesas',label:'Despesas',section:'Operação'},{id:'documentos',label:'Documentos',section:'Operação'},
   {id:'orcamento',label:'Orçamento',section:'Planejamento'},{id:'metas',label:'Metas',section:'Planejamento'},{id:'projecao',label:'Projeção',plus:true,tier:'plus',section:'Planejamento'},{id:'estrategia',label:'Estratégia',plus:true,tier:'pro',section:'Planejamento'},
-  {id:'patrimonio',label:'Patrimônio',section:'Patrimônio & Dívidas'},{id:'dividas',label:'Dívidas',section:'Patrimônio & Dívidas'},{id:'investir',label:'Investimentos',plus:true,tier:'basic',section:'Patrimônio & Dívidas'},{id:'credito',label:'Crédito & Nome Sujo',plus:true,tier:'basic',section:'Patrimônio & Dívidas'},
+  {id:'patrimonio',label:'Patrimônio',section:'Patrimônio & Dívidas'},{id:'dividas',label:'Dívidas',section:'Patrimônio & Dívidas'},{id:'investir',label:'Investimentos',plus:true,tier:'basic',section:'Patrimônio & Dívidas'},{id:'resolver',label:'Resolver Dívidas',plus:true,tier:'basic',section:'Patrimônio & Dívidas'},{id:'credito',label:'Crédito & Nome Sujo',plus:true,tier:'basic',section:'Patrimônio & Dívidas'},
   {id:'insights',label:'Insights',plus:true,tier:'plus',section:'Ferramentas'},{id:'assinaturas',label:'Assinaturas',section:'Ferramentas'},{id:'openfinance',label:'Extratos Bancários',plus:true,tier:'plus',section:'Ferramentas'},{id:'cambio',label:'Câmbio',plus:true,tier:'plus',section:'Ferramentas'},
   {id:'saude',label:'Saúde Financeira',section:'Conta'},{id:'plano',label:'Plano',section:'Conta'},
 ];
 const tabsPJ = [
   {id:'dashboard',label:'Visão Geral',section:'Operação'},{id:'receitas',label:'Faturamento',section:'Operação'},{id:'despesas',label:'Custos',section:'Operação'},{id:'documentos',label:'Documentos',section:'Operação'},
   {id:'orcamento',label:'Orçamento',section:'Planejamento'},{id:'metas',label:'Metas',section:'Planejamento'},{id:'projecao',label:'Projeção',plus:true,tier:'plus',section:'Planejamento'},{id:'estrategia',label:'Estratégia',plus:true,tier:'pro',section:'Planejamento'},
-  {id:'patrimonio',label:'Patrimônio',section:'Patrimônio & Dívidas'},{id:'dividas',label:'Dívidas',section:'Patrimônio & Dívidas'},
-  {id:'fiscal',label:'Fiscal',pj:true,plus:true,tier:'business',section:'Fiscal & Caixa'},{id:'fluxo',label:'Fluxo de Caixa',pj:true,plus:true,tier:'business',section:'Fiscal & Caixa'},
+  {id:'patrimonio',label:'Patrimônio',section:'Patrimônio & Dívidas'},{id:'dividas',label:'Dívidas',section:'Patrimônio & Dívidas'},{id:'resolver',label:'Resolver Dívidas',plus:true,tier:'basic',section:'Patrimônio & Dívidas'},
+  {id:'fiscal',label:'Fiscal',pj:true,plus:true,tier:'business',section:'Fiscal & Caixa'},{id:'fluxo',label:'Fluxo de Caixa',pj:true,plus:true,tier:'business',section:'Fiscal & Caixa'},{id:'reforma',label:'Reforma Tributária',section:'Fiscal & Caixa'},
   {id:'insights',label:'Insights',plus:true,tier:'plus',section:'Ferramentas'},{id:'assinaturas',label:'Ferramentas & SaaS',section:'Ferramentas'},{id:'openfinance',label:'Extratos Bancários',plus:true,tier:'plus',section:'Ferramentas'},{id:'cambio',label:'Câmbio',plus:true,tier:'plus',section:'Ferramentas'},
   {id:'saude',label:'Saúde Financeira',section:'Conta'},{id:'plano',label:'Plano',section:'Conta'},
 ];
@@ -4475,7 +4621,7 @@ const FX = { inv: { has: '', tipos: [], total: 0, aporte: 0, obj: '', prazo: '',
 const fxKey = n => 'financa-' + n + '-' + ((currentUser && currentUser.id) || 'anon');
 function fxInit() {
   if (FX.loaded) return; FX.loaded = true;
-  ['inv', 'crd'].forEach(n => { try { const s = JSON.parse(localStorage.getItem(fxKey(n)) || 'null'); if (s) Object.assign(FX[n], s); } catch (e) {} });
+  ['inv', 'crd', 'dpl'].forEach(n => { try { const s = JSON.parse(localStorage.getItem(fxKey(n)) || 'null'); if (s) Object.assign(FX[n], s); } catch (e) {} });
 }
 function fxSave(n) { try { localStorage.setItem(fxKey(n), JSON.stringify(FX[n])); } catch (e) {} }
 const fxEsc = s => String(s == null ? '' : s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
@@ -4654,7 +4800,354 @@ function renderCredito(c) {
   return head + body + FX_DISCLAIMER;
 }
 
+// ═══════════════════════════════════════════════════════
+// REFORMA TRIBUTÁRIA (PJ) + MAPA DE TRIBUTOS (ICMS, ISS, IPI, PIS/COFINS, IBS, CBS, IS)
+// Base: EC 132/2023 e LC 214/2025. A regulamentação continua sendo complementada: conteúdo
+// informativo, confirme com o contador. Atualizar este bloco quando houver mudanças.
+// ═══════════════════════════════════════════════════════
+const REF_TIMELINE = [
+  { y: '2026', t: 'Ano de teste', d: 'CBS de 0,9% e IBS de 0,1% passam a aparecer na nota fiscal, com compensação para não aumentar a carga. PIS/Cofins, ICMS e ISS seguem valendo. Empresas do Simples não pagam a alíquota de teste. Notas fiscais com campos novos.' },
+  { y: '2027', t: 'CBS entra, PIS/Cofins saem', d: 'A CBS (federal) substitui PIS e Cofins. O IPI é reduzido a zero, exceto para produtos que concorrem com a Zona Franca de Manaus. Começa o Imposto Seletivo.' },
+  { y: '2028', t: 'Consolidação', d: 'Último ano com ICMS e ISS nas alíquotas cheias; sistemas e rotinas precisam estar prontos para a apuração dupla.' },
+  { y: '2029–2032', t: 'Transição do ICMS e do ISS', d: 'ICMS e ISS caem de forma gradual (90%, 80%, 70% e 60% da alíquota) enquanto o IBS sobe (10%, 20%, 30% e 40% da alíquota de referência). Duas apurações convivem.' },
+  { y: '2033', t: 'Sistema novo completo', d: 'ICMS e ISS deixam de existir. Ficam CBS (federal), IBS (estados e municípios, via Comitê Gestor) e Imposto Seletivo.' },
+];
+const REF_TRIBUTOS = [
+  ['ICMS', 'Estados e DF', 'Circulação de mercadorias, transporte intermunicipal/interestadual e comunicação', 'Extinto em 2033; substituído pelo IBS'],
+  ['ISS', 'Municípios', 'Prestação de serviços (alíquota de 2% a 5%)', 'Extinto em 2033; substituído pelo IBS'],
+  ['IPI', 'União', 'Produtos industrializados e importados', 'Reduzido a zero em 2027 (exceto concorrentes da Zona Franca de Manaus). Empresas de comércio e serviços em geral não o recolhem.'],
+  ['PIS / Cofins', 'União', 'Faturamento (3,65% no Presumido; até 9,25% no Lucro Real, com créditos)', 'Extintos em 2027; substituídos pela CBS'],
+  ['CBS', 'União', 'Consumo de bens e serviços (novo)', 'Nasce no teste de 2026 e vale pleno a partir de 2027'],
+  ['IBS', 'Estados e municípios', 'Consumo de bens e serviços (novo), gerido pelo Comitê Gestor', 'Teste em 2026; cresce de 2029 a 2032; pleno em 2033'],
+  ['Imposto Seletivo', 'União', 'Produção, importação e venda de bens e serviços prejudiciais à saúde ou ao meio ambiente', 'Começa em 2027'],
+  ['IRPJ / CSLL', 'União', 'Lucro da empresa', 'Não são extintos por esta reforma (que trata do consumo)'],
+  ['INSS patronal / FGTS', 'União', 'Folha de pagamento', 'Não mudam com esta reforma'],
+];
+const REF_POR_TIPO = {
+  mei: 'O MEI continua no regime próprio (DAS fixo mensal), sem mudança prática imediata. Fique atento: clientes empresa de regime regular podem aproveitar menos crédito ao comprar de optantes do Simples/MEI, o que pode pesar na negociação.',
+  simples: 'O Simples Nacional continua existindo e o DAS segue como principal guia. A empresa poderá optar por recolher IBS/CBS no regime regular, fora do DAS, para repassar crédito cheio a clientes empresa (B2B). Vale simular com o contador.',
+  epp: 'O Simples Nacional continua existindo. Se vende para outras empresas, avalie com o contador a opção de recolher IBS/CBS no regime regular para dar crédito cheio ao cliente.',
+  presumido: 'PIS/Cofins dão lugar à CBS, e a não cumulatividade passa a ser ampla (crédito sobre quase todas as compras). Revise a precificação e a margem: o Presumido pode deixar de ser vantajoso conforme a sua cadeia de compras.',
+  real: 'Você já trabalha com créditos de PIS/Cofins; com a CBS e o IBS o crédito fica mais amplo. Organize o controle de créditos e a conciliação das notas, e acompanhe o split payment.',
+  liberal: 'Serviços de ISS migram para o IBS. Algumas profissões regulamentadas têm redução de alíquota prevista na LC 214/2025; confirme se a sua atividade se enquadra. Tributação do pró-labore e do lucro não muda.',
+  ong: 'Entidades imunes e sem fins lucrativos mantêm tratamento específico, mas surgem obrigações novas (notas e cadastros). Confirme com o contador o enquadramento da sua entidade.',
+  startup: 'Software e serviços digitais seguem a lógica de serviços (ISS → IBS). Prepare o faturamento para os campos novos da nota e acompanhe o regime de crédito se vender para empresas.',
+};
+const REF_POR_ATIV = {
+  comercio: 'Hoje o ICMS (estadual) é o imposto mais relevante na sua venda, com substituição tributária em vários produtos. Ele sai gradualmente entre 2029 e 2033 e passa a valer o IBS, com crédito amplo.',
+  servicos: 'Hoje o ISS (municipal) é o principal tributo. Ele sai gradualmente entre 2029 e 2033, entrando o IBS. Se o seu cliente é empresa, o crédito de IBS/CBS pode virar argumento comercial.',
+  misto: 'Você lida com ICMS (mercadorias) e ISS (serviços). Ambos saem entre 2029 e 2033 e viram IBS; separe bem as notas de produto e de serviço para a transição.',
+};
+const REF_CHECK = ['Marcar conversa com o contador sobre o impacto no meu regime', 'Confirmar que meu emissor de notas está atualizado com os campos de IBS/CBS', 'Mapear meus fornecedores e quais geram crédito', 'Revisar preços e contratos de longo prazo (cláusula de reequilíbrio)', 'Planejar o caixa para o split payment (imposto retido no pagamento)', 'Se for do Simples: avaliar a opção pelo regime regular de IBS/CBS', 'Treinar quem emite notas e faz o financeiro'];
+function refChecked() { try { return JSON.parse(localStorage.getItem(fxKey('reforma')) || '[]'); } catch (e) { return []; } }
+function refToggle(i) { var a = refChecked(), p = a.indexOf(i); if (p >= 0) a.splice(p, 1); else a.push(i); try { localStorage.setItem(fxKey('reforma'), JSON.stringify(a)); } catch (e) {} renderCurrentTab(); }
+function reformaLink(c) {
+  return '<div class="card mb-24 animate-in" style="margin-top:20px;border-left:3px solid var(--gold,#AD8A2A)"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div><div class="card-title">🔗 Reforma Tributária</div><div class="occ-b-desc" style="margin-top:4px">Veja o que muda para sua empresa em ICMS, ISS, IPI, PIS/Cofins, CBS e IBS entre 2026 e 2033.</div></div><button class="btn-add" onclick="switchTab(\'reforma\')">Ver o que muda</button></div></div>';
+}
+function renderReforma(c) {
+  fxInit();
+  const yr = new Date().getFullYear(), k = getCompanyType(), act = getPJActivity(), cd = state.cnpj_data;
+  const isNow = (y) => { const m = String(y).match(/(\d{4})(?:–(\d{4}))?/); const a = +m[1], b = m[2] ? +m[2] : a; return yr >= a && yr <= b; };
+  const tl = REF_TIMELINE.map(r => '<div style="display:flex;gap:14px;padding:12px 0;border-top:1px solid var(--border)' + (isNow(r.y) ? ';background:var(--teal-wash);margin:0 -12px;padding-left:12px;padding-right:12px;border-radius:8px' : '') + '"><div style="min-width:86px;font-family:var(--font-display);font-weight:700">' + r.y + (isNow(r.y) ? '<div style="font-size:10.5px;color:var(--teal)">você está aqui</div>' : '') + '</div><div><strong>' + r.t + '</strong><div class="occ-b-desc" style="margin-top:2px">' + r.d + '</div></div></div>').join('');
+  const trib = REF_TRIBUTOS.map(r => '<tr><td style="padding:8px 6px;font-weight:700;white-space:nowrap">' + r[0] + '</td><td style="padding:8px 6px">' + r[1] + '</td><td style="padding:8px 6px">' + r[2] + '</td><td style="padding:8px 6px">' + r[3] + '</td></tr>').join('');
+  const done = refChecked();
+  const chk = REF_CHECK.map((t, i) => '<label style="display:flex;gap:10px;align-items:flex-start;padding:6px 0;cursor:pointer"><input type="checkbox" ' + (done.indexOf(i) >= 0 ? 'checked ' : '') + 'onchange="refToggle(' + i + ')" style="margin-top:3px"> <span' + (done.indexOf(i) >= 0 ? ' style="opacity:.6;text-decoration:line-through"' : '') + '>' + t + '</span></label>').join('');
+  const seu = (k ? '<div class="occ-b-desc" style="margin-bottom:10px"><strong>' + PJ_TYPES[k].icon + ' ' + PJ_TYPES[k].label + ':</strong> ' + REF_POR_TIPO[k] + '</div>' : '<div class="occ-b-desc" style="margin-bottom:10px">Informe o tipo da empresa em <a href="#" onclick="openCompanyModal();return false">Perfil da empresa</a> para ver o impacto específico.</div>')
+    + (act && REF_POR_ATIV[act] ? '<div class="occ-b-desc"><strong>' + PJ_ACTIVITIES[act].icon + ' ' + PJ_ACTIVITIES[act].label + ':</strong> ' + REF_POR_ATIV[act] + '</div>' : '')
+    + (cd ? '<div class="occ-b-desc" style="margin-top:10px;font-size:12px">CNPJ consultado: ' + fxEsc(cd.razao_social || '') + ' · CNAE ' + fxEsc(cd.cnae || '') + (cd.cnae_desc ? ' (' + fxEsc(cd.cnae_desc) + ')' : '') + ' · ' + fxEsc((cd.municipio || '') + '/' + (cd.uf || '')) + '. O ICMS é do estado (' + fxEsc(cd.uf || 'UF') + ') e o ISS do município.</div>' : '');
+  return '<div class="section-header animate-in"><div><div class="section-title">Reforma Tributária</div><div class="section-desc">O que muda entre 2026 e 2033 e como cada tributo se encaixa.</div></div></div>'
+    + '<div class="card mb-24 animate-in occ-banner"><div><div class="occ-b-title">🏛️ Uma só ideia: IVA dual</div><div class="occ-b-desc">Cinco tributos sobre consumo (PIS, Cofins, IPI, ICMS e ISS) dão lugar a dois: <strong>CBS</strong> (federal) e <strong>IBS</strong> (estados e municípios), com crédito amplo sobre as compras, cobrança no destino e <strong>split payment</strong> (o imposto é separado no momento do pagamento). Mais o Imposto Seletivo sobre bens prejudiciais à saúde e ao meio ambiente.</div></div></div>'
+    + '<div class="card mb-24 animate-in"><div class="card-title">📅 Cronograma</div><div style="margin-top:8px">' + tl + '</div></div>'
+    + '<div class="card mb-24 animate-in"><div class="card-title">🏢 O que muda para a sua empresa</div><div style="margin-top:10px">' + seu + '</div></div>'
+    + '<div class="card mb-24 animate-in"><div class="card-title">🗺️ Mapa de tributos</div><div style="overflow-x:auto;margin-top:8px"><table class="data-table" style="width:100%;font-size:12.5px"><thead><tr><th style="text-align:left">Tributo</th><th style="text-align:left">Quem cobra</th><th style="text-align:left">Incide sobre</th><th style="text-align:left">Na reforma</th></tr></thead><tbody>' + trib + '</tbody></table></div></div>'
+    + '<div class="card mb-24 animate-in"><div class="card-title">✅ Checklist de preparação</div><div style="margin-top:8px">' + chk + '</div></div>'
+    + '<div class="occ-b-desc" style="font-size:11.5px;opacity:.85">Conteúdo informativo com base na EC 132/2023 e na LC 214/2025; datas, alíquotas finais e regras específicas ainda estão sendo regulamentadas e podem mudar. Não substitui a orientação de um contador. Alíquota de referência do IBS/CBS ainda não definida em lei.</div>';
+}
+
+// ═══════════════════════════════════════════════════════
+// CPF / CNPJ NO CADASTRO — validação (CNPJ numérico e alfanumérico), máscara, busca de dados do
+// CNPJ (BrasilAPI) e leitura de perfil. O CPF é só validado e armazenado: não existe consulta
+// pública gratuita de dados por CPF; o perfil de PF continua sendo montado pelo que o usuário informa.
+// ═══════════════════════════════════════════════════════
+function docClean(s) { return String(s || '').toUpperCase().replace(/[^0-9A-Z]/g, ''); }
+function cpfValid(s) {
+  s = String(s || '').replace(/\D/g, ''); if (s.length !== 11 || /^(\d)\1+$/.test(s)) return false;
+  for (var t = 9; t < 11; t++) { var sum = 0; for (var i = 0; i < t; i++) sum += (+s[i]) * (t + 1 - i); var d = (sum * 10) % 11 % 10; if (d !== +s[t]) return false; }
+  return true;
+}
+function cnpjValid(s) {
+  s = docClean(s); if (!/^[0-9A-Z]{12}[0-9]{2}$/.test(s) || /^(.)\1+$/.test(s)) return false;
+  var val = function(ch) { return ch.charCodeAt(0) - 48; };
+  var dv = function(base) { var w = base.length === 12 ? [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2] : [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2], sum = 0; for (var i = 0; i < base.length; i++) sum += val(base[i]) * w[i]; var r = sum % 11; return r < 2 ? 0 : 11 - r; };
+  var d1 = dv(s.slice(0, 12)), d2 = dv(s.slice(0, 12) + d1);
+  return s.slice(12) === '' + d1 + d2;
+}
+function docMask(type, raw) {
+  var s = docClean(raw), o = '', i;
+  if (type === 'cpf') { s = s.replace(/\D/g, '').slice(0, 11); for (i = 0; i < s.length; i++) { if (i === 3 || i === 6) o += '.'; if (i === 9) o += '-'; o += s[i]; } return o; }
+  s = s.slice(0, 14); for (i = 0; i < s.length; i++) { if (i === 2 || i === 5) o += '.'; if (i === 8) o += '/'; if (i === 12) o += '-'; o += s[i]; } return o;
+}
+function docShow() {
+  if (!state.doc_number) return '';
+  return state.doc_type === 'cpf' ? '•••.•••.•••-' + state.doc_number.slice(-2) : docMask('cnpj', state.doc_number);
+}
+function docDefaultType() { return state.profile_type === 'PJ' ? 'cnpj' : 'cpf'; }
+function docBody(idp) {
+  var t = state.doc_type || docDefaultType();
+  return '<div class="form-group"><label class="form-label">Tipo de documento</label><div style="display:flex;gap:8px"><button class="btn-add" id="' + idp + '-t-cpf" style="' + (t === 'cpf' ? '' : 'opacity:.55') + '" onclick="docPickType(\'cpf\',\'' + idp + '\')">CPF</button><button class="btn-add" id="' + idp + '-t-cnpj" style="' + (t === 'cnpj' ? '' : 'opacity:.55') + '" onclick="docPickType(\'cnpj\',\'' + idp + '\')">CNPJ</button></div></div>'
+    + '<div class="form-group"><label class="form-label" id="' + idp + '-label">' + (t === 'cpf' ? 'CPF' : 'CNPJ') + '</label><input class="form-input" id="' + idp + '-input" inputmode="' + (t === 'cpf' ? 'numeric' : 'text') + '" autocomplete="off" placeholder="' + (t === 'cpf' ? '000.000.000-00' : '00.000.000/0000-00') + '" value="' + (state.doc_number ? docMask(t, state.doc_number) : '') + '" oninput="docOnInput(\'' + idp + '\')"><div id="' + idp + '-msg" class="occ-b-desc" style="margin-top:6px;font-size:12px"></div></div>'
+    + '<div id="' + idp + '-lookup" style="' + (t === 'cnpj' ? '' : 'display:none') + '"><button class="btn-sm" onclick="cnpjLookup(\'' + idp + '\')">🔎 Buscar dados do CNPJ</button><div id="' + idp + '-result" style="margin-top:10px"></div></div>'
+    + '<div class="occ-b-desc" style="margin-top:12px;font-size:11.5px;opacity:.85">🔒 Usamos o documento para identificar o perfil e personalizar suas análises (tipo de empresa, atividade, impostos). Informe apenas o seu próprio CPF ou o CNPJ da sua empresa. O CPF não é consultado em bases externas.</div>';
+}
+function docPickType(t, idp) {
+  state.doc_type = t;
+  document.getElementById(idp + '-t-cpf').style.opacity = t === 'cpf' ? '' : '.55'; document.getElementById(idp + '-t-cnpj').style.opacity = t === 'cnpj' ? '' : '.55';
+  document.getElementById(idp + '-label').textContent = t === 'cpf' ? 'CPF' : 'CNPJ';
+  var inp = document.getElementById(idp + '-input'); inp.value = ''; inp.placeholder = t === 'cpf' ? '000.000.000-00' : '00.000.000/0000-00';
+  document.getElementById(idp + '-lookup').style.display = t === 'cnpj' ? '' : 'none'; document.getElementById(idp + '-msg').textContent = ''; document.getElementById(idp + '-result').innerHTML = '';
+}
+function docOnInput(idp) {
+  var t = state.doc_type || docDefaultType(), inp = document.getElementById(idp + '-input'), msg = document.getElementById(idp + '-msg');
+  inp.value = docMask(t, inp.value); var raw = docClean(inp.value), full = t === 'cpf' ? raw.length === 11 : raw.length === 14;
+  if (!full) { msg.textContent = ''; return; }
+  var ok = t === 'cpf' ? cpfValid(raw) : cnpjValid(raw);
+  msg.textContent = ok ? '✓ Documento válido' : '✗ Número inválido, confira os dígitos'; msg.style.color = ok ? 'var(--income)' : 'var(--expense)';
+}
+function docRead(idp) {
+  var t = state.doc_type || docDefaultType(), raw = docClean(document.getElementById(idp + '-input').value);
+  var ok = t === 'cpf' ? cpfValid(raw) : cnpjValid(raw);
+  return ok ? { type: t, num: raw } : null;
+}
+function cnpjProfile(d) {
+  var porte = String(d.porte || '').toUpperCase(), nat = String(d.natureza_juridica || ''), cnae = String(d.cnae_fiscal || ''), div = parseInt(cnae.slice(0, 2), 10);
+  var type = d.opcao_pelo_mei ? 'mei' : /associa|funda/i.test(nat) ? 'ong' : d.opcao_pelo_simples ? (porte.indexOf('PEQUENO') !== -1 ? 'epp' : 'simples') : 'presumido';
+  var act = (div >= 45 && div <= 47) ? 'comercio' : (div >= 10 && div <= 33) ? 'misto' : 'servicos';
+  return { type: type, act: act, industrial: div >= 10 && div <= 33, regimeIncerto: type === 'presumido' };
+}
+function cnpjLookup(idp) {
+  var r = docRead(idp), box = document.getElementById(idp + '-result');
+  if (!r || r.type !== 'cnpj') { box.innerHTML = '<span style="color:var(--expense)">Digite um CNPJ válido primeiro.</span>'; return; }
+  if (!/^\d{14}$/.test(r.num)) { box.innerHTML = '<span class="occ-b-desc">A busca automática ainda não cobre CNPJ alfanumérico. Escolha o tipo da empresa manualmente.</span>'; return; }
+  box.innerHTML = '<span class="occ-b-desc">Consultando…</span>';
+  fetch('https://brasilapi.com.br/api/cnpj/v1/' + r.num).then(function(x) { if (!x.ok) throw new Error('http ' + x.status); return x.json(); }).then(function(d) {
+    var p = cnpjProfile(d);
+    state.cnpj_data = { razao_social: d.razao_social, nome_fantasia: d.nome_fantasia, cnae: d.cnae_fiscal, cnae_desc: d.cnae_fiscal_descricao, porte: d.porte, situacao: d.descricao_situacao_cadastral, simples: !!d.opcao_pelo_simples, mei: !!d.opcao_pelo_mei, natureza: d.natureza_juridica, uf: d.uf, municipio: d.municipio, abertura: d.data_inicio_atividade };
+    if (state.profile_type === 'PJ') { state.company_type = p.type; state.pj_activity = p.act; syncRegimeFromCompany(); }
+    var sit = String(d.descricao_situacao_cadastral || '').toUpperCase();
+    box.innerHTML = '<div class="card" style="padding:12px"><strong>' + fxEsc(d.razao_social) + '</strong><div class="occ-b-desc" style="margin-top:4px;line-height:1.6">CNAE ' + fxEsc(d.cnae_fiscal) + ' · ' + fxEsc(d.cnae_fiscal_descricao || '') + '<br>' + fxEsc(d.municipio || '') + '/' + fxEsc(d.uf || '') + ' · ' + fxEsc(d.porte || '') + ' · situação: ' + fxEsc(d.descricao_situacao_cadastral || '—') + '<br>Enquadramento detectado: <strong>' + PJ_TYPES[p.type].label + '</strong> · atividade <strong>' + PJ_ACTIVITIES[p.act].label + '</strong>' + (state.profile_type === 'PJ' ? ' (aplicado; você pode ajustar nos próximos passos)' : '') + (p.regimeIncerto ? '<br>⚠️ Não optante do Simples/MEI: pode ser Presumido ou Real, confirme com seu contador.' : '') + (p.industrial ? '<br>ℹ️ Atividade industrial: o app não tem painel específico de indústria, então usamos “Misto”.' : '') + (sit && sit !== 'ATIVA' ? '<br>⚠️ Situação cadastral diferente de ativa.' : '') + '</div></div>';
+  }).catch(function() { state.cnpj_data = null; box.innerHTML = '<span class="occ-b-desc">Não consegui consultar agora (conexão ou serviço indisponível). Você pode seguir e informar o tipo da empresa manualmente.</span>'; });
+}
+function docApplyHighlights() {
+  document.querySelectorAll('[data-ptype]').forEach(function(b) { b.classList.toggle('selected', b.dataset.ptype === state.company_type); });
+  document.querySelectorAll('[data-pact]').forEach(function(b) { b.classList.toggle('selected', b.dataset.pact === state.pj_activity); });
+}
+function docContinue() {
+  var r = docRead('onboard-doc');
+  if (!r) { var m = document.getElementById('onboard-doc-msg'); m.textContent = '✗ Informe um ' + (state.doc_type || docDefaultType()).toUpperCase() + ' válido para continuar'; m.style.color = 'var(--expense)'; return; }
+  state.doc_type = r.type; state.doc_number = r.num; state._docDone = true; nextOnboard(state._docNext || (state.profile_type === 'PF' ? 'occ' : 'pjtype'));
+}
+async function persistDocument() {
+  if (!state.doc_number) return;
+  try { localStorage.setItem(fxKey('doc'), JSON.stringify({ t: state.doc_type, n: state.doc_number, d: state.cnpj_data })); } catch (e) {}
+  if (profile) { profile.document_type = state.doc_type; profile.document_number = state.doc_number; profile.cnpj_data = state.cnpj_data; }
+  if (sb && currentUser) {
+    try { var r = await sb.from('profiles').update({ document_type: state.doc_type, document_number: state.doc_number, cnpj_data: state.cnpj_data }).eq('id', currentUser.id);
+      if (r && r.error) console.warn('documento não salvo no servidor (rode a migração 008):', r.error.message); } catch (e) { console.warn(e); }
+  }
+}
+function docRestoreLocal() {
+  if (state.doc_number) return;
+  try { var s = JSON.parse(localStorage.getItem(fxKey('doc')) || 'null'); if (s && s.n) { state.doc_type = s.t; state.doc_number = s.n; state.cnpj_data = s.d || null; } } catch (e) {}
+}
+function openDocModal() {
+  openModal('CPF / CNPJ', docBody('moddoc') + '<button class="btn-primary" style="margin-top:14px" onclick="saveDocModal()">Salvar</button>');
+}
+async function saveDocModal() {
+  var r = docRead('moddoc');
+  if (!r) { var m = document.getElementById('moddoc-msg'); m.textContent = '✗ Número inválido, confira os dígitos'; m.style.color = 'var(--expense)'; return; }
+  state.doc_type = r.type; state.doc_number = r.num; await persistDocument(); closeModal(); renderCurrentTab(); showToast('Documento salvo ✔', 'success');
+}
+function docModalRow() { return '<div class="occ-b-desc" style="margin-top:14px">🪪 ' + (state.doc_number ? (state.doc_type || '').toUpperCase() + ' ' + docShow() : 'CPF/CNPJ não informado') + ' · <a href="#" onclick="openDocModal();return false">' + (state.doc_number ? 'alterar' : 'informar') + '</a></div>'; }
+function renderDocBanner() {
+  if (state.doc_number) return '';
+  return '<div class="card mb-24 animate-in occ-banner"><div><div class="occ-b-title">🪪 Complete seu cadastro</div><div class="occ-b-desc">Informe seu CPF ou o CNPJ da empresa para personalizar a leitura de perfil e as análises.</div></div><button class="btn-add" onclick="openDocModal()">Informar</button></div>';
+}
+
+function renderRegimePJ(c) { return renderRegimePJ_core(c) + reformaLink(c); }
+function renderFiscal(c) { return renderFiscal_core(c) + reformaLink(c); }
+
+// ═══════════════════════════════════════════════════════
+// RESOLVER DÍVIDAS: plano de quitação (bola de neve x avalanche), "e se eu pagar agora?",
+// financiar x juntar, trocar dívida cara por mais barata e guia de crédito com condições especiais.
+// Tudo calculado no navegador a partir das dívidas, da renda e do perfil cadastrados no app.
+// Estimativas para decisão; juros compostos mensais; confirme o CET com a instituição.
+// ═══════════════════════════════════════════════════════
+FX.dpl = { extra: 0, lump: 0, fin: { valor: 0, entrada: 0, aTaxa: 1.2, aPrazo: 48, bTaxa: 2.5, bPrazo: 48 }, troca: { debt: '', saldo: 0, parcela: 0, restam: 0, taxa: 0, prazo: 0, custo: 0 } };
+function dpSet(path, v) {
+  var p = path.split('.'), o = FX.dpl; for (var i = 0; i < p.length - 1; i++) o = o[p[i]];
+  o[p[p.length - 1]] = (p[p.length - 1] === 'debt') ? v : simNum(v); fxSave('dpl'); renderCurrentTab();
+}
+function dpIn(path, label, ph) {
+  var p = path.split('.'), o = FX.dpl; for (var i = 0; i < p.length; i++) o = o[p[i]];
+  return '<div class="form-group"><label class="form-label">' + label + '</label><input class="form-input" type="text" inputmode="decimal" value="' + (o ? String(o).replace('.', ',') : '') + '" placeholder="' + (ph || '') + '" onchange="dpSet(\'' + path + '\', this.value)"></div>';
+}
+function dpPC(titulo, pros, cons) {
+  var li = function(a, ic) { return a.map(function(t) { return '<li style="margin-bottom:4px">' + ic + ' ' + t + '</li>'; }).join(''); };
+  return '<div style="margin-top:12px"><div class="occ-b-desc" style="font-weight:700;margin-bottom:6px">' + titulo + '</div><div class="occ-grid-3" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr))"><div style="padding:10px 12px;border-radius:8px;background:rgba(34,160,107,.08)"><div style="font-weight:700;font-size:12.5px;color:var(--income)">Benefícios</div><ul style="list-style:none;padding:0;margin:6px 0 0;font-size:12.5px;line-height:1.5">' + li(pros, '✅') + '</ul></div><div style="padding:10px 12px;border-radius:8px;background:rgba(220,60,60,.08)"><div style="font-weight:700;font-size:12.5px;color:var(--expense)">Malefícios e riscos</div><ul style="list-style:none;padding:0;margin:6px 0 0;font-size:12.5px;line-height:1.5">' + li(cons, '⚠️') + '</ul></div></div></div>';
+}
+function dpPmt(pv, i, n) { if (n <= 0) return 0; if (i <= 0) return pv / n; return pv * i / (1 - Math.pow(1 + i, -n)); }
+function dpNetMonthly(meses) {
+  var ir = meses <= 6 ? 0.225 : meses <= 12 ? 0.20 : meses <= 24 ? 0.175 : 0.15;
+  return Math.pow(1 + MKT.cdi * (1 - ir) / 100, 1 / 12) - 1;
+}
+function dpDebts() {
+  return visibleList('debts').filter(function(d) { return d.saldo > 0; }).map(function(d) {
+    var i = (d.juros || 0) / 100, min = d.mensal > 0 ? d.mensal : d.saldo * i + d.saldo * 0.01;
+    return { id: d.id, name: d.name || 'Dívida', saldo: d.saldo, i: i, min: min, estimada: !(d.mensal > 0), semTaxa: !(d.juros > 0), parcelas: d.parcelas || 0, mensal: d.mensal || 0 };
+  });
+}
+function dpSim(debts, extra, strat) {
+  var D = debts.map(function(d) { return { name: d.name, b: d.saldo, i: d.i, min: d.min, done: false }; });
+  var budget = D.reduce(function(t, d) { return t + d.min; }, 0) + (strat === 'min' ? 0 : extra), m = 0, juros = 0, ordem = [];
+  while (m < 600 && D.some(function(d) { return d.b > 0.005; })) {
+    m++;
+    D.forEach(function(d) { if (d.b > 0) { var j = d.b * d.i; d.b += j; juros += j; } });
+    if (strat === 'min') { D.forEach(function(d) { if (d.b > 0) d.b -= Math.min(d.min, d.b); }); }
+    else {
+      var pool = budget;
+      D.forEach(function(d) { if (d.b > 0) { var p = Math.min(d.min, d.b, pool); d.b -= p; pool -= p; } });
+      var ord = D.filter(function(d) { return d.b > 0.005; }).sort(strat === 'aval' ? function(a, b) { return b.i - a.i || a.b - b.b; } : function(a, b) { return a.b - b.b; });
+      for (var k = 0; k < ord.length && pool > 0.005; k++) { var q = Math.min(ord[k].b, pool); ord[k].b -= q; pool -= q; }
+    }
+    D.forEach(function(d) { if (!d.done && d.b <= 0.005) { d.done = true; d.b = 0; ordem.push({ name: d.name, mes: m }); } });
+  }
+  return { meses: m, juros: juros, ordem: ordem, naoQuita: D.some(function(d) { return d.b > 0.005; }) };
+}
+function dpEndDate(m) { var d = new Date(); d.setMonth(d.getMonth() + m); return d.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }); }
+function dpMeses(m, nq) { return nq ? 'não quita' : m + (m === 1 ? ' mês' : ' meses'); }
+function dpImplicitRate(pv, pmt, n) {
+  if (pv <= 0 || pmt <= 0 || n <= 0 || pmt * n <= pv) return 0;
+  var lo = 0, hi = 1; for (var k = 0; k < 60; k++) { var mid = (lo + hi) / 2; if (dpPmt(pv, mid, n) > pmt) hi = mid; else lo = mid; } return lo;
+}
+function dpGuias(c) {
+  var k = getOccupation(), pj = state.profile_type === 'PJ', neg = FX.crd.status === 'sujo', g = [], PC = {"Capital de giro com garantia (Pronampe / FGI)": [["Juros menores e prazo maior que cheque especial", "Parcela mais leve no caixa", "Garantia pública reduz a exigência de bens"], ["Exige certidões e documentos da empresa", "Pode alongar a dívida e custar mais no total", "Se o caixa não melhorar, a dívida nova soma à antiga"]], "Consignado do trabalhador (CLT)": [["Juros bem menores que cartão, cheque especial e crédito pessoal", "Aprovação mais fácil, pesa menos o score", "Parcela descontada em folha: sem atraso"], ["Compromete até 35% do salário", "Na demissão, o saldo pode ser cobrado das verbas rescisórias", "Risco de reabrir as dívidas antigas e ficar com as duas"]], "Consignado (servidor / INSS)": [["Costuma ser a linha mais barata", "Aprovação pouco dependente de score", "Parcela descontada direto no benefício ou contracheque"], ["Reduz sua renda líquida mensal", "Margem limitada (35% mais 5% do cartão consignado)", "Risco de contratar de novo para cobrir gastos"]], "Microcrédito produtivo": [["Taxas menores que crédito pessoal", "Aceita comprovação informal de renda", "Valores pequenos, fáceis de pagar"], ["Limite baixo", "Parcela fixa em renda variável pode pesar no pior mês", "Burocracia e prazo de análise"]], "Portabilidade de crédito": [["Taxa menor sem pagar tarifa para trocar", "O banco atual pode cobrir a oferta e baixar a taxa", "Economia direta nos juros do contrato"], ["Se o prazo aumentar, o total pago pode subir", "Exige comparar o CET com cuidado", "Demora de alguns dias até concluir"]], "Trocar cartão rotativo ou cheque especial por parcelado": [["Troca um dos juros mais altos do mercado por um bem menor", "Parcela fixa e prazo definido", "Fim da bola de neve do rotativo"], ["Se voltar a usar o cartão, a dívida reaparece", "Pode haver IOF e tarifas", "Parcela nova entra no orçamento mensal"]], "Renegociação com desconto (Desenrola, Serasa Limpa Nome)": [["Descontos que podem chegar a 90% conforme o programa", "Limpa o nome e reabre o acesso a crédito", "Juros e prazos limitados"], ["Regras e prazos mudam; confira nos canais oficiais", "Atraso longo reduz a margem para negociar", "Parcela precisa caber no orçamento ou o acordo é quebrado"]], "Empréstimo com garantia (imóvel ou veículo)": [["Juros menores que crédito pessoal", "Prazo longo e parcela menor", "Valores maiores disponíveis"], ["O bem fica como garantia e pode ser perdido no atraso", "Custos de avaliação e registro", "Prazo longo aumenta o total pago"]]};
+  if (pj) {
+    g.push(['Capital de giro com garantia (Pronampe / FGI)', 'Mais barato', 'Para ME/EPP e MEI trocar dívida cara (cheque especial, giro curto) por prazo maior e juro menor. 1) Peça ao seu banco a linha com garantia do FGI/Pronampe; 2) compare o CET em pelo menos 3 bancos; 3) use o dinheiro para quitar as dívidas mais caras no mesmo dia; 4) mantenha as certidões em dia. Cuidado: não aumente o prazo além do necessário.']);
+  } else if (k === 'clt') g.push(['Consignado do trabalhador (CLT)', 'Mais barato', 'Parcela descontada em folha, com juros bem menores que cartão e cheque especial. 1) Abra a Carteira de Trabalho Digital e veja a opção de crédito do trabalhador; 2) simule em 3 ou mais bancos e compare o CET; 3) use o valor para quitar as dívidas de juros mais altos no mesmo dia; 4) cancele ou zere o limite do rotativo. Cuidados: margem de até 35% do salário; em caso de demissão a parcela pode ser cobrada das verbas rescisórias.']);
+  else if (k === 'servidor' || k === 'aposentado') g.push(['Consignado (servidor / INSS)', 'Mais barato', 'Costuma ser a linha mais barata. 1) Consulte a margem no contracheque ou no Meu INSS; 2) simule em vários bancos e compare o CET; 3) quite as dívidas mais caras com o valor liberado; 4) feche as linhas de cheque especial e rotativo. Cuidado: não reabra as dívidas depois.']);
+  else if (k === 'autonomo' || k === 'mei' || k === 'empresario') g.push(['Microcrédito produtivo', 'Médio', 'Para renda variável: taxas menores que crédito pessoal. 1) Procure CrediAmigo (Banco do Nordeste), Caixa, Banco do Brasil ou Sebrae; 2) leve comprovantes de faturamento (notas, extratos, DAS); 3) simule o CET; 4) use para trocar dívida cara. Cuidado: parcela precisa caber no seu pior mês.']);
+  g.push(['Portabilidade de crédito', 'Mais barato', 'Leve um empréstimo ou financiamento para outro banco com taxa menor, sem o banco atual poder cobrar por isso. 1) Peça ao banco atual o saldo devedor e o CET do contrato; 2) peça simulação ao banco novo; 3) o banco novo solicita a portabilidade (prazo médio de poucos dias úteis); 4) confira se o prazo e o saldo permanecem. Cuidado: não aumente o prazo à toa, isso encarece.']);
+  g.push(['Trocar cartão rotativo ou cheque especial por parcelado', 'Mais barato', 'Rotativo e cheque especial estão entre os juros mais altos do mercado. 1) Peça no app do banco o parcelamento da fatura ou um empréstimo para cobrir o saldo; 2) compare a taxa mensal e o CET; 3) pague a dívida cara no mesmo dia e zere o limite. Cuidado: se continuar gastando no cartão, a dívida volta.']);
+  g.push(['Renegociação com desconto (Desenrola, Serasa Limpa Nome)', neg ? 'Prioridade' : 'Se houver atraso', 'Se há dívida em atraso, negocie antes de pegar crédito novo. 1) Consulte o CPF no Serasa/SPC e no Registrato; 2) tente o Desenrola (gov.br) ou o Serasa Limpa Nome; 3) priorize quitar à vista ou parcelar sem juros abusivos; 4) guarde o comprovante e a baixa. Detalhes na aba Crédito & Nome Sujo.']);
+  g.push(['Empréstimo com garantia (imóvel ou veículo)', 'Médio, com risco', 'Juros mais baixos que o crédito pessoal, mas o bem fica como garantia. 1) Faça a avaliação do bem; 2) compare o CET e o prazo; 3) só use para trocar dívidas muito caras; 4) tenha folga no orçamento. Cuidado: atrasar pode significar perder o bem.']);
+  g.push(['Antecipação do saque-aniversário do FGTS', 'Cuidado', 'Libera dinheiro rápido, mas costuma ter taxa alta e trava o saque do FGTS na demissão. Só considere se não houver alternativa mais barata e compare o CET.', ["Dinheiro rápido", "Sem exigir análise de crédito pesada"], ["Taxa alta", "Trava o saque do FGTS na demissão", "Pode custar mais que um consignado"]]);
+  g.forEach(function(x) { if (!x[3] && PC[x[0]]) { x[3] = PC[x[0]][0]; x[4] = PC[x[0]][1]; } });
+  return g;
+}
+function renderResolver(c) {
+  fxInit();
+  var DP = FX.dpl, debts = dpDebts(), pj = state.profile_type === 'PJ';
+  var renda = c.totalIncome || state.monthlyIncome || 0;
+  var head = '<div class="section-header animate-in"><div><div class="section-title">Resolver Dívidas</div><div class="section-desc">Compare caminhos, veja quanto você economiza e saiba como fazer.</div></div></div>';
+  var PCG = {};
+  var guias = dpGuias(c).map(function(g) { return '<div class="card" style="padding:14px;margin-bottom:10px"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap"><strong>' + g[0] + '</strong><span class="occ-b-desc" style="font-size:11px;padding:2px 8px;border:1px solid var(--border);border-radius:10px">' + g[1] + '</span></div><div class="occ-b-desc" style="margin-top:6px;line-height:1.6">' + g[2] + '</div>' + (g[3] ? dpPC('', g[3], g[4]) : (PCG[g[0]] ? dpPC('', PCG[g[0]][0], PCG[g[0]][1]) : '')) + '</div>'; }).join('');
+  var secGuia = '<div class="card mb-24 animate-in"><div class="card-title">🧭 Como conseguir crédito com condições especiais — o que fazer e como</div><div style="margin-top:12px">' + guias + '</div></div>';
+  var secFin = renderResolverFin(c, renda), secTroca = renderResolverTroca(debts);
+  if (!debts.length) {
+    return head + '<div class="card mb-24 animate-in occ-banner"><div><div class="occ-b-title">Cadastre suas dívidas para começar</div><div class="occ-b-desc">Com saldo, juros e parcela de cada dívida eu comparo as formas de pagar e mostro quanto você economiza. Você também pode usar o comparador de financiamento abaixo.</div></div><button class="btn-add" onclick="switchTab(\'dividas\');openDebtModal()">Cadastrar dívida</button></div>' + secFin + secTroca + secGuia + FX_DISCLAIMER;
+  }
+  var total = debts.reduce(function(t, d) { return t + d.saldo; }, 0), minTot = debts.reduce(function(t, d) { return t + d.min; }, 0);
+  var jurosMes = debts.reduce(function(t, d) { return t + d.saldo * d.i; }, 0), taxaPond = total > 0 ? jurosMes / total * 100 : 0;
+  var pct = renda > 0 ? minTot / renda * 100 : 0;
+  var avisos = [];
+  if (debts.some(function(d) { return d.semTaxa; })) avisos.push('Algumas dívidas estão sem taxa de juros: edite em Dívidas para a análise ficar exata.');
+  if (debts.some(function(d) { return d.estimada; })) avisos.push('Dívidas sem parcela informada usam uma parcela mínima estimada (juros + 1% do saldo).');
+  var kpis = '<div class="kpi-grid mb-24 animate-in"><div class="kpi"><div class="kpi-label">Total devido</div><div class="kpi-value expense">' + simBRL(total) + '</div></div><div class="kpi"><div class="kpi-label">Parcelas por mês</div><div class="kpi-value">' + simBRL(minTot) + '</div></div><div class="kpi"><div class="kpi-label">Juros pagos por mês</div><div class="kpi-value expense">' + simBRL(jurosMes) + '</div></div><div class="kpi"><div class="kpi-label">Juros médios</div><div class="kpi-value">' + taxaPond.toFixed(2).replace('.', ',') + '% a.m.</div></div><div class="kpi"><div class="kpi-label">Renda comprometida</div><div class="kpi-value ' + (pct > 30 ? 'expense' : '') + '">' + (renda > 0 ? pct.toFixed(0) + '%' : '—') + '</div></div></div>' + (avisos.length ? '<div class="occ-b-desc mb-24" style="font-size:12px">⚠️ ' + avisos.join(' ') + '</div>' : '');
+  var extra = DP.extra || 0;
+  var rMin = dpSim(debts, 0, 'min'), rSnow = dpSim(debts, extra, 'snow'), rAval = dpSim(debts, extra, 'aval');
+  var best = rAval.juros <= rSnow.juros ? 'aval' : 'snow', bestR = best === 'aval' ? rAval : rSnow;
+  var livre = Math.max(0, c.resultado || 0);
+  var row = function(nome, r, tag, base) { return '<tr><td style="padding:8px 6px"><strong>' + nome + '</strong>' + (tag ? ' <span class="occ-b-desc" style="font-size:11px">' + tag + '</span>' : '') + '</td><td style="padding:8px 6px;text-align:right">' + dpMeses(r.meses, r.naoQuita) + (r.naoQuita ? '' : '<div style="font-size:11px;color:var(--ink-3)">livre em ' + dpEndDate(r.meses) + '</div>') + '</td><td style="padding:8px 6px;text-align:right">' + (r.naoQuita ? '—' : simBRL(r.juros)) + '</td><td style="padding:8px 6px;text-align:right"><strong>' + (base && !r.naoQuita && !rMin.naoQuita ? simBRL(rMin.juros - r.juros) : (base && !r.naoQuita && rMin.naoQuita ? 'evita juros sem fim' : '—')) + '</strong></td></tr>'; };
+  var secPlano = '<div class="card mb-24 animate-in"><div class="card-title">🎯 Plano de quitação</div><div class="occ-b-desc" style="margin:8px 0 12px">Quanto você consegue pagar <strong>por mês além das parcelas</strong>? ' + (livre > 0 ? 'Pelo seu mês atual sobram cerca de ' + simBRL(livre) + '.' : 'Informe um valor, mesmo pequeno.') + '</div><div class="occ-grid-3">' + dpIn('extra', 'Valor extra por mês (R$)', livre > 0 ? String(Math.round(livre)) : '0,00') + '</div>'
+    + '<div style="overflow-x:auto"><table class="data-table" style="width:100%;margin-top:6px"><thead><tr><th style="text-align:left">Estratégia</th><th style="text-align:right">Prazo</th><th style="text-align:right">Juros totais</th><th style="text-align:right">Economia</th></tr></thead><tbody>'
+    + row('Só as parcelas', rMin, 'sem extra', false) + row('Bola de neve', rSnow, 'menor saldo primeiro', true) + row('Avalanche', rAval, 'maior juros primeiro', true) + '</tbody></table></div>'
+    + (extra > 0 ? '<div class="occ-b-desc" style="margin-top:12px;line-height:1.7"><strong>Recomendado: ' + (best === 'aval' ? 'Avalanche' : 'Bola de neve') + '.</strong> ' + (best === 'aval' ? 'Quitar primeiro a dívida de maior juros economiza mais dinheiro.' : 'Neste caso quitar as menores primeiro libera parcelas mais cedo e custa praticamente o mesmo.') + ' Ordem sugerida: ' + bestR.ordem.map(function(o, i) { return (i + 1) + '. ' + fxEsc(o.name) + ' (' + dpEndDate(o.mes) + ')'; }).join(' → ') + '.' + (rMin.naoQuita ? ' Atenção: só com as parcelas atuais, pelo menos uma dívida <strong>não é quitada</strong> (a parcela não cobre os juros).' : '') + '</div>' : '<div class="occ-b-desc" style="margin-top:12px">Informe o valor extra para comparar bola de neve e avalanche.</div>')
+    + dpPC('Avalanche (maior juros primeiro)', ['Menor custo total em juros','Ataca a dívida que mais cresce','Melhor escolha quando as taxas são muito diferentes'], ['Pode demorar a quitar a primeira dívida e dar sensação de pouco avanço','Exige disciplina para manter o valor extra'])
+    + dpPC('Bola de neve (menor saldo primeiro)', ['Quita dívidas rápido e libera parcelas cedo','Motivação: resultados visíveis logo no começo','Reduz o número de cobranças'], ['Pode custar mais em juros se a dívida grande for a mais cara','Menos eficiente quando há grande diferença de taxas'])
+    + dpPC('Pagar só as parcelas', ['Não exige esforço extra','Preserva o caixa do mês'], ['Maior custo total em juros','Algumas dívidas podem nunca ser quitadas se a parcela não cobre os juros','Dívida longa e risco de novos atrasos']) + '</div>';
+  // E se eu pagar agora?
+  var lump = DP.lump || 0, secLump = '';
+  var base = extra > 0 ? bestR : rMin, baseStrat = extra > 0 ? best : 'min';
+  var lumpRows = '';
+  if (lump > 0) {
+    var rates = debts.map(function(d, idx) {
+      var copy = debts.map(function(x) { return Object.assign({}, x); }); var take = Math.min(lump, copy[idx].saldo); copy[idx].saldo -= take; var left = lump - take;
+      if (left > 0) { copy.slice().sort(function(a, b) { return b.i - a.i; }).forEach(function(x) { if (left > 0 && x.saldo > 0) { var t = Math.min(left, x.saldo); x.saldo -= t; left -= t; } }); }
+      var r = dpSim(copy.filter(function(x) { return x.saldo > 0.005; }), baseStrat === 'min' ? 0 : extra, baseStrat);
+      var invest = lump * (Math.pow(1 + dpNetMonthly(base.meses), base.meses) - 1);
+      return { d: debts[idx], eco: base.juros - r.juros, meses: base.meses - r.meses, invest: invest, r: r };
+    }).sort(function(a, b) { return b.eco - a.eco; });
+    lumpRows = rates.map(function(x, i) { var ganha = x.eco > x.invest; return '<tr><td style="padding:8px 6px">' + (i === 0 ? '🏆 ' : '') + '<strong>' + fxEsc(x.d.name) + '</strong><div style="font-size:11px;color:var(--ink-3)">' + (x.d.i * 100).toFixed(2).replace('.', ',') + '% a.m. · saldo ' + simBRL(x.d.saldo) + '</div></td><td style="padding:8px 6px;text-align:right"><strong>' + simBRL(Math.max(0, x.eco)) + '</strong></td><td style="padding:8px 6px;text-align:right">' + Math.max(0, x.meses) + '</td><td style="padding:8px 6px;text-align:right">' + simBRL(x.invest) + '</td><td style="padding:8px 6px">' + (ganha ? '✅ Pagar a dívida compensa mais' : '↔️ Investir rende mais') + '</td></tr>'; }).join('');
+    var top = rates[0];
+    secLump = '<div style="overflow-x:auto"><table class="data-table" style="width:100%;margin-top:6px"><thead><tr><th style="text-align:left">Usar o valor em…</th><th style="text-align:right">Juros economizados</th><th style="text-align:right">Meses a menos</th><th style="text-align:right">Se investisse no CDB</th><th style="text-align:left">Veredito</th></tr></thead><tbody>' + lumpRows + '</tbody></table></div><div class="occ-b-desc" style="margin-top:10px;line-height:1.7"><strong>Melhor uso de ' + simBRL(lump) + ': ' + fxEsc(top.d.name) + '.</strong> ' + (top.eco > top.invest ? 'Os juros que você evita (' + simBRL(top.eco) + ') superam o que o dinheiro renderia investido (' + simBRL(top.invest) + ' líquidos no mesmo prazo).' : 'Neste caso o investimento renderia mais que os juros evitados; mantenha o dinheiro aplicado em liquidez diária.') + ' Regra geral: o que importa é a <em>taxa</em>, não o prazo; uma dívida curta de juros altos deve ser quitada antes de uma longa de juros baixos, exceto se o pagamento tirar sua reserva de emergência.</div>' + dpPC('Pagar a dívida agora', ['Retorno garantido: cada real evitado de juros é ganho certo','Libera parcela mensal no orçamento','Reduz o risco de atraso e de nome sujo'], ['O dinheiro deixa de ficar disponível para emergências','Se a dívida tem juros baixos, o investimento pode render mais','Pode gerar multa ou perda de desconto em alguns contratos']) + dpPC('Investir em vez de pagar', ['Mantém liquidez para emergências','Rende mais quando a dívida tem juros menores que o investimento','Preserva o patrimônio'], ['Rendimento líquido é menor que os juros da maioria das dívidas caras','Risco de gastar o dinheiro e continuar devendo','Imposto de renda reduz o ganho']);
+  }
+  var secAgora = '<div class="card mb-24 animate-in"><div class="card-title">💡 E se eu pagar agora?</div><div class="occ-b-desc" style="margin:8px 0 12px">Tem um valor disponível (13º, restituição, bônus, economia)? Veja em qual dívida ele rende mais ou se compensa mais investir.</div><div class="occ-grid-3">' + dpIn('lump', 'Valor disponível agora (R$)', '0,00') + '</div>' + secLump + '</div>';
+  return head + kpis + secPlano + secAgora + secTroca + secFin + secGuia + FX_DISCLAIMER;
+}
+function renderResolverFin(c, renda) {
+  var F = FX.dpl.fin, V = F.valor || 0, E = F.entrada || 0, PV = Math.max(0, V - E), out = '';
+  var form = '<div class="occ-grid-3">' + dpIn('fin.valor', 'Valor do bem (R$)', '50000') + dpIn('fin.entrada', 'Entrada (R$)', '10000') + '</div><div class="occ-grid-3">' + dpIn('fin.aTaxa', 'Opção A: juros % ao mês', '1,2') + dpIn('fin.aPrazo', 'Opção A: parcelas', '48') + dpIn('fin.bTaxa', 'Opção B: juros % ao mês', '2,5') + dpIn('fin.bPrazo', 'Opção B: parcelas', '48') + '</div>';
+  if (PV > 0) {
+    var calc = function(tx, n) { var i = tx / 100, p = dpPmt(PV, i, n); return { p: p, tot: p * n, jur: p * n - PV, ano: (Math.pow(1 + i, 12) - 1) * 100 }; };
+    var A = calc(F.aTaxa, F.aPrazo), B = calc(F.bTaxa, F.bPrazo);
+    var dif = B.tot - A.tot, rm = dpNetMonthly(Math.max(F.aPrazo, 1));
+    var comp = function(r) { return renda > 0 ? ((r.p + 0) / renda * 100) : 0; };
+    var minTot = dpDebts().reduce(function(t, d) { return t + d.min; }, 0);
+    var pc = function(r) { return renda > 0 ? ((minTot + r.p) / renda * 100).toFixed(0) + '%' : '—'; };
+    var meses = 0, acc = E; var ap = A.p; if (rm > 0 && ap > 0) { while (acc < V && meses < 360) { acc = acc * (1 + rm) + ap; meses++; } }
+    var rendAno = (Math.pow(1 + rm, 12) - 1) * 100;
+    var ver = [];
+    ver.push('A opção ' + (dif > 0 ? 'A' : 'B') + ' custa <strong>' + simBRL(Math.abs(dif)) + '</strong> a menos no total (' + (dif > 0 ? 'A' : 'B') + ' tem juros menores no período).');
+    ver.push('Taxa equivalente de A: ' + A.ano.toFixed(1).replace('.', ',') + '% ao ano; de B: ' + B.ano.toFixed(1).replace('.', ',') + '% ao ano. Um CDB hoje rende cerca de ' + rendAno.toFixed(1).replace('.', ',') + '% ao ano líquidos.');
+    if (A.ano < rendAno) ver.push('Como a taxa de A está <strong>abaixo do rendimento de um CDB</strong>, financiar é razoável: você fica com o bem agora e mantém o dinheiro investido, desde que a parcela caiba no orçamento.');
+    else ver.push('A taxa de A está <strong>acima do rendimento</strong> do investimento: se o bem não é urgente, ' + (meses < 360 ? 'juntar ' + simBRL(ap) + ' por mês leva cerca de <strong>' + meses + ' meses</strong> e você compra à vista, economizando ' + simBRL(A.jur) + ' de juros.' : 'vale buscar taxa menor ou entrada maior.'));
+    if (renda > 0 && (minTot + A.p) / renda * 100 > 30) ver.push('⚠️ Com a parcela, suas dívidas passariam de 30% da renda (' + pc(A) + '), acima do limite considerado saudável. Aumente a entrada ou o prazo com cautela.');
+    out = '<div style="overflow-x:auto"><table class="data-table" style="width:100%;margin-top:6px"><thead><tr><th style="text-align:left"></th><th style="text-align:right">Opção A</th><th style="text-align:right">Opção B</th></tr></thead><tbody>'
+      + '<tr><td style="padding:8px 6px">Valor financiado</td><td style="text-align:right">' + simBRL(PV) + '</td><td style="text-align:right">' + simBRL(PV) + '</td></tr>'
+      + '<tr><td style="padding:8px 6px">Parcela</td><td style="text-align:right"><strong>' + simBRL(A.p) + '</strong></td><td style="text-align:right"><strong>' + simBRL(B.p) + '</strong></td></tr>'
+      + '<tr><td style="padding:8px 6px">Total pago</td><td style="text-align:right">' + simBRL(A.tot) + '</td><td style="text-align:right">' + simBRL(B.tot) + '</td></tr>'
+      + '<tr><td style="padding:8px 6px">Juros pagos</td><td style="text-align:right">' + simBRL(A.jur) + '</td><td style="text-align:right">' + simBRL(B.jur) + '</td></tr>'
+      + '<tr><td style="padding:8px 6px">Dívidas totais ÷ renda</td><td style="text-align:right">' + pc(A) + '</td><td style="text-align:right">' + pc(B) + '</td></tr></tbody></table></div>'
+      + '<div class="occ-b-desc" style="margin-top:12px;line-height:1.7">' + ver.map(function(t) { return '• ' + t; }).join('<br>') + '</div>' + dpPC('Financiar', ['Você usa o bem desde já','Mantém o dinheiro investido se a taxa for menor que o rendimento','Parcela fixa facilita o planejamento'], ['Paga juros: o bem custa mais que o preço à vista','Compromete a renda por vários meses','Atraso pode gerar multa e perda do bem financiado']) + dpPC('Juntar e comprar à vista', ['Sem juros e com poder de negociar desconto à vista','Orçamento mais leve e sem dívida nova','O dinheiro rende enquanto você junta'], ['Demora para ter o bem','Preço do bem pode subir no período','Exige disciplina para não gastar o que juntou']);
+  } else out = '<div class="occ-b-desc">Informe o valor do bem e a entrada para comparar.</div>';
+  return '<div class="card mb-24 animate-in"><div class="card-title">🏠 Vou financiar: qual opção compensa mais?</div><div class="occ-b-desc" style="margin:8px 0 12px">Compare duas propostas (juros baixos x altos) e veja também se vale mais juntar o dinheiro. Peça sempre o CET (custo efetivo total) ao banco.</div>' + form + out + '</div>';
+}
+function renderResolverTroca(debts) {
+  var T = FX.dpl.troca, opts = '<option value="">Escolher uma dívida cadastrada…</option>' + debts.map(function(d) { return '<option value="' + d.id + '"' + (T.debt === d.id ? ' selected' : '') + '>' + fxEsc(d.name) + ' (' + simBRL(d.saldo) + ')</option>'; }).join('');
+  var sel = debts.length ? '<div class="form-group"><label class="form-label">Preencher com uma dívida sua</label><select class="form-input" onchange="dpPickTroca(this.value)">' + opts + '</select></div>' : '';
+  var form = sel + '<div class="occ-grid-3">' + dpIn('troca.saldo', 'Saldo devedor atual (R$)', '10000') + dpIn('troca.parcela', 'Parcela atual (R$)', '600') + dpIn('troca.restam', 'Parcelas restantes', '24') + dpIn('troca.taxa', 'Nova taxa (% ao mês)', '1,8') + dpIn('troca.prazo', 'Novo prazo (parcelas)', '24') + dpIn('troca.custo', 'Custos da troca: IOF, tarifas (R$)', '0') + '</div>';
+  var out = '', S = T.saldo || 0;
+  if (S > 0 && T.parcela > 0 && T.restam > 0 && T.taxa > 0 && T.prazo > 0) {
+    var oldTot = T.parcela * T.restam, np = dpPmt(S, T.taxa / 100, T.prazo), newTot = np * T.prazo + (T.custo || 0), eco = oldTot - newTot, ir = dpImplicitRate(S, T.parcela, T.restam) * 100;
+    out = '<div class="kpi-grid" style="margin-top:8px"><div class="kpi"><div class="kpi-label">Taxa atual (implícita)</div><div class="kpi-value">' + ir.toFixed(2).replace('.', ',') + '% a.m.</div></div><div class="kpi"><div class="kpi-label">Nova parcela</div><div class="kpi-value">' + simBRL(np) + '</div></div><div class="kpi"><div class="kpi-label">Economia total</div><div class="kpi-value ' + (eco > 0 ? 'income' : 'expense') + '">' + simBRL(eco) + '</div></div></div>'
+      + '<div class="occ-b-desc" style="margin-top:12px;line-height:1.7">' + (eco > 0 ? '✅ <strong>Vale a pena trocar:</strong> você paga ' + simBRL(eco) + ' a menos no total' + (np < T.parcela ? ' e a parcela mensal cai ' + simBRL(T.parcela - np) + '.' : ', mas a parcela mensal sobe ' + simBRL(np - T.parcela) + '; confirme que cabe no orçamento.') : '❌ <strong>Não compensa:</strong> o custo total da nova dívida (' + simBRL(newTot) + ') é maior que o que falta pagar hoje (' + simBRL(oldTot) + ').') + (T.prazo > T.restam * 1.5 ? ' Atenção: o prazo novo é muito maior que o atual; parcela menor não significa dívida mais barata.' : '') + '</div>' + dpPC('Trocar a dívida', ['Taxa menor reduz o total pago','Pode baixar a parcela e aliviar o orçamento','Consolida dívidas em uma só'], ['Custos de IOF e tarifas reduzem a economia','Prazo maior pode encarecer o total','Se o limite antigo continuar aberto, você pode voltar a dever']);
+  } else out = '<div class="occ-b-desc">Preencha os campos para ver se trocar de dívida compensa.</div>';
+  return '<div class="card mb-24 animate-in"><div class="card-title">🔄 Trocar uma dívida cara por uma mais barata</div><div class="occ-b-desc" style="margin:8px 0 12px">Refinanciamento, portabilidade ou consignado: compare o que falta pagar hoje com a nova proposta.</div>' + form + out + '</div>';
+}
+function dpPickTroca(id) {
+  var d = dpDebts().filter(function(x) { return x.id === id; })[0], T = FX.dpl.troca; T.debt = id;
+  if (d) { T.saldo = d.saldo; T.parcela = d.mensal || d.min; T.restam = d.parcelas || T.restam; }
+  fxSave('dpl'); renderCurrentTab();
+}
+function renderDebtNudge(c) {
+  var ds = dpDebts(); if (!ds.length) return '';
+  var total = ds.reduce(function(t, d) { return t + d.saldo; }, 0), top = ds.slice().sort(function(a, b) { return b.i - a.i; })[0];
+  var pond = ds.reduce(function(t, d) { return t + d.saldo * d.i; }, 0) / total * 100;
+  return '<div class="card mb-24 animate-in occ-banner"><div><div class="occ-b-title">🧩 Seu plano de dívidas</div><div class="occ-b-desc">Você deve ' + simBRL(total) + ' com juros médios de ' + pond.toFixed(2).replace('.', ',') + '% ao mês' + (top.i > 0 ? '. A mais cara é <strong>' + fxEsc(top.name) + '</strong> (' + (top.i * 100).toFixed(2).replace('.', ',') + '% a.m.). Veja a melhor ordem de pagamento e quanto você economiza.' : '. Informe os juros de cada dívida para ver a melhor ordem de pagamento.') + '</div></div><button class="btn-add" onclick="switchTab(\'resolver\')">Resolver</button></div>';
+}
+
 var PLUS_ONLY_TABS = {
+  resolver: { label: 'Resolver Dívidas', desc: 'Plano de quitação, comparação de estratégias, financiar x juntar, troca de dívidas e guia de crédito com condições especiais.', tier: 'basic' },
   investir: { label: 'Investimentos', desc: 'Perfil de investidor, ordem de prioridades e onde investir com base na Selic atual e na sua situação.', tier: 'basic' },
   credito: { label: 'Crédito & Nome Sujo', desc: 'Tamanho da dívida, plano para limpar o nome, programas de renegociação e onde conseguir crédito.', tier: 'basic' },
   perfilrenda: { label: 'Perfil de Renda', desc: 'Reserva de emergência sob medida, renda para planejar e histórico de renda por vínculo de trabalho.', tier: 'basic' },
@@ -4777,6 +5270,8 @@ function renderCurrentTab() {
     caixapj: () => renderCaixaPJ(c),
     simuladorclt: () => renderSimuladorCLT(c),
     investir: () => renderInvestir(c),
+    reforma: () => renderReforma(c),
+    resolver: () => renderResolver(c),
     credito: () => renderCredito(c),
     regimepj: () => renderRegimePJ(c),
   };
@@ -4805,7 +5300,7 @@ function renderDashboard(c) {
   const greeting = state.name ? (isPJ ? `${state.name} · Empresa` : `Olá, ${state.name}`) : '';
   return `<div class="hero-card mb-24 animate-in"><div class="hero-label">${heroLabel}</div><div class="hero-value">${fmt(saldo)}</div><div class="hero-sub">${greeting} · Atualizado agora</div></div>
   ${renderCrisisBanner(c)}
-  ${renderOccBanner(c)}
+  ${renderDocBanner()}${renderDebtNudge(c)}${renderOccBanner(c)}
   <div class="card mb-24 animate-in" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><div><div class="card-title" style="margin:0">💭 Pensando em comprar algo?</div><div style="font-size:12px;color:var(--ink-3)">Simule o impacto na sua meta e no seu orçamento antes de decidir.</div></div><button class="btn-add" onclick="openBuySimulator()">${isPlusUser()?'Simular compra':'🔒 Simular compra'}</button></div>
   <div class="kpi-grid">${[
     { label: isPJ ? 'Faturamento' : 'Renda', value: fmt(c.totalIncome), cls: 'income' },
@@ -4983,15 +5478,38 @@ function renderSaude(c) {
 }
 
 // ─── CÂMBIO ─────────────────────────────────────
+var CAMBIO = { brl: { USD: 4.9686, EUR: 5.5994, GBP: 6.5964, JPY: 0.03143 }, delta: { USD: null, EUR: null, GBP: null, JPY: null }, date: '06/10/2026', live: false, tried: false };
+function cambioLoad() {
+  if (CAMBIO.tried) return; CAMBIO.tried = true;
+  try {
+    var d = new Date(); d.setDate(d.getDate() - 10);
+    fetch('https://api.frankfurter.dev/v1/' + d.toISOString().slice(0, 10) + '..?base=USD&symbols=BRL,EUR,GBP,JPY')
+      .then(function(r) { return r.json(); }).then(function(j) {
+        var days = Object.keys(j.rates).sort(); if (days.length < 1) return;
+        var conv = function(r) { return { USD: r.BRL, EUR: r.BRL / r.EUR, GBP: r.BRL / r.GBP, JPY: r.BRL / r.JPY }; };
+        var last = conv(j.rates[days[days.length - 1]]), first = days.length > 1 ? conv(j.rates[days[0]]) : null;
+        CAMBIO.brl = last;
+        ['USD', 'EUR', 'GBP', 'JPY'].forEach(function(k) { CAMBIO.delta[k] = first ? (last[k] / first[k] - 1) * 100 : null; });
+        CAMBIO.date = days[days.length - 1].split('-').reverse().join('/'); CAMBIO.live = true;
+        if (currentTab === 'cambio') { renderCurrentTab(); }
+      }).catch(function() {});
+  } catch (e) {}
+}
 function renderCambio() {
-  const currencies = [{flag:'🇺🇸',pair:'USD/BRL',rate:5.32,delta:-0.8},{flag:'🇪🇺',pair:'EUR/BRL',rate:6.18,delta:0.3},{flag:'🇬🇧',pair:'GBP/BRL',rate:7.14,delta:-0.2},{flag:'🇯🇵',pair:'JPY/BRL',rate:0.038,delta:1.1}];
+  cambioLoad();
+  const flags = { USD: '🇺🇸', EUR: '🇪🇺', GBP: '🇬🇧', JPY: '🇯🇵' };
+  const currencies = ['USD', 'EUR', 'GBP', 'JPY'].map(k => ({ flag: flags[k], pair: k + '/BRL', rate: CAMBIO.brl[k], delta: CAMBIO.delta[k] }));
+  const fonte = CAMBIO.live
+    ? 'Fonte: taxas de referência do <b>Banco Central Europeu (BCE)</b>, via API Frankfurter (frankfurter.dev). Cotação de ' + CAMBIO.date + '; variação em ~10 dias.'
+    : 'Fonte: taxas de referência do <b>Banco Central Europeu (BCE)</b> via API Frankfurter — não foi possível atualizar agora; exibindo a última cotação conhecida (' + CAMBIO.date + ').';
   return `<div class="section-header animate-in"><div><div class="section-title">Centro de Câmbio</div><div class="section-desc">Cotações de referência.</div></div></div>
-  <div class="currency-grid mb-24">${currencies.map((c,i)=>`<div class="currency-card animate-in stagger-${i+1}"><div class="currency-flag">${c.flag}</div><div class="currency-pair">${c.pair}</div><div class="currency-rate">${c.rate<1?c.rate.toFixed(3):c.rate.toFixed(2)}</div><div class="currency-delta" style="color:${c.delta>=0?'var(--income)':'var(--expense)'}">${c.delta>=0?'▲':'▼'} ${Math.abs(c.delta).toFixed(1)}% (7d)</div></div>`).join('')}</div>
-  <div class="card animate-in stagger-5"><div class="card-title" style="margin-bottom:16px">Conversor rápido</div><div style="display:flex;gap:12px;align-items:end;flex-wrap:wrap"><div><label style="font-size:12px;color:var(--ink-3);display:block;margin-bottom:4px">Valor</label><input id="conv-val" type="number" value="1000" class="form-input" style="width:140px" /></div><div><label style="font-size:12px;color:var(--ink-3);display:block;margin-bottom:4px">De</label><select id="conv-from" class="form-select"><option value="BRL" selected>BRL</option><option value="USD">USD</option><option value="EUR">EUR</option><option value="GBP">GBP</option></select></div><div style="font-size:18px;color:var(--ink-3);padding-bottom:8px">→</div><div><label style="font-size:12px;color:var(--ink-3);display:block;margin-bottom:4px">Para</label><select id="conv-to" class="form-select"><option value="USD" selected>USD</option><option value="EUR">EUR</option><option value="GBP">GBP</option><option value="BRL">BRL</option></select></div><div id="conv-result" style="font-family:var(--font-display);font-weight:700;font-size:22px;padding-bottom:4px;color:var(--teal)"></div></div></div>`;
+  <div class="currency-grid mb-24">${currencies.map((c,i)=>`<div class="currency-card animate-in stagger-${i+1}"><div class="currency-flag">${c.flag}</div><div class="currency-pair">${c.pair}</div><div class="currency-rate">${c.rate<1?c.rate.toFixed(4):c.rate.toFixed(2)}</div>${c.delta==null?'<div class="currency-delta">—</div>':`<div class="currency-delta" style="color:${c.delta>=0?'var(--income)':'var(--expense)'}">${c.delta>=0?'▲':'▼'} ${Math.abs(c.delta).toFixed(1)}%</div>`}</div>`).join('')}</div>
+  <div class="card mb-24 animate-in"><div class="occ-b-desc" style="font-size:12.5px">${fonte}<br>São taxas de <b>referência</b> (fechamento diário, dias úteis), não a cotação de compra/venda de bancos e casas de câmbio, que inclui spread e IOF (para compras no exterior, o IOF no cartão é maior que o de câmbio comercial). Use como parâmetro, não como valor final.</div></div>
+  <div class="card animate-in stagger-5"><div class="card-title" style="margin-bottom:16px">Conversor rápido</div><div style="display:flex;gap:12px;align-items:end;flex-wrap:wrap"><div><label style="font-size:12px;color:var(--ink-3);display:block;margin-bottom:4px">Valor</label><input id="conv-val" type="number" value="1000" class="form-input" style="width:140px" /></div><div><label style="font-size:12px;color:var(--ink-3);display:block;margin-bottom:4px">De</label><select id="conv-from" class="form-select"><option value="BRL" selected>BRL</option><option value="USD">USD</option><option value="EUR">EUR</option><option value="GBP">GBP</option><option value="JPY">JPY</option></select></div><div style="font-size:18px;color:var(--ink-3);padding-bottom:8px">→</div><div><label style="font-size:12px;color:var(--ink-3);display:block;margin-bottom:4px">Para</label><select id="conv-to" class="form-select"><option value="USD" selected>USD</option><option value="EUR">EUR</option><option value="GBP">GBP</option><option value="JPY">JPY</option><option value="BRL">BRL</option></select></div><div id="conv-result" style="font-family:var(--font-display);font-weight:700;font-size:22px;padding-bottom:4px;color:var(--teal)"></div></div></div>`;
 }
 
 // ─── FISCAL (PJ) ────────────────────────────────
-function renderFiscal(c) {
+function renderFiscal_core(c) {
   const fatMensal = c.totalIncome;
   const fatAnual = fatMensal * 12;
   const regime = state.pj_regime;
@@ -6326,7 +6844,12 @@ function bindSimulator() {
 
 function bindScenarioPills() { document.getElementById('scenario-pills')?.addEventListener('click', e => { const pill = e.target.closest('.scenario-pill'); if (!pill) return; document.querySelectorAll('.scenario-pill').forEach(p => p.classList.remove('active')); pill.classList.add('active'); }); }
 function bindConverter() {
-  function update() { const val = parseFloat(document.getElementById('conv-val')?.value) || 0, from = document.getElementById('conv-from')?.value, to = document.getElementById('conv-to')?.value, rates = { BRL: 1, USD: 5.32, EUR: 6.18, GBP: 7.14 }, inBRL = from === 'BRL' ? val : val * rates[from], result = to === 'BRL' ? inBRL : inBRL / rates[to], syms = { BRL: 'R$', USD: '$', EUR: '€', GBP: '£' }, el = document.getElementById('conv-result'); if (el) el.textContent = `${syms[to]} ${result.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
+  function update() {
+    const val = parseFloat(document.getElementById('conv-val')?.value) || 0, from = document.getElementById('conv-from')?.value, to = document.getElementById('conv-to')?.value;
+    const rates = Object.assign({ BRL: 1 }, CAMBIO.brl), syms = { BRL: 'R$', USD: '$', EUR: '€', GBP: '£', JPY: '¥' };
+    const inBRL = from === 'BRL' ? val : val * rates[from], result = to === 'BRL' ? inBRL : inBRL / rates[to], el = document.getElementById('conv-result');
+    if (el) el.textContent = `${syms[to]} ${result.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
   ['conv-val', 'conv-from', 'conv-to'].forEach(id => { const el = document.getElementById(id); if (el) { el.addEventListener('input', update); el.addEventListener('change', update); } }); update();
 }
 

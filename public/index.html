@@ -1136,6 +1136,28 @@ svg text { font-family: var(--font-body); }
 .demo-card-ic{font-size:24px}.demo-card b{display:block;font-size:14px}.demo-card em{display:block;font-style:normal;font-size:12px;color:var(--gold,#AD8A2A);font-weight:700;margin:1px 0 4px}.demo-card small{display:block;font-size:12px;color:var(--ink-2);line-height:1.4}
 body.demo-on{padding-bottom:56px}
 @media(max-width:900px){#demo-banner .demo-txt{display:none}}
+
+.gt-btn{height:36px;padding:0 12px;border-radius:999px;border:1px solid var(--border);background:var(--card,#fff);color:var(--ink);font:700 12.5px inherit;font-family:inherit;cursor:pointer;white-space:nowrap}
+.gt-btn:hover{border-color:var(--gold,#AD8A2A)}
+@media(max-width:640px){.gt-btn{padding:0 9px;font-size:0}.gt-btn::first-letter{font-size:16px}}
+#gt-panel{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:9500;width:min(680px,calc(100vw - 24px));background:#1d1a14;color:#f5efe2;border-radius:16px;padding:14px 16px;box-shadow:0 14px 40px rgba(0,0,0,.45)}
+#gt-panel .gt-top{display:flex;align-items:center;gap:10px}
+#gt-panel .gt-badge{background:#AD8A2A;color:#fff;font-weight:800;font-size:10.5px;letter-spacing:.06em;padding:3px 9px;border-radius:999px}
+#gt-panel .gt-count{font-size:12px;opacity:.7;margin-right:auto}
+#gt-panel .gt-x{background:transparent;border:0;color:#f5efe2;font-size:16px;cursor:pointer}
+#gt-panel .gt-title{font-weight:800;font-size:17px;margin:8px 0 4px}
+#gt-panel .gt-txt{font-size:14px;line-height:1.5;opacity:.92}
+#gt-panel .gt-bar{height:4px;background:#3a3528;border-radius:4px;margin:10px 0}
+#gt-panel .gt-bar i{display:block;height:100%;background:#AD8A2A;border-radius:4px;transition:width .3s}
+#gt-panel .gt-ctl{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+#gt-panel .gt-ctl button,#gt-panel .gt-ctl select{background:#2b2720;color:#f5efe2;border:1px solid #4a4435;border-radius:8px;padding:6px 10px;font-size:12.5px;cursor:pointer;font-family:inherit}
+#gt-panel .gt-ctl .gt-main{background:#AD8A2A;border-color:#AD8A2A;color:#fff;font-weight:700}
+#gt-panel .gt-ctl button:disabled{opacity:.4;cursor:default}
+body.gt-on{padding-bottom:210px}
+body.gt-on #demo-banner{display:none}
+.nav-btn.gt-hl{outline:3px solid #AD8A2A;outline-offset:2px;border-radius:10px;animation:gtpulse 1.4s ease-in-out infinite}
+@keyframes gtpulse{50%{outline-color:rgba(173,138,42,.35)}}
+@media(max-width:640px){#gt-panel .gt-txt{font-size:13px}}
 </style>
 </head>
 <body>
@@ -1197,7 +1219,6 @@ body.demo-on{padding-bottom:56px}
         </div>
         <div style="text-align:right"><button type="button" class="auth-forgot" onclick="showForgotForm()">Esqueci a senha</button></div>
         <button class="btn-primary" id="btn-login">Entrar</button>
-        <button type="button" class="btn-demo" id="btn-demo" onclick="demoOpenPicker()">👀 Ver demonstração com dados fictícios</button>
       </div>
       <div id="auth-form-forgot" hidden>
         <div class="auth-note"><strong>Recuperar senha</strong><br>Informe o e-mail da sua conta. Enviaremos um link para você criar uma nova senha.</div>
@@ -1371,6 +1392,7 @@ body.demo-on{padding-bottom:56px}
               <button class="dropdown-item" onclick="exportPDF()">PDF (Relatório) 🔒</button>
             </div>
           </div>
+          <button class="gt-btn" id="gt-btn" title="Tutorial guiado com narração" onclick="gtStart()">🎓 Tutorial</button>
           <button class="help-btn" id="help-btn" title="Ajuda & Tutorial" onclick="openHelpPanel()">?</button>
           <button class="theme-toggle" id="theme-toggle" title="Alternar tema" onclick="toggleTheme()">🌙</button>
           <div style="position:relative">
@@ -2349,10 +2371,15 @@ function closeWelcome() {
   try { localStorage.setItem('financa-welcome-done', '1'); } catch(e) {}
 }
 
+function gtDoneKey() { return 'financa-gtd-' + ((currentUser && currentUser.id) || 'anon'); }
+function gtIsDone() { try { return localStorage.getItem(gtDoneKey()) === 'true'; } catch (e) { return false; } }
+function gtMarkDone() { try { localStorage.setItem(gtDoneKey(), 'true'); localStorage.setItem('financa-welcome-done', '1'); } catch (e) {} prefsPush('gtd', true); }
 function checkFirstVisit() {
   try {
-    if (!localStorage.getItem('financa-welcome-done')) {
-      setTimeout(showWelcomeModal, 1000);
+    if (DEMO.on) return;
+    // Primeiro acesso: o tutorial guiado com narração abre sozinho (uma vez por conta)
+    if (!gtIsDone() && !localStorage.getItem('financa-welcome-done')) {
+      setTimeout(function() { if (!GT.on) { gtMarkDone(); gtStart(); } }, 1500);
     }
   } catch(e) {}
 }
@@ -2368,7 +2395,9 @@ function openHelpPanel() {
         '<button class="help-panel-close" onclick="closeHelpPanel()">✕</button>' +
       '</div>' +
       '<div class="help-panel-body">' +
-        '<button class="help-tour-btn" onclick="closeHelpPanel();setTimeout(startTour,300)">🚀 Refazer Tour Guiado</button>' +
+        '<button class="help-tour-btn" onclick="closeHelpPanel();setTimeout(gtStart,300)">🎓 Tutorial guiado com narração</button>' +
+        '<button class="help-tour-btn" onclick="closeHelpPanel();setTimeout(startTour,300)">🚀 Refazer Tour Guiado (balões na tela)</button>' +
+        (DEMO.on ? '' : '<button class="help-tour-btn" onclick="closeHelpPanel();setTimeout(demoOpenPicker,300)">👀 Ver exemplo com dados fictícios</button>') +
 
         '<div class="help-section-title">Funcionalidades</div>' +
 
@@ -4506,7 +4535,7 @@ async function prefsLoad() {
     if (r && r.error) { console.warn('user_prefs indisponível (rode a migração 011):', r.error.message); PREFS.ok = false; return; }
     cloud = (r && r.data && r.data.data) || {};
   } catch (e) { console.warn(e); return; }
-  const keyOf = { inv: fxKey('inv'), crd: fxKey('crd'), dpl: fxKey('dpl'), reforma: fxKey('reforma'), of: ofKey() };
+  const keyOf = { inv: fxKey('inv'), crd: fxKey('crd'), dpl: fxKey('dpl'), reforma: fxKey('reforma'), of: ofKey(), gtd: gtDoneKey() };
   let needPush = false;
   Object.keys(keyOf).forEach(n => {
     if (cloud[n] != null) { try { localStorage.setItem(keyOf[n], JSON.stringify(cloud[n])); } catch (e) {} PREFS.data[n] = cloud[n]; }
@@ -7180,6 +7209,123 @@ async function showApp() {
 }
 
 // ═══════════════════════════════════════════════════════
+// TUTORIAL GUIADO COM NARRAÇÃO (voz do navegador — Web Speech API, sem custo)
+// ═══════════════════════════════════════════════════════
+var GT_TXT = {
+  dashboard: 'Esta é a Visão Geral. Aqui você vê o seu patrimônio, os alertas importantes e o resumo do mês, tudo em um só lugar. Comece sempre por aqui.',
+  receitas: 'Aqui ficam as suas entradas: salário, faturamento ou qualquer dinheiro que entra. Cada lançamento é categorizado, e você pode buscar, editar e marcar o que é recorrente.',
+  despesas: 'Nesta tela você controla tudo o que sai. Os lançamentos são separados por categoria, para você enxergar para onde o dinheiro está indo.',
+  documentos: 'A Central de Documentos recebe boletos, faturas, notas fiscais e contratos. Arraste os arquivos e o sistema lê os dados. Se a equipe pedir algum documento, o pedido aparece aqui.',
+  perfilrenda: 'O Perfil de Renda adapta o sistema ao seu tipo de renda, como CLT, autônomo ou servidor, e mostra qual reserva de emergência faz sentido para você.',
+  obrigacoes: 'Aqui estão as obrigações de quem trabalha por conta própria, como INSS e carnê-leão, com orientação para separar o valor dos impostos todo mês.',
+  orcamento: 'No Orçamento você define um limite por categoria e acompanha quanto já gastou. Quando um limite estoura, o sistema avisa.',
+  metas: 'Em Metas você cadastra seus objetivos, como a reserva de emergência, uma viagem ou a compra de um bem, e vê quanto falta e quanto precisa guardar por mês.',
+  projecao: 'A Projeção mostra como o seu patrimônio pode evoluir nos próximos anos, com base no que você ganha, gasta e guarda hoje.',
+  estrategia: 'Em Estratégia, o sistema sugere o que fazer primeiro com o seu dinheiro, na ordem certa: dívidas caras, reserva e depois investimentos.',
+  patrimonio: 'O Patrimônio reúne tudo o que você tem e tudo o que deve. O resultado é o seu saldo líquido real.',
+  dividas: 'Aqui ficam todas as dívidas, com saldo, juros e parcelas. Ter tudo à vista é o primeiro passo para decidir como quitar.',
+  investir: 'Em Investimentos, você responde algumas perguntas sobre o seu perfil e recebe uma orientação educativa de carteira. Não é recomendação individual de investimento.',
+  resolver: 'O Resolver Dívidas compara estratégias, como bola de neve e avalanche, e mostra em quanto tempo você fica livre e quanto economiza de juros.',
+  credito: 'Crédito e Nome Sujo explica, passo a passo, como limpar o nome, renegociar e conseguir crédito mais barato.',
+  insights: 'Os Insights analisam os seus dados e apontam onde o dinheiro está vazando e onde há oportunidade de economizar.',
+  simuladorclt: 'O Simulador CLT calcula o salário líquido, o custo para a empresa e outros valores do trabalho com carteira assinada.',
+  assinaturas: 'Aqui você lista assinaturas e ferramentas recorrentes. O sistema soma o custo mensal e mostra o que pode ser cortado.',
+  openfinance: 'Em Extratos Bancários você importa o arquivo OFX ou CSV do seu banco. O sistema classifica as movimentações e evita lançamentos duplicados.',
+  cambio: 'O Câmbio mostra cotações de referência de moedas, úteis para quem tem receitas ou gastos em outra moeda.',
+  saude: 'A Saúde Financeira dá uma nota de zero a cem e mostra o que melhorar para subir essa nota.',
+  plano: 'Em Plano você vê o seu plano atual e pode conhecer os recursos de cada nível.',
+  caixapj: 'Caixa e Reserva mostra quantos meses de custo a empresa aguenta sem faturar e quanto falta para atingir a reserva ideal.',
+  fiscal: 'O Painel Fiscal mostra o seu regime, o faturamento, uma estimativa de imposto e as obrigações do mês. É uma estimativa para planejamento, não substitui a contabilidade.',
+  regimepj: 'Esta tela é específica do regime da empresa: limite anual e DAS para o MEI, faixa e Fator R para o Simples, ou os tributos do Lucro Presumido.',
+  fluxo: 'O Fluxo de Caixa mostra entradas e saídas dos próximos meses, para você enxergar apertos antes que eles aconteçam.',
+  reforma: 'A Reforma Tributária traz um checklist para preparar a empresa para as mudanças de impostos que vêm até 2033.'
+};
+var GT = { on: false, i: 0, steps: [], playing: true, mute: false, rate: 1, timer: null, voice: null, hl: null, back: 'dashboard' };
+function gtVoice() {
+  try {
+    var vs = speechSynthesis.getVoices() || [];
+    return vs.filter(function(v) { return /^pt[-_]BR/i.test(v.lang); })[0] || vs.filter(function(v) { return /^pt/i.test(v.lang); })[0] || null;
+  } catch (e) { return null; }
+}
+function gtBuild() {
+  var pj = state.profile_type === 'PJ', nome = (state.name || '').split(' ')[0];
+  var steps = [{ tab: null, title: 'Boas-vindas', txt: 'Olá' + (nome ? ', ' + nome : '') + '! Eu vou guiar você pelo SM Financial, tela por tela. Você pode pausar, voltar ou avançar quando quiser, e pode fechar a qualquer momento. ' + (pj ? 'Você está na área Empresa.' : 'Você está na área Pessoal.') + ' Vamos começar.' }];
+  Array.prototype.forEach.call(document.querySelectorAll('#nav [data-tab]'), function(b) {
+    var id = b.dataset.tab; if (!GT_TXT[id]) return;
+    steps.push({ tab: id, title: (b.textContent || '').replace(/\s+/g, ' ').trim(), txt: GT_TXT[id] });
+  });
+  steps.push({ tab: 'dashboard', title: 'Pronto!', txt: 'Esse foi o passeio completo. Dica final: cadastre seus lançamentos, importe um extrato e volte à Visão Geral. Ficou com alguma dúvida? O botão Tutorial, no topo da tela, repete este passeio quando você quiser. E no ponto de interrogação, na Central de Ajuda, você encontra o segundo tutorial, com balões na tela, e a explicação de cada recurso. O assistente de chat também responde suas perguntas. Boa organização!' });
+  return steps;
+}
+function gtStart() {
+  if (GT.on) return;
+  closeHelpPanelSafe();
+  GT.on = true; GT.i = 0; GT.playing = true; GT.back = currentTab || 'dashboard'; GT.steps = gtBuild();
+  var el = document.getElementById('gt-panel');
+  if (!el) { el = document.createElement('div'); el.id = 'gt-panel'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Tutorial guiado'); document.body.appendChild(el); }
+  document.body.classList.add('gt-on');
+  try { if ('speechSynthesis' in window) { GT.voice = gtVoice(); speechSynthesis.onvoiceschanged = function() { GT.voice = gtVoice(); }; } else GT.mute = true; } catch (e) { GT.mute = true; }
+  gtGo(0);
+}
+function closeHelpPanelSafe() { try { closeHelpPanel(); } catch (e) {} }
+function gtSay(txt, done) {
+  clearTimeout(GT.timer);
+  var est = Math.max(3500, txt.length * 62 / GT.rate);
+  if (GT.mute || !('speechSynthesis' in window)) { if (GT.playing) GT.timer = setTimeout(done, est + 600); return; }
+  try {
+    speechSynthesis.cancel();
+    var u = new SpeechSynthesisUtterance(txt); u.lang = 'pt-BR'; u.rate = GT.rate; if (GT.voice) u.voice = GT.voice;
+    var fired = false, fin = function() { if (fired) return; fired = true; clearTimeout(GT.timer); if (GT.playing && GT.on) GT.timer = setTimeout(done, 900); };
+    u.onend = fin; u.onerror = function() { if (!fired) { fired = true; if (GT.playing && GT.on) GT.timer = setTimeout(done, est); } };
+    speechSynthesis.speak(u);
+    GT.timer = setTimeout(fin, est + 6000); // rede de segurança se o navegador não disparar onend
+  } catch (e) { if (GT.playing) GT.timer = setTimeout(done, est); }
+}
+function gtGo(i) {
+  if (!GT.on) return;
+  if (i < 0) i = 0;
+  if (i >= GT.steps.length) { gtStop(true); return; }
+  GT.i = i; var st = GT.steps[i];
+  if (GT.hl) { GT.hl.classList.remove('gt-hl'); GT.hl = null; }
+  if (st.tab) {
+    try { switchTab(st.tab); } catch (e) {}
+    var b = document.querySelector('#nav [data-tab="' + st.tab + '"]');
+    if (b) { b.classList.add('gt-hl'); GT.hl = b; try { b.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' }); } catch (e) {} }
+    try { var m = document.getElementById('main'); if (m) m.scrollTo ? m.scrollTo(0, 0) : 0; window.scrollTo(0, 0); } catch (e) {}
+  }
+  gtRender();
+  gtSay(st.txt, function() { gtGo(GT.i + 1); });
+}
+function gtRender() {
+  var el = document.getElementById('gt-panel'); if (!el) return;
+  var st = GT.steps[GT.i], n = GT.steps.length, pct = Math.round((GT.i + 1) / n * 100);
+  var canSpeak = 'speechSynthesis' in window;
+  el.innerHTML = '<div class="gt-top"><span class="gt-badge">🎓 TUTORIAL GUIADO</span><span class="gt-count">' + (GT.i + 1) + ' / ' + n + '</span><button type="button" class="gt-x" aria-label="Fechar tutorial" onclick="gtStop(false)">✕</button></div>' +
+    '<div class="gt-title">' + fxEsc(st.title) + '</div><div class="gt-txt">' + fxEsc(st.txt) + '</div>' +
+    '<div class="gt-bar"><i style="width:' + pct + '%"></i></div>' +
+    '<div class="gt-ctl"><button type="button" onclick="gtGo(GT.i-1)" ' + (GT.i === 0 ? 'disabled' : '') + '>◀ Voltar</button>' +
+    '<button type="button" class="gt-main" onclick="gtToggle()">' + (GT.playing ? '⏸ Pausar' : '▶ Continuar') + '</button>' +
+    '<button type="button" onclick="gtGo(GT.i+1)">Avançar ▶</button>' +
+    (canSpeak ? '<button type="button" onclick="gtMute()">' + (GT.mute ? '🔇 Voz desligada' : '🔊 Voz ligada') + '</button>' : '') +
+    '<select aria-label="Velocidade da voz" onchange="gtRate(this.value)"><option value="0.85"' + (GT.rate === 0.85 ? ' selected' : '') + '>Lento</option><option value="1"' + (GT.rate === 1 ? ' selected' : '') + '>Normal</option><option value="1.2"' + (GT.rate === 1.2 ? ' selected' : '') + '>Rápido</option></select></div>';
+}
+function gtToggle() {
+  GT.playing = !GT.playing;
+  if (GT.playing) { gtSay(GT.steps[GT.i].txt, function() { gtGo(GT.i + 1); }); }
+  else { clearTimeout(GT.timer); try { speechSynthesis.cancel(); } catch (e) {} }
+  gtRender();
+}
+function gtMute() { GT.mute = !GT.mute; if (GT.mute) { try { speechSynthesis.cancel(); } catch (e) {} } if (GT.playing) gtSay(GT.steps[GT.i].txt, function() { gtGo(GT.i + 1); }); gtRender(); }
+function gtRate(v) { GT.rate = parseFloat(v) || 1; if (GT.playing) gtSay(GT.steps[GT.i].txt, function() { gtGo(GT.i + 1); }); }
+function gtStop(finished) {
+  GT.on = false; clearTimeout(GT.timer); try { speechSynthesis.cancel(); } catch (e) {}
+  if (GT.hl) { GT.hl.classList.remove('gt-hl'); GT.hl = null; }
+  var el = document.getElementById('gt-panel'); if (el) el.remove();
+  document.body.classList.remove('gt-on');
+  if (finished) { try { switchTab('dashboard'); } catch (e) {} showToast('Tutorial concluído ✔', 'success'); }
+}
+
+// ═══════════════════════════════════════════════════════
 // MODO DEMONSTRAÇÃO — perfis fictícios (somente no navegador; nada é gravado no banco)
 // Acesso: botão "Ver demonstração" na tela de login ou ?demo=clt|autonomo|mei|simples|presumido|negativado
 // ═══════════════════════════════════════════════════════
@@ -7337,13 +7483,14 @@ function startDemo(id) {
   document.body.classList.toggle('pj-mode', state.profile_type === 'PJ');
   demoBanner();
   try { showApp(); } catch (e) { console.warn(e); }
+  if (new URLSearchParams(location.search).get('tutorial') === '1') setTimeout(gtStart, 1500);
 }
 function demoBanner() {
   var el = document.getElementById('demo-banner');
   if (!el) { el = document.createElement('div'); el.id = 'demo-banner'; document.body.appendChild(el); }
   var P = DEMO_PERSONAS[DEMO.id];
   var opts = Object.keys(DEMO_PERSONAS).map(function(k) { return '<option value="' + k + '"' + (k === DEMO.id ? ' selected' : '') + '>' + DEMO_PERSONAS[k].icon + ' ' + DEMO_PERSONAS[k].name + ' — ' + DEMO_PERSONAS[k].tag + '</option>'; }).join('');
-  el.innerHTML = '<span class="demo-pill">MODO DEMONSTRAÇÃO</span><span class="demo-txt">Dados fictícios · nada é salvo</span><select id="demo-switch" aria-label="Trocar perfil" onchange="demoSwitch(this.value)">' + opts + '</select><button type="button" onclick="demoExit()">Sair da demonstração</button>';
+  el.innerHTML = '<span class="demo-pill">MODO DEMONSTRAÇÃO</span><span class="demo-txt">Dados fictícios · nada é salvo</span><select id="demo-switch" aria-label="Trocar perfil" onchange="demoSwitch(this.value)">' + opts + '</select><button type="button" onclick="gtStart()">🎓 Tutorial</button><button type="button" onclick="demoExit()">Sair da demonstração</button>';
   document.body.classList.add('demo-on');
 }
 function demoSwitch(id) { try { history.replaceState(null, '', location.pathname + '?demo=' + id); } catch (e) {} location.reload(); }

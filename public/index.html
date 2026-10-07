@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+<!-- © 2026 360 Suítes. Todos os direitos reservados. Proibida a cópia, reprodução ou engenharia reversa (Leis 9.609/98 e 9.610/98). -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SM Financial — Planejador Financeiro</title>
@@ -385,6 +386,8 @@ body.pj-mode .sidebar .nav-btn.active { border-left-color: var(--pj-accent); }
 .notif-cta { font-size: 10px; color: var(--teal); font-weight: 700; }
 .notif-dismiss { position: absolute; top: 10px; right: 10px; width: 20px; height: 20px; border-radius: 50%; border: none; background: var(--card); color: var(--ink-3); font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0; transition: all 0.15s; box-shadow: var(--shadow); }
 .notif-dismiss:hover { background: var(--expense-light); color: var(--expense); }
+.soon-badge { display:inline-block; font-size:9.5px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; padding:1px 7px; border-radius:8px; background:var(--gold,#AD8A2A); color:#fff; margin-left:4px; vertical-align:middle; }
+.notif-soon { padding:12px 16px; font-size:12.5px; color:var(--ink-3); border-top:1px solid var(--border); }
 .notif-empty { padding: 32px 16px; text-align: center; color: var(--ink-3); font-size: 13px; }
 
 /* Comparativo Mensal */
@@ -1224,7 +1227,7 @@ svg text { font-family: var(--font-body); }
         </div>
         <button class="btn-primary" id="btn-signup">Criar minha conta</button>
       </div>
-      <div class="auth-footer">Ao continuar, você concorda com nossos <a href="#">Termos</a> e <a href="#">Privacidade</a>.</div>
+      <div class="auth-footer">Ao continuar, você concorda com nossos <a href="/termos.html" target="_blank" rel="noopener">Termos de Uso</a> e <a href="/privacidade.html" target="_blank" rel="noopener">Privacidade</a>. © 2026 360 Suítes.</div>
     </div>
   </div>
   </div>
@@ -1239,7 +1242,7 @@ svg text { font-family: var(--font-body); }
       <div class="onboard-desc">Isso nos ajuda a personalizar seu dashboard.</div>
       <div class="option-grid">
         <button class="option-btn selected" data-profile="PF" onclick="selectProfile(this)"><div class="opt-icon">👤</div><div class="opt-label">Pessoa Física</div><div class="opt-desc">Finanças pessoais</div></button>
-        <button class="option-btn" data-profile="PJ" onclick="selectProfile(this)"><div class="opt-icon">🏢</div><div class="opt-label">Pessoa Jurídica</div><div class="opt-desc">MEI, ME, autônomo</div></button>
+        <button class="option-btn" data-profile="PJ" onclick="selectProfile(this)" style="opacity:.6"><div class="opt-icon">🏢</div><div class="opt-label">Pessoa Jurídica <span class="soon-badge">Em breve</span></div><div class="opt-desc">MEI, ME, autônomo</div></button>
       </div>
       <button class="btn-primary" onclick="nextOnboard(state.profile_type==='PF'?'occ':'pjtype')">Continuar</button>
     </div>
@@ -1967,6 +1970,7 @@ function generateNotifications() {
   // Remove alertas dispensados temporariamente pelo usuário
   return notifsFinal.filter(function(n) { return !notifIsDismissed(n.id); });
 }
+const NOTIF_SOON_HTML = '<div class="notif-soon">📲 Alertas por <b>WhatsApp</b> e <b>e-mail</b> <span class="soon-badge">Em breve</span></div>';
 function toggleNotifications() {
   const dd = document.getElementById('notif-dropdown');
   const wasOpen = dd.classList.contains('open');
@@ -1988,7 +1992,7 @@ function renderNotifications() {
   const seen = notifStorageGet(NOTIF_SEEN_KEY);
   const dd = document.getElementById('notif-dropdown');
   if (notifs.length === 0) {
-    dd.innerHTML = '<div class="notif-header"><span>Notificações</span></div><div class="notif-empty">🔔 Nenhuma notificação no momento</div>';
+    dd.innerHTML = '<div class="notif-header"><span>Notificações</span></div><div class="notif-empty">🔔 Nenhuma notificação no momento</div>' + NOTIF_SOON_HTML;
     return;
   }
   let html = '<div class="notif-header"><span>Notificações (' + notifs.length + ')</span><button class="notif-header-clear" onclick="notifClearAllDismissed()" title="Restaurar alertas dispensados">Restaurar</button></div>';
@@ -2004,7 +2008,7 @@ function renderNotifications() {
       '<button class="notif-dismiss" onclick="dismissNotif(\'' + n.id + '\', event)" title="Dispensar por 7 dias">✕</button>' +
     '</div>';
   });
-  dd.innerHTML = html;
+  dd.innerHTML = html + NOTIF_SOON_HTML;
 }
 
 function updateNotifBadge() {
@@ -2715,7 +2719,7 @@ function chSay(html, chips) { chatBotSay(html, chips); }
 function chatFlowStart() {
   if (!chIsPF()) {
     CHFLOW.active = false;
-    chSay('Você está no perfil <b>Empresa (PJ)</b>. Para adaptar o painel, informe o tipo da empresa, a atividade e como ela fatura. Vou abrir essa janela para você.', ['➡️ Abrir perfil da empresa']);
+    chSay('A área para <b>empresas</b> está chegando em <b>breve</b> 🏢 Por enquanto posso te ajudar a montar o seu perfil pessoal.', ['🧭 Montar meu perfil']);
     return;
   }
   CHFLOW = { active: true, step: 'occ', data: {} };
@@ -2821,7 +2825,8 @@ var CHAT_START_WORDS = ['montar meu perfil', 'meu perfil', 'me conhecer', 'preen
   CHAT_KB.push({ id: 'investir', keywords: ['investimentos', 'investir', 'onde investir', 'selic', 'poupanca ou cdb', 'perfil de investidor'], answer: 'A aba <b>Investimentos</b> descobre seu perfil (conservador, moderado ou arrojado), mostra a ordem certa de prioridades (dívidas caras → reserva → investir) e compara poupança, Tesouro Selic, CDB e LCI/LCA com a Selic atual. Posso te fazer as perguntas aqui no chat.', related: ['🧭 Montar meu perfil', '➡️ Abrir Investimentos'] });
   CHAT_KB.push({ id: 'credito', keywords: ['credito', 'crédito', 'nome sujo', 'negativado', 'limpar nome', 'serasa', 'desenrola', 'score'], answer: 'A aba <b>Crédito & Nome Sujo</b> calcula o tamanho da sua dívida, monta um plano de pagamento com desconto estimado, indica onde negociar (Desenrola, Serasa Limpa Nome, bancos) e sugere caminhos para conseguir crédito. Quer que eu comece perguntando sua situação?', related: ['🧭 Montar meu perfil', '➡️ Abrir Crédito & Nome Sujo'] });
   CHAT_KB.push({ id: 'resolver', keywords: ['pagar divida', 'quitar divida', 'quitar dividas', 'bola de neve', 'avalanche', 'financiar', 'financiamento', 'emprestimo', 'portabilidade', 'consignado', 'juros altos'], answer: 'A aba <b>Resolver Dívidas</b> compara as formas de pagar (bola de neve x avalanche), mostra quanto você economiza usando um valor disponível agora, compara financiar com juros baixos ou altos e com juntar o dinheiro, avalia se vale trocar uma dívida cara por uma mais barata e explica como conseguir crédito com condições especiais. Cada opção mostra benefícios e riscos.', related: ['➡️ Abrir Resolver Dívidas'] });
-  CHAT_KB.push({ id: 'reforma', keywords: ['reforma tributaria', 'icms', 'ipi', 'iss', 'cbs', 'ibs', 'imposto seletivo', 'split payment', 'pis cofins', 'tributos'], answer: 'A aba <b>Reforma Tributária</b> (perfil Empresa) mostra o cronograma 2026–2033, o mapa de tributos (ICMS, ISS, IPI, PIS/Cofins, CBS, IBS e Imposto Seletivo), o que muda para o seu tipo de empresa e um checklist de preparação. Resumo: PIS/Cofins/IPI/ICMS/ISS dão lugar a CBS (federal) e IBS (estados e municípios) até 2033.', related: ['➡️ Abrir Reforma Tributária'] });
+  CHAT_KB.push({ id: 'reforma', keywords: ['reforma tributaria', 'icms', 'ipi', 'iss', 'cbs', 'ibs', 'imposto seletivo', 'split payment', 'pis cofins', 'tributos'], answer: 'A área para <b>empresas</b> (que inclui a aba <b>Reforma Tributária</b>) chega em <b>breve</b>. Ela vai mostrar o cronograma 2026–2033, o mapa de tributos (ICMS, ISS, IPI, PIS/Cofins, CBS, IBS e Imposto Seletivo), o que muda para o seu tipo de empresa e um checklist de preparação. Resumo: PIS/Cofins/IPI/ICMS/ISS dão lugar a CBS (federal) e IBS (estados e municípios) até 2033.', related: ['➡️ Abrir Reforma Tributária'] });
+  CHAT_KB.push({ id: 'notificacoes', keywords: ['notificacao', 'notificacoes', 'whatsapp', 'email', 'e-mail', 'alerta', 'aviso por whatsapp'], answer: 'As notificações por <b>WhatsApp</b> e <b>e-mail</b> estão em preparação e chegam em <b>breve</b>. Por enquanto, os alertas aparecem no sino 🔔 dentro do app.', related: ['Falar com atendente'] });
   CHAT_KB.push({ id: 'documento', keywords: ['cpf', 'cnpj', 'documento', 'meu cadastro'], answer: 'Você pode informar seu <b>CPF</b> ou o <b>CNPJ</b> da empresa em Perfil (menu lateral → seu perfil) ou clicando no botão abaixo. Com o CNPJ, o app busca o porte, o CNAE e o regime para ajustar o painel da empresa.', related: ['➡️ Informar CPF/CNPJ'] });
   CHAT_KB.push({ id: 'cambio', keywords: ['cambio', 'câmbio', 'cotacao', 'cotação', 'dolar', 'dólar', 'euro', 'fonte do cambio', 'indice'], answer: 'A aba <b>Câmbio</b> usa as <b>taxas de referência do Banco Central Europeu</b>, publicadas pela API Frankfurter (atualizadas em dias úteis). Elas são referência de mercado: a cotação de compra/venda de bancos e casas de câmbio inclui spread e IOF, então o valor final costuma ser maior.', related: ['Planos e pagamento'] });
 })();
@@ -3182,6 +3187,7 @@ function showOnboarding() { document.getElementById('auth-screen').hidden = true
 // PF/PJ TOGGLE
 // ═══════════════════════════════════════════════════════
 function toggleProfileType(type) {
+  if (PJ_COMING_SOON && type === 'PJ') { showToast('🏢 A área para empresas chega em breve!', 'info'); return; }
   if (type === state.profile_type) return;
   if (!isBusinessUser()) {
     showToast('🔒 Alternar entre Pessoal e Empresa é exclusivo do plano Business', 'info');
@@ -3213,12 +3219,13 @@ function updateToggleUI() {
   // Fora do plano Business, o toggle fica travado no perfil escolhido no onboarding —
   // mostra um cadeado no botão inativo em vez de deixar clicar e trocar de perfil.
   const locked = !isBusinessUser();
-  toggle.classList.toggle('locked', locked);
+  toggle.classList.toggle('locked', locked || PJ_COMING_SOON);
   toggle.title = locked ? 'Alternar Pessoal/Empresa é exclusivo do plano Business' : '';
   btns.forEach(b => {
     const isInactive = b.dataset.type !== state.profile_type;
     b.innerHTML = b.dataset.type === 'PF' ? '👤 Pessoal' : '🏢 Empresa';
-    if (locked && isInactive) b.innerHTML += ' <span class="nav-plus-lock" title="Recurso Business">🔒</span>';
+    if (PJ_COMING_SOON && b.dataset.type === 'PJ') b.innerHTML += ' <span class="soon-badge">Em breve</span>';
+    else if (locked && isInactive) b.innerHTML += ' <span class="nav-plus-lock" title="Recurso Business">🔒</span>';
   });
   // Position slider
   const activeBtn = toggle.querySelector(`.profile-toggle-btn[data-type="${state.profile_type}"]`);
@@ -3240,6 +3247,7 @@ function updateNavTabs() {
 // ONBOARDING
 // ═══════════════════════════════════════════════════════
 function selectProfile(el) {
+  if (PJ_COMING_SOON && el.dataset.profile === 'PJ') { showToast('🏢 A área para empresas chega em breve!', 'info'); return; }
   el.parentElement.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
   el.classList.add('selected'); state.profile_type = el.dataset.profile;
 }
@@ -3738,6 +3746,7 @@ function renderComparativo(c) {
 // VÍNCULO DE TRABALHO + ESTABILIDADE DE RENDA (PF)
 // ═══════════════════════════════════════════════════════
 const MEI_ANNUAL_LIMIT = 81000;
+const PJ_COMING_SOON = true; // true = área Empresa (PJ) trancada com "Em breve"; mude para false para liberar
 const STABILITY = {
   fixa:     { label: 'Fixa',     icon: '📌', desc: 'Cai o mesmo valor todo mês' },
   media:    { label: 'Média',    icon: '〰️', desc: 'Varia um pouco' },
@@ -4126,32 +4135,6 @@ function getShapedPJTabs() {
 // + redutor da Lei 15.270/2025. Fontes consultadas: tabelas públicas de 2026 que
 // reproduzem os valores da Receita/INSS. Todo cálculo roda no navegador.
 // ═══════════════════════════════════════════════════════
-const TAX2026 = {
-  salarioMinimo: 1621.00,
-  inssFaixas: [[1621.00, .075], [2902.84, .09], [4354.27, .12], [8475.55, .14]],   // [teto da faixa, alíquota]
-  irrfFaixas: [[2428.80, 0, 0], [2826.65, .075, 182.16], [3751.05, .15, 394.16], [4664.68, .225, 675.49], [Infinity, .275, 908.73]],
-  deducaoDependente: 189.59,
-  descontoSimplificado: 607.20,
-  redutorIsencao: 5000.00, redutorLimite: 7350.00, redutorA: 978.62, redutorB: 0.133145,
-};
-function inssCalc(base) {
-  const teto = TAX2026.inssFaixas[TAX2026.inssFaixas.length - 1][0];
-  const b = Math.max(0, Math.min(base, teto)); let prev = 0, tot = 0;
-  TAX2026.inssFaixas.forEach(f => { if (b > prev) tot += (Math.min(b, f[0]) - prev) * f[1]; prev = f[0]; });
-  return Math.round(tot * 100) / 100;
-}
-function irrfCalc(rendTrib, inss, dependentes, pensao) {
-  const legal = inss + (dependentes || 0) * TAX2026.deducaoDependente + (pensao || 0);
-  const ded = Math.max(legal, TAX2026.descontoSimplificado);
-  const base = Math.max(0, rendTrib - ded);
-  const f = TAX2026.irrfFaixas.find(x => base <= x[0]);
-  const tabela = Math.max(0, base * f[1] - f[2]);
-  let redutor = 0;
-  if (rendTrib <= TAX2026.redutorIsencao) redutor = tabela;
-  else if (rendTrib <= TAX2026.redutorLimite) redutor = Math.min(tabela, Math.max(0, TAX2026.redutorA - TAX2026.redutorB * rendTrib));
-  const r2 = v => Math.round(v * 100) / 100;
-  return { base: r2(base), tabela: r2(tabela), redutor: r2(redutor), valor: r2(Math.max(0, tabela - redutor)), usouSimplificado: ded === TAX2026.descontoSimplificado && legal < TAX2026.descontoSimplificado };
-}
 const SIM = { mode: 'ferias', holerites: [], salary: 0, variaveis: 0, consig: 0, dep: 0, ferias: { faltas: 0, opcao: '30', adiant13: false, outrosDesc: 0 },
   dec: { adm: '', afast: 0, paga: 0, desc: 0 }, resc: { admissao: '', saida: '', tipo: 'sem_justa', aviso: 'indenizado', feriasVenc: 0, fgts: 0, adiant13: 0, descEmpregador: 0, descConsig: 0 }, out: null, msg: '' };
 const simBRL = v => (v < 0 ? '- ' : '') + 'R$ ' + Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -4228,142 +4211,26 @@ function simSet(path, val, isNum) {
 }
 
 // ── Datas e avos ──
-function simAvos(ini, fim) {
-  if (!ini || !fim || fim < ini) return 0; let n = 0;
-  for (let y = ini.getFullYear(), m = ini.getMonth(); y < fim.getFullYear() || (y === fim.getFullYear() && m <= fim.getMonth()); m++) {
-    if (m > 11) { m = 0; y++; if (y > fim.getFullYear()) break; }
-    const first = new Date(y, m, 1), last = new Date(y, m + 1, 0);
-    const s = ini > first ? ini : first, e = fim < last ? fim : last;
-    const days = Math.round((e - s) / 86400000) + 1; if (days >= 15) n++;
-    if (y === fim.getFullYear() && m === fim.getMonth()) break;
-  }
-  return n;
+// Os cálculos (impostos, férias, 13º, rescisão, previsão) rodam no servidor: exigem login e plano.
+async function apiCalc(kind, payload) {
+  let token = '';
+  try { if (sb) { const r = await sb.auth.getSession(); token = (r && r.data && r.data.session && r.data.session.access_token) || ''; } } catch (e) {}
+  let r;
+  try { r = await fetch((window.API_BASE || '') + '/api/calc/' + kind, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify(payload) }); }
+  catch (e) { throw new Error('Não foi possível conectar ao servidor. Verifique sua internet e tente de novo.'); }
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || 'Não foi possível calcular agora. Tente novamente.');
+  return j;
 }
-const simDate = s => { if (!s) return null; const d = new Date(s + 'T00:00:00'); return isNaN(d) ? null : d; };
-
-// ── Cálculo: FÉRIAS ──
-function simCalcFerias() {
-  const f = SIM.ferias, remun = SIM.salary + SIM.variaveis, L = [];
-  if (SIM.salary <= 0) return { erro: 'Informe o salário base (ou envie um holerite).' };
-  const faltas = f.faltas || 0;
-  const direito = faltas <= 5 ? 30 : faltas <= 14 ? 24 : faltas <= 23 ? 18 : faltas <= 32 ? 12 : 0;
-  if (direito === 0) return { erro: 'Com mais de 32 faltas injustificadas no período aquisitivo não há direito a férias.' };
-  const gozoOpt = f.opcao === '20+10' ? Math.min(direito, 20) : Math.min(direito, parseInt(f.opcao, 10));
-  const abonoDias = f.opcao === '20+10' ? Math.min(10, Math.floor(direito / 3)) : 0;
-  const dia = remun / 30;
-  const ferias = simR2(dia * gozoOpt), terco = simR2(ferias / 3), abono = simR2(dia * abonoDias), tercoAbono = simR2(abono / 3);
-  const trib = ferias + terco, inss = inssCalc(trib), ir = irrfCalc(trib, inss, SIM.dep, 0);
-  const adiant = f.adiant13 ? simR2(remun / 2) : 0;
-  const outros = f.outrosDesc || 0;
-  L.push({ k: 'info', t: 'Remuneração de referência', v: simBRL(remun), n: 'Salário ' + simBRL(SIM.salary) + (SIM.variaveis ? ' + média de variáveis ' + simBRL(SIM.variaveis) : '') });
-  L.push({ k: 'info', t: 'Dias de direito', v: direito + ' dias', n: faltas > 5 ? faltas + ' faltas injustificadas reduzem o direito (CLT art. 130)' : 'Até 5 faltas: 30 dias' });
-  L.push({ k: '+', t: 'Férias (' + gozoOpt + ' dias)', v: simBRL(ferias), n: 'remuneração ÷ 30 × ' + gozoOpt });
-  L.push({ k: '+', t: '1/3 constitucional', v: simBRL(terco) });
-  if (abonoDias) { L.push({ k: '+', t: 'Abono pecuniário (' + abonoDias + ' dias)', v: simBRL(abono), n: 'Não sofre INSS nem IRRF' }); L.push({ k: '+', t: '1/3 do abono', v: simBRL(tercoAbono), n: 'Não sofre INSS nem IRRF' }); }
-  L.push({ k: '-', t: 'INSS', v: simBRL(inss), n: 'Sobre férias + 1/3, tabela progressiva 2026' });
-  L.push({ k: '-', t: 'IRRF', v: simBRL(ir.valor), n: 'Tabela ' + (ir.usouSimplificado ? 'com desconto simplificado' : 'com deduções legais') + (ir.redutor ? '; redutor Lei 15.270: ' + simBRL(ir.redutor) : '') });
-  if (adiant) L.push({ k: '+', t: '1ª parcela do 13º (adiantamento)', v: simBRL(adiant), n: 'Sem desconto nesta parcela; INSS e IRRF vêm na 2ª parcela' });
-  if (outros) L.push({ k: '-', t: 'Outros descontos informados', v: simBRL(outros), n: 'Consignado, adiantamentos etc. — depende de como sua empresa lança' });
-  const liquido = simR2(ferias + terco + abono + tercoAbono + adiant - inss - ir.valor - outros);
-  return { titulo: 'Férias', liquido, linhas: L, aviso: 'As férias costumam ser tributadas junto com o salário do mês, então INSS e IRRF reais podem ser um pouco maiores. O pagamento deve ocorrer até 2 dias antes do início das férias.' };
+function simPayload() {
+  const p = Object.assign({}, SIM.prev); delete p.out; delete p.msg;
+  return { mode: SIM.mode, salary: SIM.salary, variaveis: SIM.variaveis, consig: SIM.consig, dep: SIM.dep, ferias: SIM.ferias, dec: SIM.dec, resc: SIM.resc, prev: p, ano: new Date().getFullYear() };
 }
-
-// ── Cálculo: RESCISÃO ──
-function simCalcResc() {
-  const r = SIM.resc, remun = SIM.salary + SIM.variaveis, L = [];
-  const adm = simDate(r.admissao), sai = simDate(r.saida);
-  if (SIM.salary <= 0) return { erro: 'Informe o salário base (ou envie um holerite).' };
-  if (!adm || !sai || sai < adm) return { erro: 'Informe datas de admissão e saída válidas.' };
-  const tipo = r.tipo, justa = tipo === 'justa_causa';
-  const anos = Math.floor((sai - adm) / (365.25 * 86400000));
-  const dia = remun / 30;
-  const saldoDias = Math.min(30, sai.getDate());
-  const saldo = simR2(dia * saldoDias);
-  let avisoDias = 0, avisoVal = 0, avisoDesc = 0;
-  if (tipo === 'sem_justa' || tipo === 'acordo') {
-    if (r.aviso === 'indenizado') { avisoDias = Math.min(90, 30 + 3 * anos); avisoVal = simR2(dia * avisoDias * (tipo === 'acordo' ? 0.5 : 1)); }
-  } else if (tipo === 'pedido' && r.aviso === 'nao_cumprido') { avisoDesc = simR2(remun); }
-  const diasProj = tipo === 'acordo' ? Math.floor(avisoDias / 2) : avisoDias;
-  const fimProj = new Date(sai.getTime() + diasProj * 86400000);
-  // 13º
-  let decimo = 0, avos13 = 0;
-  if (!justa) {
-    const iniAno = new Date(fimProj.getFullYear(), 0, 1); avos13 = simAvos(adm > iniAno ? adm : iniAno, fimProj);
-    decimo = simR2(remun * avos13 / 12);
-  }
-  const decimoLiq = Math.max(0, decimo - (r.adiant13 || 0));
-  // férias
-  const venc = Math.max(0, parseInt(r.feriasVenc, 10) || 0);
-  const feriasVenc = simR2(venc * remun * 4 / 3);
-  let avosF = 0, feriasProp = 0;
-  if (!justa) {
-    let ult = new Date(adm); while (new Date(ult.getFullYear() + 1, ult.getMonth(), ult.getDate()) <= fimProj) ult = new Date(ult.getFullYear() + 1, ult.getMonth(), ult.getDate());
-    // se já há período vencido não gozado, o proporcional parte do último aniversário
-    avosF = simAvos(ult, fimProj); if (avosF > 12) avosF = 12;
-    feriasProp = simR2(remun * avosF / 12 * 4 / 3);
-  }
-  // tributos
-  const inssSaldo = inssCalc(saldo), irSaldo = irrfCalc(saldo, inssSaldo, SIM.dep, 0);
-  const inss13 = inssCalc(decimoLiq + (r.adiant13 || 0)), ir13 = irrfCalc(decimo, inss13, SIM.dep, 0);
-  const descEmp = Math.min(r.descEmpregador || 0, remun), capado = (r.descEmpregador || 0) > remun;
-  L.push({ k: 'info', t: 'Remuneração de referência', v: simBRL(remun), n: 'Salário ' + simBRL(SIM.salary) + (SIM.variaveis ? ' + média de variáveis ' + simBRL(SIM.variaveis) : '') });
-  L.push({ k: '+', t: 'Saldo de salário (' + saldoDias + ' dias)', v: simBRL(saldo) });
-  if (avisoVal) L.push({ k: '+', t: 'Aviso prévio indenizado (' + (tipo === 'acordo' ? Math.floor(avisoDias / 2) + ' dias, 50% por acordo' : avisoDias + ' dias') + ')', v: simBRL(avisoVal), n: '30 dias + 3 por ano completo (máx. 90). Sem INSS/IRRF' });
-  if (!justa) L.push({ k: '+', t: '13º proporcional (' + avos13 + '/12)', v: simBRL(decimo), n: (diasProj ? 'Inclui projeção do aviso. ' : '') + 'Mês conta com 15 dias ou mais' });
-  if (venc) L.push({ k: '+', t: 'Férias vencidas + 1/3 (' + venc + ' período)', v: simBRL(feriasVenc), n: 'Indenizadas: sem INSS/IRRF' });
-  if (!justa) L.push({ k: '+', t: 'Férias proporcionais + 1/3 (' + avosF + '/12)', v: simBRL(feriasProp), n: 'Indenizadas: sem INSS/IRRF' });
-  if (r.adiant13) L.push({ k: '-', t: '13º já recebido (adiantamento)', v: simBRL(r.adiant13) });
-  L.push({ k: '-', t: 'INSS sobre saldo de salário', v: simBRL(inssSaldo) });
-  L.push({ k: '-', t: 'IRRF sobre saldo de salário', v: simBRL(irSaldo.valor), n: irSaldo.redutor ? 'Redutor Lei 15.270: ' + simBRL(irSaldo.redutor) : '' });
-  if (decimoLiq || decimo) { L.push({ k: '-', t: 'INSS sobre 13º', v: simBRL(inss13) }); L.push({ k: '-', t: 'IRRF sobre 13º (tributação separada)', v: simBRL(ir13.valor), n: ir13.redutor ? 'Redutor Lei 15.270: ' + simBRL(ir13.redutor) + ' — confirme com o RH' : '' }); }
-  if (avisoDesc) L.push({ k: '-', t: 'Aviso prévio não cumprido', v: simBRL(avisoDesc), n: 'Empresa pode descontar até 30 dias' });
-  if (descEmp) L.push({ k: '-', t: 'Descontos do empregador (adiantamentos etc.)', v: simBRL(descEmp), n: capado ? 'Limitado a 1 remuneração (CLT art. 477 §5º)' : 'Compensação limitada a 1 remuneração (CLT art. 477 §5º)' });
-  if (r.descConsig) L.push({ k: '-', t: 'Consignado descontado na rescisão', v: simBRL(r.descConsig), n: 'Valor informado por você — confira o contrato e o TRCT' });
-  const liquido = simR2(saldo + avisoVal + decimoLiq + feriasVenc + feriasProp - inssSaldo - irSaldo.valor - (decimoLiq || decimo ? inss13 + ir13.valor : 0) - avisoDesc - descEmp - (r.descConsig || 0));
-  // FGTS
-  const baseFgts = saldo + decimo + avisoVal, depFgts = simR2(baseFgts * 0.08);
-  let fgtsExtra = null;
-  if (tipo === 'sem_justa' || tipo === 'acordo') {
-    const total = (r.fgts || 0) + depFgts, multa = simR2(total * (tipo === 'acordo' ? 0.2 : 0.4));
-    const saque = tipo === 'acordo' ? simR2(total * 0.8 + multa) : simR2(total + multa);
-    fgtsExtra = { linhas: [
-      { k: 'info', t: 'Depósito do FGTS rescisório (8%)', v: simBRL(depFgts), n: 'Sobre saldo de salário, 13º e aviso — pago pela empresa na conta do FGTS' },
-      { k: '+', t: 'Multa rescisória (' + (tipo === 'acordo' ? '20%' : '40%') + ')', v: simBRL(multa), n: 'Sobre o saldo total do FGTS' },
-      { k: '+', t: 'FGTS disponível para saque', v: simBRL(saque), n: tipo === 'acordo' ? 'No acordo, saca 80% do saldo + multa' : 'Saca 100% do saldo + multa' }] };
-    if (!r.fgts) fgtsExtra.linhas.unshift({ k: 'info', t: 'Saldo do FGTS não informado', v: '—', n: 'Informe o saldo (app do FGTS) para calcular a multa' });
-  }
-  const av = [];
-  if (tipo === 'acordo') av.push('No acordo, a projeção do aviso para 13º e férias foi estimada pela metade dos dias.');
-  if (tipo === 'pedido' && r.aviso === 'nao_cumprido') av.push('Pedido de demissão sem cumprir o aviso gera desconto.');
-  av.push('O valor oficial é o do TRCT emitido pela sua empresa; convenção coletiva e médias específicas podem alterar o resultado.');
-  return { titulo: 'Rescisão', liquido, linhas: L, fgts: fgtsExtra, aviso: av.join(' ') };
+async function simRun() {
+  SIM.out = null; SIM.msg = 'Calculando…'; renderCurrentTab();
+  try { SIM.out = await apiCalc('clt', simPayload()); } catch (e) { SIM.out = { erro: e.message }; }
+  SIM.msg = ''; renderCurrentTab();
 }
-
-// ── Cálculo: 13º SALÁRIO ──
-function simCalcDecimo() {
-  const d = SIM.dec, remun = SIM.salary + SIM.variaveis, ano = new Date().getFullYear(), L = [];
-  if (SIM.salary <= 0) return { erro: 'Informe o salário base (ou envie um holerite).' };
-  const adm = simDate(d.adm);
-  const admNoAno = adm && adm.getFullYear() === ano;
-  const avosBase = admNoAno ? simAvos(adm, new Date(ano, 11, 31)) : 12;
-  const avos = Math.max(0, Math.min(12, avosBase - (d.afast || 0)));
-  if (avos === 0) return { erro: 'Sem meses com direito ao 13º neste ano.' };
-  const total = simR2(remun * avos / 12);
-  const p1 = simR2(total / 2), p1paga = d.paga > 0 ? d.paga : p1;
-  const inss = inssCalc(total), ir = irrfCalc(total, inss, SIM.dep, 0);
-  const desc = d.desc || 0;
-  const p2 = simR2(total - p1paga - inss - ir.valor - desc);
-  L.push({ k: 'info', t: 'Remuneração de referência', v: simBRL(remun), n: 'Salário ' + simBRL(SIM.salary) + (SIM.variaveis ? ' + média de variáveis ' + simBRL(SIM.variaveis) : '') });
-  L.push({ k: 'info', t: 'Meses com direito (avos)', v: avos + '/12', n: (admNoAno ? 'Admissão em ' + d.adm.split('-').reverse().join('/') + ': conta o mês com 15 dias ou mais. ' : '') + (d.afast ? d.afast + ' mês(es) sem direito descontado(s).' : (admNoAno ? '' : 'Ano completo.')) });
-  L.push({ k: '+', t: '13º bruto', v: simBRL(total), n: 'remuneração × ' + avos + '/12' });
-  L.push({ k: '+', t: '1ª parcela (até 30/11)' + (d.paga > 0 ? ' — já recebida' : ''), v: simBRL(p1paga), n: 'Metade do 13º, sem descontos' });
-  L.push({ k: '-', t: 'INSS sobre o 13º', v: simBRL(inss), n: 'Calculado à parte do salário, tabela 2026' });
-  L.push({ k: '-', t: 'IRRF sobre o 13º', v: simBRL(ir.valor), n: 'Tributação exclusiva na fonte' + (ir.redutor ? '; redutor Lei 15.270: ' + simBRL(ir.redutor) + ' — confirme com o RH' : '') });
-  if (desc) L.push({ k: '-', t: 'Outros descontos na 2ª parcela', v: simBRL(desc), n: 'Consignado, adiantamentos etc. — valor informado por você' });
-  L.push({ k: 'info', t: '2ª parcela líquida (até 20/12)', v: simBRL(p2), n: 'Total − 1ª parcela − INSS − IRRF' + (desc ? ' − descontos' : '') });
-  return { titulo: '13º salário', liquido: simR2(p1paga + p2), linhas: L, aviso: 'O valor mostrado é o total líquido (1ª + 2ª parcela). Na prática: a 1ª parcela é paga sem desconto e todo o INSS e IRRF saem da 2ª. Se a empresa calcular a 1ª parcela sobre o salário do mês anterior, o valor pode diferir um pouco.' };
-}
-function simRun() { SIM.out = SIM.mode === 'ferias' ? simCalcFerias() : SIM.mode === 'dec' ? simCalcDecimo() : simCalcResc(); renderCurrentTab(); }
 function simMode(m) { SIM.mode = m; SIM.out = null; renderCurrentTab(); }
 
 // ── Interface ──
@@ -4401,44 +4268,11 @@ function renderSimuladorCLT(c) {
 // obrigatórios (estimativa — o banco usa a margem oficial da folha).
 // ═══════════════════════════════════════════════════════
 SIM.prev = { vtOn: false, vtCusto: 0, saude: 0, pensao: 0, outros: 0, consigAtual: null, novo: { parcela: 0, n: 0, liberado: 0, taxa: 0 }, out: null, msg: '' };
-const MARGEM_CONSIGNADO = 0.35, VT_PERC = 0.06;
-function prevPmtRate(pv, pmt, n) {   // taxa mensal implícita de um financiamento (bisseção)
-  if (!(pv > 0 && pmt > 0 && n > 0) || pmt * n <= pv) return 0;
-  let lo = 1e-6, hi = 1.5;
-  for (let i = 0; i < 80; i++) { const m = (lo + hi) / 2, v = pmt * (1 - Math.pow(1 + m, -n)) / m; if (v > pv) lo = m; else hi = m; }
-  return (lo + hi) / 2;
+async function prevRun() {
+  SIM.prev.out = null; SIM.prev.msg = 'Calculando…'; renderCurrentTab();
+  try { SIM.prev.out = await apiCalc('prev', simPayload()); } catch (e) { SIM.prev.out = { erro: e.message }; }
+  SIM.prev.msg = ''; renderCurrentTab();
 }
-function prevCalc() {
-  const P = SIM.prev, salario = SIM.salary, bruto = SIM.salary + SIM.variaveis;
-  if (salario <= 0) return { erro: 'Informe o salário base (ou envie um holerite).' };
-  const inss = inssCalc(bruto), ir = irrfCalc(bruto, inss, SIM.dep, P.pensao || 0);
-  const vt = P.vtOn ? simR2(Math.min(salario * VT_PERC, P.vtCusto > 0 ? P.vtCusto : salario * VT_PERC)) : 0;
-  const consigAtual = P.consigAtual === null ? SIM.consig : P.consigAtual;
-  const L = [{ k: '+', t: 'Salário bruto', v: simBRL(bruto), n: 'Salário ' + simBRL(salario) + (SIM.variaveis ? ' + variáveis ' + simBRL(SIM.variaveis) : '') },
-    { k: '-', t: 'INSS', v: simBRL(inss), n: 'Tabela progressiva 2026' },
-    { k: '-', t: 'IRRF', v: simBRL(ir.valor), n: (ir.usouSimplificado ? 'Desconto simplificado' : 'Deduções legais') + (ir.redutor ? '; redutor Lei 15.270: ' + simBRL(ir.redutor) : '') }];
-  if (vt) L.push({ k: '-', t: 'Vale-transporte', v: simBRL(vt), n: 'Até 6% do salário básico, limitado ao custo do vale' });
-  if (P.saude) L.push({ k: '-', t: 'Plano de saúde / odonto', v: simBRL(P.saude) });
-  if (P.pensao) L.push({ k: '-', t: 'Pensão alimentícia', v: simBRL(P.pensao), n: 'Também reduz a base do IRRF' });
-  if (consigAtual) L.push({ k: '-', t: 'Consignado já em folha', v: simBRL(consigAtual), n: 'Parcela do último holerite' });
-  if (P.outros) L.push({ k: '-', t: 'Outros descontos', v: simBRL(P.outros) });
-  const descontos = inss + ir.valor + vt + (P.saude || 0) + (P.pensao || 0) + consigAtual + (P.outros || 0);
-  const liquidoAtual = simR2(bruto - descontos);
-  const disponivel = Math.max(0, bruto - inss - ir.valor - (P.pensao || 0));
-  const margem = simR2(disponivel * MARGEM_CONSIGNADO), livre = simR2(Math.max(0, margem - consigAtual));
-  const N = P.novo, out = { liquidoAtual, linhas: L, margem, livre, disponivel, consigAtual };
-  if (N.parcela > 0) {
-    out.novo = { liquido: simR2(liquidoAtual - N.parcela), excede: N.parcela > livre, excesso: simR2(Math.max(0, N.parcela - livre)) };
-    if (N.n > 0) {
-      out.novo.total = simR2(N.parcela * N.n);
-      if (N.liberado > 0) { out.novo.juros = simR2(out.novo.total - N.liberado); out.novo.taxaImpl = prevPmtRate(N.liberado, N.parcela, N.n); }
-    }
-  }
-  const taxa = N.taxa > 0 ? N.taxa / 100 : (out.novo && out.novo.taxaImpl) || 0;
-  if (taxa > 0 && N.n > 0 && livre > 0) out.capacidade = { taxa, valor: simR2(livre * (1 - Math.pow(1 + taxa, -N.n)) / taxa) };
-  return out;
-}
-function prevRun() { SIM.prev.out = prevCalc(); renderCurrentTab(); }
 
 // Leitura aproximada de contrato de consignado em PDF (texto)
 async function prevReadContract(fileList) {
@@ -6906,7 +6740,7 @@ function renderPlano() {
       'Painel Fiscal e Fluxo de Caixa completos (PJ)',
       'Dashboard consolidado PF + PJ',
       'Suporte dedicado via WhatsApp',
-    ], cta: 'Fazer upgrade', hotmartUrl: appConfig.hotmartCheckoutBusiness, priceId: appConfig.stripePriceBusiness },
+    ], cta: 'Fazer upgrade', soon: PJ_COMING_SOON, hotmartUrl: appConfig.hotmartCheckoutBusiness, priceId: appConfig.stripePriceBusiness },
   ];
   const manageBtn = profile?.payment_provider === 'hotmart'
     ? `<button class="btn-add" onclick="openHotmartAccount()">Gerenciar compra (Hotmart)</button>`
@@ -6914,11 +6748,14 @@ function renderPlano() {
       ? `<button class="btn-add" onclick="openBillingPortal()">Gerenciar assinatura</button>`
       : '';
   return `<div class="section-header animate-in"><div><div class="section-title">Seu Plano</div><div class="section-desc">Plano atual: <strong>${plans.find(p => p.id === cur)?.name || 'Free'}</strong>${status !== 'active' ? ' — ' + status : ''}</div></div>${manageBtn}</div>
+  <div class="card mb-24 animate-in"><div class="card-title">🔔 Notificações por WhatsApp e e-mail <span class="soon-badge">Em breve</span></div><div class="occ-b-desc" style="margin-top:6px">Receba avisos de contas a vencer, orçamento estourado e metas direto no celular e na caixa de entrada. Estamos preparando e vamos avisar quando estiver disponível.</div><div style="display:flex;gap:16px;margin-top:10px;flex-wrap:wrap;opacity:.55"><label><input type="checkbox" disabled> WhatsApp</label><label><input type="checkbox" disabled> E-mail</label></div></div>
   <div class="pricing-grid">${plans.map((p, i) => {
     const isCurrent = p.id === cur;
     let ctaHtml;
     if (isCurrent) {
       ctaHtml = `<button class="btn-pricing current" disabled>Plano atual</button>`;
+    } else if (p.soon) {
+      ctaHtml = `<button class="btn-pricing" disabled>Em breve</button>`;
     } else if (p.hotmartUrl) {
       const email = currentUser?.email ? encodeURIComponent(currentUser.email) : '';
       ctaHtml = `<a class="btn-pricing" style="display:block;text-align:center;text-decoration:none;box-sizing:border-box" href="${p.hotmartUrl}${email ? '?email=' + email : ''}" target="_blank" rel="noopener noreferrer">Comprar na Hotmart</a>` +
@@ -6931,7 +6768,7 @@ function renderPlano() {
       ctaHtml = `<button class="btn-pricing" disabled title="Configure o link de checkout">Em breve</button>`;
     }
     return `<div class="pricing-card${p.popular ? ' popular' : ''}${isCurrent ? ' current' : ''} animate-in stagger-${i + 1}">
-      ${p.popular ? '<div class="pricing-popular">Mais popular</div>' : ''}
+      ${p.popular ? '<div class="pricing-popular">Mais popular</div>' : ''}${p.soon ? '<div class="pricing-popular">Em breve</div>' : ''}
       <div class="pricing-name">${p.name}</div>
       <div class="pricing-price">${p.price}<span class="pricing-period">${p.period}</span></div>
       <ul class="pricing-features">${p.features.map(f => `<li>✓ ${f}</li>`).join('')}</ul>
@@ -7069,6 +6906,7 @@ function exportPDF() {
 // SHOW APP
 // ═══════════════════════════════════════════════════════
 async function showApp() {
+  if (PJ_COMING_SOON && state.profile_type === 'PJ') { state.profile_type = 'PF'; try { showToast('A área para empresas está em preparação e chega em breve. Você está no modo Pessoal.', 'info'); } catch (e) {} }
   document.getElementById('auth-screen').hidden = true;
   document.getElementById('onboarding-screen').hidden = true;
   document.getElementById('app-screen').hidden = false;

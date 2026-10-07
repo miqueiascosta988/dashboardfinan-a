@@ -4,13 +4,21 @@ const helmet = require('helmet');
 const compression = require('compression');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Serve a versão minificada (dist/, gerada por `npm run build`) quando existir; senão, public/
+const DIST = path.join(__dirname, '..', 'dist');
+const PUBLIC_DIR = fs.existsSync(path.join(DIST, 'index.html')) ? DIST : path.join(__dirname, '..', 'public');
+
 // ─── Middleware ──────────────────────────────────────
+app.disable('x-powered-by');
+app.set('trust proxy', 1); // Railway/Vercel: IP real do cliente para o limite de requisições
 app.use(compression());
-app.use(cors());
+// CORS: defina ALLOWED_ORIGIN (ex.: https://app.seudominio.com.br, separados por vírgula) para restringir
+app.use(cors({ origin: process.env.ALLOWED_ORIGIN ? process.env.ALLOWED_ORIGIN.split(',').map(s => s.trim()) : true }));
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -19,11 +27,19 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "blob:"],
-      connectSrc: ["'self'", process.env.SUPABASE_URL || "https://*.supabase.co", "https://api.stripe.com"],
+      connectSrc: [
+        "'self'", process.env.SUPABASE_URL || "https://*.supabase.co", "https://api.stripe.com",
+        "https://api.frankfurter.dev",   // câmbio (taxas de referência do BCE)
+        "https://api.bcb.gov.br",        // Selic ao vivo (Banco Central)
+        "https://brasilapi.com.br",      // consulta de CNPJ
+      ],
       frameSrc: ["https://js.stripe.com"],
     },
   },
 }));
+
+// Nunca expor source maps
+app.use((req, res, next) => (/\.map$/i.test(req.path) ? res.status(404).end() : next()));
 
 // ─── Stripe webhook (precisa do corpo bruto/raw para validar a assinatura —
 // por isso é montado ANTES do express.json() global; se um express.json()
@@ -36,7 +52,7 @@ app.use('/api/stripe', stripeRoutes);
 const hotmartRoutes = require('./routes/hotmart');
 app.use('/api/hotmart', hotmartRoutes);
 
-app.use(express.json());
+app.use(express.json({ limit: '100kb' }));
 
 // ─── API routes ─────────────────────────────────────
 app.get('/api/health', (req, res) => {
@@ -48,6 +64,7 @@ app.get('/api/config', (req, res) => {
     supabaseUrl: process.env.SUPABASE_URL,
     supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
     // Hotmart — forma de pagamento principal (Brasil)
+    hotmartCheckoutBasic: process.env.HOTMART_CHECKOUT_BASIC || null,
     hotmartCheckoutPlus: process.env.HOTMART_CHECKOUT_PLUS || null,
     hotmartCheckoutPro: process.env.HOTMART_CHECKOUT_PRO || null,
     hotmartCheckoutBusiness: process.env.HOTMART_CHECKOUT_BUSINESS || null,
@@ -58,12 +75,18 @@ app.get('/api/config', (req, res) => {
   });
 });
 
+// Cálculos protegidos (login + plano + limite de requisições)
+app.use('/api/calc', require('./routes/calc'));
+
+// Rotas /api desconhecidas devolvem JSON 404 (e não a página do app)
+app.use('/api', (req, res) => res.status(404).json({ error: 'Não encontrado.' }));
+
 // ─── Static files ───────────────────────────────────
-app.use(express.static(path.join(__dirname, '..', 'public')));
+app.use(express.static(PUBLIC_DIR));
 
 // SPA fallback
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
+  res.sendFile(path.join(PUBLIC_DIR, 'index.html'));
 });
 
 // ─── Start ──────────────────────────────────────────

@@ -75,7 +75,7 @@ router.post('/audit', limiter(20, 60000), staffOnly, express.json({ limit: '5kb'
     const [pr, tr, dr] = await Promise.all([
       rest(req, 'profiles?id=eq.' + id + '&select=plan,company_type,pj_activity,document_type,document_number,cnpj_data&limit=1'),
       rest(req, 'transactions?user_id=eq.' + id + '&date=gte.' + d0 + '&select=type,description,category,amount,date,profile&limit=5000'),
-      rest(req, 'documents?user_id=eq.' + id + '&select=name,type,category,amount&limit=2000'),
+      rest(req, 'documents?user_id=eq.' + id + '&select=name,type,category,amount,extracted_data&limit=2000'),
     ]);
     if (!pr.ok) return res.status(502).json({ error: 'Não foi possível ler os dados da empresa.' });
     const prof = await pr.json();
@@ -86,6 +86,45 @@ router.post('/audit', limiter(20, 60000), staffOnly, express.json({ limit: '5kb'
     try { await rest(req, 'staff_audit_log', { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }, req.staff.headers), body: JSON.stringify({ staff_id: req.staff.id, client_id: id, action: 'audit', score: report.score }) }); } catch (e) {}
     res.set('Cache-Control', 'no-store').json({ report });
   } catch (e) { res.status(500).json({ error: 'Não foi possível concluir a auditoria.' }); }
+});
+
+// ── Pedidos de documentos ao cliente (o cliente vê no app e responde) ──
+const REQ_STATUS = ['aberto', 'concluido', 'cancelado'];
+const clip = (v, n) => String(v == null ? '' : v).trim().slice(0, n);
+const jsonHeaders = (req) => Object.assign({ 'Content-Type': 'application/json', Prefer: 'return=representation' }, req.staff.headers);
+
+router.get('/requests', limiter(60, 60000), staffOnly, async (req, res) => {
+  const id = String(req.query.clientId || '');
+  if (!UUID.test(id)) return res.status(400).json({ error: 'Empresa inválida.' });
+  try {
+    const r = await rest(req, 'audit_requests?client_id=eq.' + id + '&select=id,title,detail,period,status,client_note,created_at,answered_at&order=created_at.desc&limit=50');
+    if (!r.ok) return res.status(502).json({ error: 'Não foi possível listar os pedidos.' });
+    res.json({ requests: await r.json() });
+  } catch (e) { res.status(502).json({ error: 'Não foi possível listar os pedidos.' }); }
+});
+
+router.post('/requests', limiter(30, 60000), staffOnly, express.json({ limit: '5kb' }), async (req, res) => {
+  const b = req.body || {}, id = String(b.clientId || ''), title = clip(b.title, 120);
+  if (!UUID.test(id) || !title) return res.status(400).json({ error: 'Informe a empresa e o que está sendo pedido.' });
+  try {
+    const r = await rest(req, 'audit_requests', { method: 'POST', headers: jsonHeaders(req), body: JSON.stringify({ client_id: id, staff_id: req.staff.id, title, detail: clip(b.detail, 500) || null, period: clip(b.period, 40) || null }) });
+    if (!r.ok) return res.status(502).json({ error: 'Não foi possível criar o pedido.' });
+    const rows = await r.json();
+    try { await rest(req, 'staff_audit_log', { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }, req.staff.headers), body: JSON.stringify({ staff_id: req.staff.id, client_id: id, action: 'request' }) }); } catch (e) {}
+    res.json({ request: Array.isArray(rows) ? rows[0] : rows });
+  } catch (e) { res.status(502).json({ error: 'Não foi possível criar o pedido.' }); }
+});
+
+router.post('/requests/:rid/status', limiter(60, 60000), staffOnly, express.json({ limit: '1kb' }), async (req, res) => {
+  const rid = String(req.params.rid || ''), st = String((req.body || {}).status || '');
+  if (!UUID.test(rid) || REQ_STATUS.indexOf(st) === -1) return res.status(400).json({ error: 'Pedido ou status inválido.' });
+  try {
+    const r = await rest(req, 'audit_requests?id=eq.' + rid, { method: 'PATCH', headers: jsonHeaders(req), body: JSON.stringify({ status: st }) });
+    if (!r.ok) return res.status(502).json({ error: 'Não foi possível atualizar o pedido.' });
+    const rows = await r.json();
+    if (!Array.isArray(rows) || !rows[0]) return res.status(404).json({ error: 'Pedido não encontrado.' });
+    res.json({ request: rows[0] });
+  } catch (e) { res.status(502).json({ error: 'Não foi possível atualizar o pedido.' }); }
 });
 
 module.exports = router;

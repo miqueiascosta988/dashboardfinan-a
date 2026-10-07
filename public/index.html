@@ -1850,6 +1850,8 @@ function generateNotifications() {
   const isPJ = state.profile_type === 'PJ';
   const c = compute();
 
+  openRequests().forEach(function(r) { notifs.push({ id: 'req-' + r.id, icon: '📎', title: 'Documentos pedidos pela equipe', desc: r.title, type: 'warning', time: 'Pendente', tab: 'documentos' }); });
+
   // ── Vínculo: MEI e reserva ──
   if (!isPJ && getOccupation() === 'mei' && meetsTier('basic')) {
     const p = meiRevenueYearToDate() / MEI_ANNUAL_LIMIT * 100;
@@ -2829,6 +2831,8 @@ var CHAT_START_WORDS = ['montar meu perfil', 'meu perfil', 'me conhecer', 'preen
   CHAT_KB.push({ id: 'credito', keywords: ['credito', 'crédito', 'nome sujo', 'negativado', 'limpar nome', 'serasa', 'desenrola', 'score'], answer: 'A aba <b>Crédito & Nome Sujo</b> calcula o tamanho da sua dívida, monta um plano de pagamento com desconto estimado, indica onde negociar (Desenrola, Serasa Limpa Nome, bancos) e sugere caminhos para conseguir crédito. Quer que eu comece perguntando sua situação?', related: ['🧭 Montar meu perfil', '➡️ Abrir Crédito & Nome Sujo'] });
   CHAT_KB.push({ id: 'resolver', keywords: ['pagar divida', 'quitar divida', 'quitar dividas', 'bola de neve', 'avalanche', 'financiar', 'financiamento', 'emprestimo', 'portabilidade', 'consignado', 'juros altos'], answer: 'A aba <b>Resolver Dívidas</b> compara as formas de pagar (bola de neve x avalanche), mostra quanto você economiza usando um valor disponível agora, compara financiar com juros baixos ou altos e com juntar o dinheiro, avalia se vale trocar uma dívida cara por uma mais barata e explica como conseguir crédito com condições especiais. Cada opção mostra benefícios e riscos.', related: ['➡️ Abrir Resolver Dívidas'] });
   CHAT_KB.push({ id: 'reforma', keywords: ['reforma tributaria', 'icms', 'ipi', 'iss', 'cbs', 'ibs', 'imposto seletivo', 'split payment', 'pis cofins', 'tributos'], answer: 'No modo <b>Empresa</b>, a aba <b>Reforma Tributária</b> mostra o cronograma 2026–2033, o mapa de tributos (ICMS, ISS, IPI, PIS/Cofins, CBS, IBS e Imposto Seletivo), o que muda para o seu tipo de empresa e um checklist de preparação. Resumo: PIS/Cofins/IPI/ICMS/ISS dão lugar a CBS (federal) e IBS (estados e municípios) até 2033.', related: ['➡️ Abrir Reforma Tributária'] });
+  CHAT_KB.push({ id: 'nfxml', keywords: ['xml', 'nota fiscal', 'notas fiscais', 'nf-e', 'nfe', 'nfs-e', 'nfse', 'danfe', 'enviar nota'], answer: 'Na <b>Central de Documentos</b> (modo Empresa) você pode enviar os arquivos <b>XML</b> das notas fiscais (NF-e e NFS-e). O app lê número, data, valor, partes e impostos no seu navegador — o XML em si não é enviado — e classifica cada nota como emitida ou recebida pelo CNPJ da empresa. Informe o CNPJ no cadastro para isso funcionar.', related: [] });
+  CHAT_KB.push({ id: 'pedido', keywords: ['pedido de documento', 'solicitacao', 'solicitação', 'equipe pediu', 'documentos pedidos'], answer: 'Quando a equipe precisa de algum documento (notas, extrato, comprovantes), aparece um aviso no painel e um card <b>Solicitações da equipe</b> na Central de Documentos. É só enviar os arquivos e clicar em <b>Marcar como enviado</b>.', related: [] });
   CHAT_KB.push({ id: 'notificacoes', keywords: ['notificacao', 'notificacoes', 'whatsapp', 'email', 'e-mail', 'alerta', 'aviso por whatsapp'], answer: 'As notificações por <b>WhatsApp</b> e <b>e-mail</b> estão em preparação e chegam em <b>breve</b>. Por enquanto, os alertas aparecem no sino 🔔 dentro do app.', related: ['Falar com atendente'] });
   CHAT_KB.push({ id: 'documento', keywords: ['cpf', 'cnpj', 'documento', 'meu cadastro'], answer: 'Você pode informar seu <b>CPF</b> ou o <b>CNPJ</b> da empresa em Perfil (menu lateral → seu perfil) ou clicando no botão abaixo. Com o CNPJ, o app busca o porte, o CNAE e o regime para ajustar o painel da empresa.', related: ['➡️ Informar CPF/CNPJ'] });
   CHAT_KB.push({ id: 'cambio', keywords: ['cambio', 'câmbio', 'cotacao', 'cotação', 'dolar', 'dólar', 'euro', 'fonte do cambio', 'indice'], answer: 'A aba <b>Câmbio</b> usa as <b>taxas de referência do Banco Central Europeu</b>, publicadas pela API Frankfurter (atualizadas em dias úteis). Elas são referência de mercado: a cotação de compra/venda de bancos e casas de câmbio inclui spread e IOF, então o valor final costuma ser maior.', related: ['Planos e pagamento'] });
@@ -3398,6 +3402,7 @@ async function loadAllData() {
   state.liabilities = (liab.data || []).map(r => ({ id: r.id, name: r.name, value: parseFloat(r.value), profile: r.profile || 'ambos' }));
   state.subscriptions = (subs.data || []).map(r => ({ id: r.id, name: r.name, cat: r.category, price: parseFloat(r.price), color: r.color, profile: r.profile || 'ambos' }));
   state.documents = (docs.data || []).map(r => ({ id: r.id, name: r.name, type: r.type, category: r.category, amount: parseFloat(r.amount), date: r.date, status: r.status, fileSize: r.file_size, mimeType: r.mime_type, extractedData: r.extracted_data || {} }));
+  await loadRequests();
   // Load budgets as object { category: amount }
   state.budgets = {};
   (budgets.data || []).forEach(r => { state.budgets[r.category] = parseFloat(r.amount); });
@@ -4368,7 +4373,7 @@ const tabsPJ = [
   {id:'orcamento',label:'Orçamento',section:'Planejamento'},{id:'metas',label:'Metas',section:'Planejamento'},{id:'projecao',label:'Projeção',plus:true,tier:'plus',section:'Planejamento'},{id:'estrategia',label:'Estratégia',plus:true,tier:'pro',section:'Planejamento'},
   {id:'patrimonio',label:'Patrimônio',section:'Patrimônio & Dívidas'},{id:'dividas',label:'Dívidas',section:'Patrimônio & Dívidas'},{id:'resolver',label:'Resolver Dívidas',plus:true,tier:'basic',section:'Patrimônio & Dívidas'},
   {id:'fiscal',label:'Fiscal',pj:true,plus:true,tier:'business',section:'Fiscal & Caixa'},{id:'fluxo',label:'Fluxo de Caixa',pj:true,plus:true,tier:'business',section:'Fiscal & Caixa'},{id:'reforma',label:'Reforma Tributária',section:'Fiscal & Caixa'},
-  {id:'insights',label:'Insights',plus:true,tier:'plus',section:'Ferramentas'},{id:'assinaturas',label:'Ferramentas & SaaS',section:'Ferramentas'},{id:'openfinance',label:'Extratos Bancários',plus:true,tier:'plus',section:'Ferramentas'},{id:'cambio',label:'Câmbio',plus:true,tier:'plus',section:'Ferramentas'},
+  {id:'insights',label:'Insights',plus:true,tier:'plus',section:'Ferramentas'},{id:'assinaturas',label:'Ferramentas & SaaS',section:'Ferramentas'},{id:'openfinance',label:'Extratos Bancários',section:'Ferramentas'},{id:'cambio',label:'Câmbio',plus:true,tier:'plus',section:'Ferramentas'},
   {id:'saude',label:'Saúde Financeira',section:'Conta'},{id:'plano',label:'Plano',section:'Conta'},
 ];
 
@@ -5142,7 +5147,7 @@ function renderDashboard(c) {
   const greeting = state.name ? (isPJ ? `${state.name} · Empresa` : `Olá, ${state.name}`) : '';
   return `<div class="hero-card mb-24 animate-in"><div class="hero-label">${heroLabel}</div><div class="hero-value">${fmt(saldo)}</div><div class="hero-sub">${greeting} · Atualizado agora</div></div>
   ${renderCrisisBanner(c)}
-  ${renderDocBanner()}${renderDebtNudge(c)}${renderOccBanner(c)}
+  ${renderReqBanner()}${renderDocBanner()}${renderDebtNudge(c)}${renderOccBanner(c)}
   <div class="card mb-24 animate-in" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><div><div class="card-title" style="margin:0">💭 Pensando em comprar algo?</div><div style="font-size:12px;color:var(--ink-3)">Simule o impacto na sua meta e no seu orçamento antes de decidir.</div></div><button class="btn-add" onclick="openBuySimulator()">${isPlusUser()?'Simular compra':'🔒 Simular compra'}</button></div>
   <div class="kpi-grid">${[
     { label: isPJ ? 'Faturamento' : 'Renda', value: fmt(c.totalIncome), cls: 'income' },
@@ -5392,6 +5397,153 @@ function saveRegime() {
   closeModal(); renderCurrentTab(); showToast('Regime atualizado para ' + state.pj_regime, 'success');
 }
 
+// ═══════════════════════════════════════════════════════
+// NOTAS FISCAIS EM XML (NF-e / NFS-e) — leitura no navegador, só os campos extraídos são salvos
+// ═══════════════════════════════════════════════════════
+function canImportFree() { return isPlusUser() || (PJ_OPEN_TO_ALL && state.profile_type === 'PJ'); }
+function nfEls(root, name) { try { return root.getElementsByTagNameNS('*', name); } catch (e) { return []; } }
+function nfFirst(root, names) { if (!root) return null; for (var i = 0; i < names.length; i++) { var el = nfEls(root, names[i])[0]; if (el) return el; } return null; }
+function nfTxt(root, names) { if (!root) return ''; for (var i = 0; i < names.length; i++) { var el = nfEls(root, names[i])[0]; if (el && String(el.textContent).trim()) return String(el.textContent).trim(); } return ''; }
+function nfNum(s) { var n = parseFloat(String(s || '').replace(',', '.')); return isNaN(n) ? 0 : n; }
+function nfDigits(s) { return String(s || '').replace(/[^0-9A-Za-z]/g, '').toUpperCase(); }
+function nfParty(el) { return el ? { doc: nfDigits(nfTxt(el, ['CNPJ', 'Cnpj', 'CPF', 'Cpf', 'CpfCnpj'])), nome: nfTxt(el, ['xNome', 'RazaoSocial', 'Nome', 'xFant']) } : { doc: '', nome: '' }; }
+function nfOwnDoc() { return state.doc_type === 'cnpj' ? nfDigits(state.doc_number) : ''; }
+function nfDirection(emitDoc, destDoc) {
+  var own = nfOwnDoc(); if (!own) return 'indef';
+  var same = function(a) { return !!a && (a === own || (a.length === 14 && own.length === 14 && a.slice(0, 8) === own.slice(0, 8))); };
+  return same(emitDoc) ? 'emitida' : same(destDoc) ? 'recebida' : 'indef';
+}
+// Devolve { kind:'nfe'|'nfse'|'cancelamento', ... } ou null se não for uma nota reconhecida
+function nfParseXml(text) {
+  var xml; try { xml = new DOMParser().parseFromString(String(text || ''), 'application/xml'); } catch (e) { return null; }
+  if (!xml || !xml.documentElement || xml.getElementsByTagName('parsererror').length) return null;
+  var R = xml.documentElement;
+  if (nfTxt(R, ['tpEvento']) === '110111') return { kind: 'cancelamento', chave: nfTxt(R, ['chNFe']) };
+  var inf = nfFirst(R, ['infNFe']);
+  if (inf) {
+    var ide = nfFirst(inf, ['ide']), emit = nfParty(nfFirst(inf, ['emit'])), dest = nfParty(nfFirst(inf, ['dest'])), tot = nfFirst(inf, ['ICMSTot']);
+    var cstat = nfTxt(R, ['cStat']);
+    return {
+      kind: 'nfe', chave: (inf.getAttribute('Id') || '').replace(/^NFe/, '') || nfTxt(R, ['chNFe']),
+      numero: nfTxt(ide, ['nNF']), serie: nfTxt(ide, ['serie']), emissao: nfTxt(ide, ['dhEmi', 'dEmi']).slice(0, 10), natOp: nfTxt(ide, ['natOp']), fin: nfTxt(ide, ['finNFe']),
+      valor: nfNum(nfTxt(tot, ['vNF'])), emit: emit, dest: dest, crt: nfTxt(nfFirst(inf, ['emit']), ['CRT']),
+      impostos: { icms: nfNum(nfTxt(tot, ['vICMS'])), st: nfNum(nfTxt(tot, ['vST'])), ipi: nfNum(nfTxt(tot, ['vIPI'])), pis: nfNum(nfTxt(tot, ['vPIS'])), cofins: nfNum(nfTxt(tot, ['vCOFINS'])), iss: 0 },
+      status: (cstat === '101' || cstat === '151') ? 'cancelada' : (cstat ? 'autorizada' : null), dir: nfDirection(emit.doc, dest.doc)
+    };
+  }
+  // NFS-e (melhor esforço: padrão ABRASF e padrão nacional; os municípios variam)
+  var nf = nfFirst(R, ['InfNfse', 'InfNFSe', 'infNFSe', 'Nfse', 'NFSe', 'CompNfse']);
+  if (nf) {
+    var pre = nfParty(nfFirst(nf, ['PrestadorServico', 'Prestador', 'IdentificacaoPrestador', 'emit'])), tom = nfParty(nfFirst(nf, ['TomadorServico', 'Tomador', 'IdentificacaoTomador', 'toma']));
+    var val = nfNum(nfTxt(nf, ['vServ', 'ValorServicos', 'ValorTotalServicos', 'vLiq', 'ValorLiquidoNfse']));
+    if (!val && !pre.doc) return null;
+    return {
+      kind: 'nfse', chave: nfTxt(nf, ['CodigoVerificacao', 'chaveAcesso']), numero: nfTxt(nf, ['nNFSe', 'Numero']), serie: '',
+      emissao: nfTxt(nf, ['dhEmi', 'dhProc', 'DataEmissao', 'dCompet']).slice(0, 10), natOp: 'Serviço', fin: '', valor: val, emit: pre, dest: tom, crt: '',
+      impostos: { icms: 0, st: 0, ipi: 0, pis: nfNum(nfTxt(nf, ['ValorPis', 'vPis'])), cofins: nfNum(nfTxt(nf, ['ValorCofins', 'vCofins'])), iss: nfNum(nfTxt(nf, ['ValorIss', 'vISSQN', 'vISS'])) },
+      status: null, dir: nfDirection(pre.doc, tom.doc)
+    };
+  }
+  return null;
+}
+function nfDateBR(iso) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ''); return m ? m[3] + '/' + m[2] : new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }); }
+function nfDocKey(n) { return n.chave || [n.kind, n.numero, n.emit && n.emit.doc, (n.valor || 0).toFixed(2)].join('|'); }
+function nfDocFromNote(n, file) {
+  var other = n.dir === 'emitida' ? n.dest : n.emit;
+  return { id: genId(), name: (n.kind === 'nfe' ? 'NF-e' : 'NFS-e') + ' nº ' + (n.numero || '—') + ' · ' + (other && other.nome ? other.nome : (n.dir === 'emitida' ? 'cliente' : 'fornecedor')),
+    type: n.dir === 'recebida' ? 'expense' : 'income', category: 'nf', amount: n.valor, date: nfDateBR(n.emissao), status: 'processado', fileSize: file.size, mimeType: 'application/xml',
+    extractedData: { fonte: 'xml', kind: n.kind, dir: n.dir, chave: n.chave, numero: n.numero, serie: n.serie, emissao: n.emissao, natOp: n.natOp, fin: n.fin, valor: n.valor, emit: n.emit, dest: n.dest, crt: n.crt, impostos: n.impostos, status: n.status } };
+}
+var pendingNf = null;
+function handleNfXmlFiles(files) {
+  var reads = files.map(function(f) { return new Promise(function(res) { var r = new FileReader(); r.onload = function() { res({ file: f, text: String(r.result || '') }); }; r.onerror = function() { res({ file: f, text: '' }); }; r.readAsText(f, 'utf-8'); }); });
+  Promise.all(reads).then(function(list) {
+    var notes = [], cancels = [], bad = 0, seen = {}, known = {};
+    state.documents.forEach(function(d) { if (d.extractedData && d.extractedData.fonte === 'xml') known[nfDocKey(d.extractedData)] = 1; });
+    list.forEach(function(it) {
+      var n = nfParseXml(it.text);
+      if (!n) { bad++; return; }
+      if (n.kind === 'cancelamento') { if (n.chave) cancels.push(n.chave); return; }
+      var k = nfDocKey(n); n._dup = !!(known[k] || seen[k]); seen[k] = 1; n._file = it.file; notes.push(n);
+    });
+    if (!notes.length && !cancels.length) { showToast('Não reconheci esse XML como nota fiscal (NF-e ou NFS-e).', 'info'); return; }
+    pendingNf = { notes: notes, cancels: cancels, bad: bad };
+    openNfPreviewModal();
+  });
+}
+function openNfPreviewModal() {
+  var p = pendingNf; if (!p) return;
+  var own = nfOwnDoc(), nNew = p.notes.filter(function(n) { return !n._dup; }).length;
+  var dirTag = { emitida: ['Emitida', 'var(--income)'], recebida: ['Recebida', 'var(--expense)'], indef: ['CNPJ não confere', 'var(--gold,#AD8A2A)'] };
+  openModal('Notas fiscais lidas (' + p.notes.length + ')',
+    (own ? '' : '<div class="occ-b-desc" style="margin-bottom:10px">⚠️ Informe o CNPJ da empresa no cadastro para classificar as notas como emitidas ou recebidas.</div>') +
+    '<div class="stmt-summary-bar"><span>' + nNew + ' nova(s)</span><span>' + (p.notes.length - nNew) + ' já enviada(s)' + (p.bad ? ' · ' + p.bad + ' arquivo(s) ignorado(s)' : '') + '</span></div>' +
+    '<div class="stmt-preview-list">' + p.notes.map(function(n, i) {
+      var o = n.dir === 'emitida' ? n.dest : n.emit, t = dirTag[n.dir];
+      return '<label class="stmt-row' + (n._dup ? ' dup' : '') + '"><input type="checkbox" id="nf-chk-' + i + '"' + (n._dup ? '' : ' checked') + ' /><span class="stmt-row-date">' + fxEsc(nfDateBR(n.emissao)) + '</span><span class="stmt-row-desc" title="' + fxEsc(o && o.nome || '') + '">' + (n.kind === 'nfe' ? 'NF-e' : 'NFS-e') + ' nº ' + fxEsc(n.numero || '—') + ' · ' + fxEsc(o && o.nome || '—') + '</span><span class="stmt-row-cat" style="color:' + t[1] + '">' + t[0] + '</span><span class="stmt-row-amount">' + fmtD(n.valor) + '</span>' + (n._dup ? '<span class="stmt-row-dup-tag">já enviada</span>' : '') + '</label>';
+    }).join('') + '</div>' +
+    (p.cancels.length ? '<div class="occ-b-desc" style="margin-top:8px">🛑 ' + p.cancels.length + ' evento(s) de cancelamento encontrado(s): as notas correspondentes serão marcadas como canceladas.</div>' : '') +
+    '<label style="display:flex;gap:8px;align-items:flex-start;margin-top:12px;font-size:12.5px;color:var(--ink-2)"><input type="checkbox" id="nf-lancar" style="margin-top:3px" /> <span>Também lançar como receita/despesa. <b>Marque só se ainda não importou o extrato desse período</b>, para não contar o mesmo valor duas vezes.</span></label>' +
+    '<div class="occ-b-desc" style="margin-top:10px">A leitura acontece no seu navegador: o arquivo XML não é enviado, só ficam salvos os dados da nota (número, data, valor, partes e impostos).</div>' +
+    '<div class="modal-actions"><button class="btn-cancel" onclick="pendingNf=null;closeModal()">Cancelar</button><button class="btn-save" onclick="confirmNfImport()">Salvar notas</button></div>');
+}
+function confirmNfImport() {
+  var p = pendingNf; if (!p) return;
+  var lancar = !!(document.getElementById('nf-lancar') || {}).checked, saved = 0, lanc = 0;
+  p.notes.forEach(function(n, i) {
+    var chk = document.getElementById('nf-chk-' + i); if (!chk || !chk.checked) return;
+    if (p.cancels.indexOf(n.chave) !== -1) n.status = 'cancelada';
+    var doc = nfDocFromNote(n, n._file);
+    state.documents.unshift(doc); saved++;
+    dbUpsert('documents', { id: doc.id, user_id: currentUser?.id, name: doc.name, type: doc.type, category: doc.category, amount: doc.amount, date: doc.date, status: doc.status, file_size: doc.fileSize, mime_type: doc.mimeType, extracted_data: doc.extractedData });
+    if (lancar && n.status !== 'cancelada' && n.dir !== 'indef' && n.valor > 0 && /^\d{4}-\d{2}-\d{2}/.test(n.emissao)) {
+      var isInc = n.dir === 'emitida', other = isInc ? n.dest : n.emit, desc = 'NF ' + (n.numero || '') + ' · ' + (other && other.nome || '');
+      var t = { id: genId(), date: n.emissao.slice(0, 10), desc: desc, cat: isInc ? (((PJ_ACTIVITIES[getPJActivity()] || {}).income || ['Serviços prestados'])[0]) : guessTxCategory(desc, 'expense'), amount: n.valor, type: isInc ? 'income' : 'expense', recur: false, profile: state.profile_type };
+      state.transactions.push(t); lanc++;
+      dbUpsert('transactions', { id: t.id, user_id: currentUser?.id, type: t.type, description: t.desc, category: t.cat, amount: t.amount, date: t.date, recurring: false, profile: t.profile });
+    }
+  });
+  p.cancels.forEach(function(ch) { state.documents.forEach(function(d) { if (d.extractedData && d.extractedData.chave === ch && d.extractedData.status !== 'cancelada') { d.extractedData.status = 'cancelada'; dbUpsert('documents', { id: d.id, user_id: currentUser?.id, name: d.name, type: d.type, category: d.category, amount: d.amount, date: d.date, status: d.status, file_size: d.fileSize, mime_type: d.mimeType, extracted_data: d.extractedData }); } }); });
+  pendingNf = null; closeModal(); renderCurrentTab();
+  showToast('✅ ' + saved + ' nota(s) salva(s)' + (lanc ? ' e ' + lanc + ' lançamento(s) criado(s)' : ''), 'success');
+}
+
+// ═══════════════════════════════════════════════════════
+// SOLICITAÇÕES DE DOCUMENTOS DA EQUIPE (o cliente vê, responde e envia)
+// ═══════════════════════════════════════════════════════
+async function loadRequests() {
+  state.requests = [];
+  if (!sb || !currentUser) return;
+  try { var r = await sb.from('audit_requests').select('*').eq('client_id', currentUser.id).order('created_at', { ascending: false }); if (!r.error && Array.isArray(r.data)) state.requests = r.data; } catch (e) {}
+}
+function openRequests() { return (state.requests || []).filter(function(r) { return r.status === 'aberto'; }); }
+function reqWhen(iso) { try { return new Date(iso).toLocaleDateString('pt-BR'); } catch (e) { return ''; } }
+function renderRequestsCard() {
+  var list = (state.requests || []).filter(function(r) { return r.status === 'aberto' || r.status === 'enviado'; });
+  if (!list.length) return '';
+  return '<div class="card mb-24 animate-in" style="border-left:3px solid var(--gold,#AD8A2A)"><div class="card-title" style="margin-bottom:6px">📎 Solicitações da equipe</div><div class="occ-b-desc" style="margin-bottom:8px">A equipe pediu os itens abaixo. Envie os arquivos aqui na Central de Documentos (ou importe o extrato) e marque como enviado.</div>' +
+    list.map(function(r) {
+      var open = r.status === 'aberto';
+      return '<div style="padding:10px 0;border-top:1px solid var(--border);display:flex;gap:12px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap"><div style="flex:1;min-width:220px"><div style="font-weight:700;font-size:13.5px">' + fxEsc(r.title) + (r.period ? ' <span class="occ-tag">' + fxEsc(r.period) + '</span>' : '') + '</div>' + (r.detail ? '<div class="occ-b-desc" style="margin-top:3px">' + fxEsc(r.detail) + '</div>' : '') + '<div class="occ-b-desc" style="margin-top:3px">Pedido em ' + reqWhen(r.created_at) + (open ? '' : ' · enviado' + (r.answered_at ? ' em ' + reqWhen(r.answered_at) : '') + ', aguardando conferência') + '</div></div>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap">' + (open ? '<button class="btn-sm" onclick="switchTab(\'openfinance\')">Importar extrato</button><button class="btn-add" onclick="reqSentModal(\'' + fxEsc(r.id) + '\')">Marcar como enviado</button>' : '<span class="fiscal-tag ok">Enviado</span>') + '</div></div>';
+    }).join('') + '</div>';
+}
+function renderReqBanner() {
+  var n = openRequests().length; if (!n) return '';
+  return '<div class="card mb-24 animate-in occ-banner"><div><div class="occ-b-title">📎 A equipe pediu ' + n + ' documento(s)</div><div class="occ-b-desc">Veja o que falta e envie na Central de Documentos.</div></div><button class="btn-add" onclick="switchTab(\'documentos\')">Ver pedidos</button></div>';
+}
+function reqSentModal(id) {
+  openModal('Marcar como enviado', '<div class="occ-b-desc" style="margin-bottom:10px">Antes de marcar, envie os arquivos na Central de Documentos ou importe o extrato. Se quiser, deixe um recado para a equipe.</div><div class="form-group"><label class="form-label">Recado (opcional)</label><textarea class="form-input" id="req-note" rows="3" maxlength="500" placeholder="Ex.: enviei as notas de julho a setembro"></textarea></div><div class="modal-actions"><button class="btn-cancel" onclick="closeModal()">Cancelar</button><button class="btn-save" onclick="reqSentConfirm(\'' + String(id).replace(/[^0-9a-f-]/gi, '') + '\')">Confirmar</button></div>');
+}
+async function reqSentConfirm(id) {
+  var note = String((document.getElementById('req-note') || {}).value || '').slice(0, 500), r = (state.requests || []).filter(function(x) { return x.id === id; })[0];
+  if (!r) { closeModal(); return; }
+  var when = new Date().toISOString();
+  if (sb && currentUser) { try { var u = await sb.from('audit_requests').update({ status: 'enviado', client_note: note || null, answered_at: when }).eq('id', id); if (u && u.error) { showToast('Não foi possível registrar agora. Tente de novo.', 'info'); return; } } catch (e) { showToast('Não foi possível registrar agora. Tente de novo.', 'info'); return; } }
+  r.status = 'enviado'; r.client_note = note || null; r.answered_at = when;
+  closeModal(); renderCurrentTab(); showToast('Pedido marcado como enviado ✔', 'success');
+}
+
 // ─── FLUXO DE CAIXA (PJ) ───────────────────────
 function renderFluxoCaixa(c) {
   const months = [];
@@ -5430,6 +5582,7 @@ function renderDocumentos(c) {
   return `<div class="section-header animate-in"><div><div class="section-title">Central de Documentos</div><div class="section-desc">${isPJ ? 'NFs, relatórios e documentos fiscais' : 'Faturas, holerites e comprovantes'} — upload inteligente com categorização automática.</div></div>
   <div style="display:flex;gap:8px"><button class="scan-trigger-btn" onclick="openScanModal()">📷 Escanear boleto/QR</button><button class="btn-add" onclick="openDocUploadModal()">+ Upload manual</button></div></div>
 
+  ${renderRequestsCard()}
   <div class="doc-stats animate-in stagger-1">${[
     { num: docs.length, label: 'Documentos' },
     { num: docs.filter(d => d.status === 'processado').length, label: 'Processados' },
@@ -5441,7 +5594,7 @@ function renderDocumentos(c) {
     <input type="file" id="doc-file-input" multiple accept=".pdf,.png,.jpg,.jpeg,.csv,.xml,.xlsx,.txt" />
     <div class="upload-zone-icon">📤</div>
     <div class="upload-zone-title">Arraste arquivos aqui ou clique para selecionar</div>
-    <div class="upload-zone-desc">PDF, imagens, CSV, XML — máx. 10MB por arquivo. ${isPJ ? 'NFs são reconhecidas automaticamente.' : 'Faturas e holerites são categorizados automaticamente.'} Ou use o <a href="#" onclick="event.preventDefault();openScanModal()" style="color:var(--teal);font-weight:600">scanner de QR/código de barras</a> para boletos.</div>
+    <div class="upload-zone-desc">PDF, imagens, CSV, XML — máx. 10MB por arquivo. ${isPJ ? 'Notas fiscais em XML (NF-e/NFS-e) são lidas e conferidas automaticamente.' : 'Faturas e holerites são categorizados automaticamente.'} Ou use o <a href="#" onclick="event.preventDefault();openScanModal()" style="color:var(--teal);font-weight:600">scanner de QR/código de barras</a> para boletos.</div>
   </div>
 
   <div style="margin-top:20px">
@@ -5491,7 +5644,9 @@ function bindUploadZone() {
 function processUploadedFiles(files) {
   const isPJ = state.profile_type === 'PJ';
   let fileArray = Array.from(files);
-  if (!isPlusUser()) {
+  const xmlFiles = fileArray.filter(f => /\.xml$/i.test(f.name));
+  if (xmlFiles.length) { handleNfXmlFiles(xmlFiles); fileArray = fileArray.filter(f => !/\.xml$/i.test(f.name)); if (!fileArray.length) return; }
+  if (!canImportFree()) {
     const remaining = PLAN_LIMITS.maxDocumentsPerMonth - countThisMonth(state.documents, 'date');
     if (remaining <= 0) {
       showToast('🔒 Plano ' + currentPlanLabel() + ' permite até ' + PLAN_LIMITS.maxDocumentsPerMonth + ' documentos por mês. Faça upgrade para enviar mais.', 'info');
@@ -6136,7 +6291,7 @@ function ofSaveAccounts(list) { try { localStorage.setItem('financa-of-accounts'
 let pendingStatementImport = null;
 
 function triggerStatementFileInput() {
-  if (!isPlusUser()) { requirePlusFeature('Importação de extrato'); return; }
+  if (!canImportFree()) { requirePlusFeature('Importação de extrato'); return; }
   document.getElementById('stmt-file-input')?.click();
 }
 
@@ -6156,6 +6311,7 @@ function handleStatementFileChange(input) {
   reader.readAsText(file, 'utf-8');
 }
 
+function isoStr(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
 function processStatementText(filename, text) {
   const lower = filename.toLowerCase();
   const isOFX = lower.endsWith('.ofx') || lower.endsWith('.qfx') || /<OFX>/i.test(text);
@@ -6168,7 +6324,7 @@ function processStatementText(filename, text) {
   const rows = parsed.map(function(tx) {
     const dateStr = String(tx.date.getDate()).padStart(2, '0') + '/' + String(tx.date.getMonth() + 1).padStart(2, '0');
     const cat = guessTxCategory(tx.desc, tx.type);
-    const key = txDedupKey({ date: dateStr, amount: tx.amount, desc: tx.desc });
+    const key = txDedupKey({ date: isoStr(tx.date), amount: tx.amount, desc: tx.desc });
     return { date: dateStr, isoDate: tx.date, desc: tx.desc, amount: tx.amount, type: tx.type, cat: cat, dup: existingKeys.has(key) };
   }).sort(function(a, b) { return b.isoDate - a.isoDate; });
   const defaultLabel = filename.replace(/\.(ofx|qfx|csv|txt)$/i, '').slice(0, 40) || 'Extrato importado';
@@ -6179,7 +6335,9 @@ function processStatementText(filename, text) {
 // Chave simples de deduplicação: mesma data + valor + início da descrição já
 // evita reimportar a mesma transação em uploads repetidos de um período que se sobrepõe.
 function txDedupKey(t) {
-  return t.date + '|' + Number(t.amount).toFixed(2) + '|' + String(t.desc || '').toLowerCase().trim().slice(0, 18);
+  var d = String(t.date || ''), m = /^(\d{2})\/(\d{2})$/.exec(d);
+  d = m ? new Date().getFullYear() + '-' + m[2] + '-' + m[1] : d.slice(0, 10);
+  return d + '|' + Number(t.amount).toFixed(2) + '|' + String(t.desc || '').toLowerCase().trim().slice(0, 18);
 }
 
 // ─── Parser OFX (SGML/XML usado por praticamente todo banco brasileiro) ───
@@ -6322,7 +6480,7 @@ function confirmStatementImport() {
   const isNewLabel = !accounts.find(function(a) { return a.label === label; });
   if (isNewLabel) {
     const cap = tierLimit('maxOFAccounts');
-    if (accounts.length >= cap && cap !== Infinity) {
+    if (accounts.length >= cap && cap !== Infinity && !(PJ_OPEN_TO_ALL && state.profile_type === 'PJ')) {
       showToast('🔒 Seu plano Plus permite até ' + cap + ' extrato(s) salvo(s). Faça upgrade para o Pro para importar quantos quiser.', 'info');
       setTimeout(function() { switchTab('plano'); }, 900);
       return;
@@ -6333,7 +6491,7 @@ function confirmStatementImport() {
     const chk = document.getElementById('stmt-chk-' + i);
     if (!chk || !chk.checked) return;
     const d = r.isoDate;
-    const t = { id: genId(), date: r.date, desc: r.desc, cat: r.cat, amount: r.amount, type: r.type, recur: false, profile: state.profile_type };
+    const t = { id: genId(), date: isoStr(r.isoDate), desc: r.desc, cat: r.cat, amount: r.amount, type: r.type, recur: false, profile: state.profile_type };
     state.transactions.push(t);
     dbUpsert('transactions', { id: t.id, user_id: currentUser?.id, type: t.type, description: t.desc, category: t.cat, amount: t.amount, date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`, recurring: false, profile: state.profile_type });
     imported++;
@@ -6365,7 +6523,7 @@ function deleteStatementAccount(id) {
 
 function renderOpenFinance(c) {
   const isPJ = state.profile_type === 'PJ';
-  const isActive = isPlusUser();
+  const isActive = canImportFree();
   const imported = ofGetAccounts();
   const totalTx = imported.reduce(function(s, a) { return s + (a.txCount || 0); }, 0);
 

@@ -38,6 +38,8 @@ var AUD_RE = {
   pessoal: /supermercado|restaurante|lazer|netflix|spotify|academia|farm[aá]cia|roupa|cinema|escola|faculdade|viagem|pessoal/i,
   nf: /\bnf\b|nf-?e|nfs-?e|nota fiscal|danfe/i
 };
+var MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+function ymLabel(k) { var p = k.split('-'); return MESES[+p[1] - 1] + '/' + p[0]; }
 function audText(t) { return String(t.cat || '') + ' ' + String(t.desc || ''); }
 function audSum(a) { return a.reduce(function(s, t) { return s + (+t.amount || 0); }, 0); }
 function audEff(tbl, rbt) {
@@ -165,12 +167,36 @@ function audBuild(ctx) {
     } else skip('Pagamento de impostos (sem receitas nos 3 últimos meses fechados)');
   }
 
-  // 6) Receitas × notas fiscais
-  if (k && hasRev) {
+  // 6) Receitas × notas fiscais — com XML (dados reais) ou, na falta dele, só pela contagem de documentos
+  var xmlSeen = {}, xmlDocs = docs.filter(function(d) { var e = d.ex; if (!e || e.fonte !== 'xml') return false; var kk = e.chave || [e.kind, e.numero, e.emit && e.emit.doc, e.valor].join('|'); if (xmlSeen[kk]) return false; xmlSeen[kk] = 1; return true; }).map(function(d) { return d.ex; });
+  var from12 = new Date(D.now.getFullYear(), D.now.getMonth() - 11, 1), ymNow = D.now.getFullYear() + '-' + String(D.now.getMonth() + 1).padStart(2, '0');
+  xmlDocs = xmlDocs.filter(function(e) { return /^\d{4}-\d{2}/.test(e.emissao || '') && new Date(e.emissao.slice(0, 7) + '-01') >= from12; });
+  if (k && xmlDocs.length) {
+    var issued = xmlDocs.filter(function(e) { return e.dir === 'emitida' && e.status !== 'cancelada'; }), canc = xmlDocs.filter(function(e) { return e.dir === 'emitida' && e.status === 'cancelada'; });
+    var indef = xmlDocs.filter(function(e) { return e.dir === 'indef'; }), recv = xmlDocs.filter(function(e) { return e.dir === 'recebida' && e.status !== 'cancelada'; });
+    var nfM = {}, revM = {};
+    issued.forEach(function(e) { var m = e.emissao.slice(0, 7); nfM[m] = (nfM[m] || 0) + (+e.valor || 0); });
+    D.inc.forEach(function(t) { var d = txDateObj(t), m = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); revM[m] = (revM[m] || 0) + t.amount; });
+    var over = [], under = [], noNf = [];
+    Object.keys(revM).forEach(function(m) { if (nfM[m] == null) noNf.push(m); else if (revM[m] > nfM[m] * 1.1 + 100) over.push(m); });
+    Object.keys(nfM).forEach(function(m) { if (revM[m] == null || nfM[m] > revM[m] * 1.1 + 100) under.push(m); });
+    over.sort(); under.sort(); noNf.sort();
+    var dif = over.reduce(function(s, m) { return s + (revM[m] - nfM[m]); }, 0);
+    var ex1 = over.slice(0, 3).map(function(m) { return ymLabel(m) + ': receita ' + fmt(revM[m]) + ' x notas ' + fmt(nfM[m]); }).join('; ');
+    if (over.length) add({ sev: 'warn', area: 'Receitas', title: 'Receita lançada maior que as notas emitidas em ' + over.length + ' mês(es)', detail: ex1 + (over.length > 3 ? '; …' : '') + '. Diferença somada: ' + fmt(dif) + '.', why: 'Receita sem nota correspondente é o primeiro ponto que o Fisco cruza com extratos e declarações.', fix: 'Confirme se faltam notas desses meses ou se há recebimentos que não são faturamento (aportes, empréstimos, reembolsos) e reclassifique.', base: 'LC 123/2006, art. 26', exposure: dif * eff, expLabel: 'diferença × alíquota estimada', rank: 1 });
+    if (under.length) add({ sev: 'warn', area: 'Receitas', title: 'Notas emitidas maiores que a receita lançada em ' + under.length + ' mês(es)', detail: under.slice(0, 4).map(function(m) { return ymLabel(m) + ': notas ' + fmt(nfM[m]) + ' x receita ' + fmt(revM[m] || 0); }).join('; ') + '.', why: 'A nota emitida conta como faturamento para o imposto. Se a receita não foi lançada, o controle interno está incompleto.', fix: 'Lance (ou importe o extrato dos recebimentos desses meses e confira se há notas a receber.', rank: 2 });
+    if (!over.length && !under.length && Object.keys(nfM).length) add({ sev: 'ok', area: 'Receitas', title: 'Notas emitidas conferem com a receita lançada', detail: Object.keys(nfM).length + ' mês(es) com nota conferido(s), diferença dentro de 10%.' });
+    if (noNf.length) add({ sev: 'info', area: 'Receitas', title: 'Meses com receita e sem nota enviada: ' + noNf.slice(0, 6).map(ymLabel).join(', ') + (noNf.length > 6 ? '…' : ''), detail: 'Pode ser que as notas existam e não tenham sido enviadas.', fix: 'Peça os XML desses meses ao cliente.' });
+    if (indef.length) add({ sev: 'warn', area: 'Receitas', title: indef.length + ' nota(s) cujo CNPJ não é o da empresa', detail: 'Notas nº ' + indef.slice(0, 5).map(function(e) { return e.numero || '?'; }).join(', ') + ' não têm a empresa como emitente nem destinatário.', why: 'Nota de outra empresa anexada pode distorcer a conferência (ou indicar uso indevido de CNPJ).', fix: 'Confirme com o cliente de quem são essas notas.', rank: 2 });
+    var crtBad = issued.filter(function(e) { return e.kind === 'nfe' && ((isLP && (e.crt === '1' || e.crt === '2' || e.crt === '4')) || ((isSimples || isMei) && e.crt === '3')); });
+    if (crtBad.length) add({ sev: 'warn', area: 'Alíquota', title: 'Regime na nota (CRT) diverge do regime do cadastro', detail: crtBad.length + ' nota(s) emitida(s) com CRT ' + crtBad[0].crt + ', mas o cadastro indica ' + (regime || 'outro regime') + '.', why: 'O CRT diz como a nota foi tributada. Divergência sugere regime desatualizado no cadastro ou no emissor de notas.', fix: 'Confirme o regime vigente e ajuste o cadastro ou o emissor de notas.', base: 'Manual da NF-e (campo CRT)', rank: 1 });
+    if (canc.length) add({ sev: 'info', area: 'Receitas', title: canc.length + ' nota(s) emitida(s) cancelada(s) (' + fmt(audSum(canc.map(function(e) { return { amount: e.valor }; }))) + ')', detail: 'Confira se não foram contabilizadas como receita.' });
+    if (recv.length) add({ sev: 'info', area: 'Despesas', title: recv.length + ' nota(s) recebida(s) somando ' + fmt(audSum(recv.map(function(e) { return { amount: e.valor }; }))), detail: 'Notas de compras e serviços tomados, úteis como comprovante de despesa.' });
+  } else if (k && hasRev) {
     var nfs = docs.filter(function(d) { return d.category === 'nf' || d.type === 'nf' || AUD_RE.nf.test(String(d.name || '')); }).length;
     var ratio = Math.min(1, nfs / D.inc.length);
-    var nfDet = D.inc.length + ' recebimento(s) lançado(s) e ' + nfs + ' nota(s) fiscal(is) anexada(s) em Documentos.';
-    if (ratio < 0.7) add({ sev: isMei ? 'info' : 'warn', area: 'Receitas', title: nfs === 0 ? 'Nenhuma nota fiscal anexada' : 'Menos notas do que recebimentos', detail: nfDet, why: isMei ? 'O MEI só é obrigado a emitir nota para empresas (PJ); para pessoa física é opcional. Mesmo assim, guardar comprovantes protege a empresa.' : 'Receita sem nota correspondente é o primeiro ponto que o Fisco cruza com extratos e declarações.', fix: 'Anexe as notas na aba Documentos e emita nota de todo serviço/venda tributável.', base: 'LC 123/2006, art. 26', exposure: isMei ? null : D.rev * (1 - ratio) * eff, expLabel: 'potencial, não entra no total: receita sem nota × alíquota estimada', noSum: true, rank: 1 });
+    var nfDet = D.inc.length + ' recebimento(s) lançado(s) e ' + nfs + ' nota(s) fiscal(is) anexada(s) em Documentos (sem XML, a conferência é só por contagem).';
+    if (ratio < 0.7) add({ sev: isMei ? 'info' : 'warn', area: 'Receitas', title: nfs === 0 ? 'Nenhuma nota fiscal anexada' : 'Menos notas do que recebimentos', detail: nfDet, why: isMei ? 'O MEI só é obrigado a emitir nota para empresas (PJ); para pessoa física é opcional. Mesmo assim, guardar comprovantes protege a empresa.' : 'Receita sem nota correspondente é o primeiro ponto que o Fisco cruza com extratos e declarações.', fix: 'Peça os XML das notas emitidas ao cliente.', base: 'LC 123/2006, art. 26', exposure: isMei ? null : D.rev * (1 - ratio) * eff, expLabel: 'potencial, não entra no total: receita sem nota × alíquota estimada', noSum: true, rank: 1 });
     else add({ sev: 'ok', area: 'Receitas', title: 'Notas fiscais compatíveis com os recebimentos', detail: nfDet });
   }
 
@@ -209,6 +235,9 @@ function audBuild(ctx) {
     var outros = D.exp.filter(function(t) { return /outro/i.test(String(t.cat || '')); });
     if (D.exp.length >= 5 && D.expTotal > 0 && audSum(outros) / D.expTotal >= 0.25) add({ sev: 'warn', area: 'Dados', title: 'Muitos custos na categoria "Outros" (' + audPct(audSum(outros) / D.expTotal) + ')', detail: 'Categorias genéricas atrapalham a análise e a comprovação.', fix: 'Reclassifique em categorias específicas.', rank: 4 });
     if (hasRev && D.exp.length >= 3) { var mg = (D.rev - D.expTotal) / D.rev; if (mg > 0.7) add({ sev: 'info', area: 'Dados', title: 'Margem muito alta (' + audPct(mg) + ')', detail: 'Pode indicar custos ainda não lançados — isso distorce Fator R, pró-labore e resultado.' }); else if (mg < 0) add({ sev: 'info', area: 'Dados', title: 'Custos maiores que receitas nos últimos 12 meses', detail: 'Resultado negativo de ' + fmt(D.rev - D.expTotal) + ' no período.' }); }
+    var mset = {}; D.tx.forEach(function(t) { var d = txDateObj(t); mset[d.getFullYear() + '-' + d.getMonth()] = 1; });
+    var nMeses = Object.keys(mset).length;
+    if (nMeses < 6) add({ sev: 'warn', area: 'Dados', title: 'Poucos meses com movimentação (' + nMeses + ' de 12)', detail: 'A auditoria de 12 meses fica limitada quando faltam lançamentos.', fix: 'Peça o extrato bancário (OFX/CSV) dos meses que faltam.', rank: 3 });
   } else skip('Duplicidades e organização dos dados (sem lançamentos nos últimos 12 meses)');
 
   // 11) Reforma
@@ -222,7 +251,7 @@ function audBuild(ctx) {
   var level = nc ? 'Risco alto' : nw >= 3 ? 'Atenção' : nw ? 'Atenção leve' : 'Saudável';
   var exposure = items.reduce(function(s, x) { return s + (x.exposure > 0 && !x.noSum ? x.exposure : 0); }, 0);
   var plan = items.filter(function(x) { return x.sev === 'crit' || x.sev === 'warn'; }).slice(0, 6).map(function(x, i) { return { n: i + 1, title: x.title, fix: x.fix || '', prazo: x.sev === 'crit' ? 'Imediato' : 'Neste mês' }; });
-  return { when: D.now.toISOString(), regimeAtual: regime, k: k, annual: D.annual, projected: D.projected, nDocs: docs.length, client: ctx.client, items: items, skipped: skipped, cmp: cmp, score: score, level: level, nc: nc, nw: nw, no: no, exposure: exposure, plan: plan, executed: executed, nTx: D.tx.length };
+  return { when: D.now.toISOString(), regimeAtual: regime, k: k, annual: D.annual, projected: D.projected, nDocs: docs.length, nXml: xmlDocs.length, client: ctx.client, items: items, skipped: skipped, cmp: cmp, score: score, level: level, nc: nc, nw: nw, no: no, exposure: exposure, plan: plan, executed: executed, nTx: D.tx.length };
 }
 function audCalendar(k) {
   if (!k || k === 'ong') return [];
@@ -242,7 +271,7 @@ function buildContext(profile, txRows, docRows, now) {
   const k = PJ_TYPES[profile.company_type] ? profile.company_type : null;
   const act = profile.pj_activity === 'industria' ? 'misto' : (PJ_ACTIVITIES[profile.pj_activity] ? profile.pj_activity : null);
   const transactions = (txRows || []).filter(t => !t.profile || t.profile === 'PJ' || t.profile === 'ambos').map(t => ({ type: t.type, date: t.date, desc: t.description || '', cat: t.category || '', amount: parseFloat(t.amount) || 0 }));
-  const documents = (docRows || []).map(d => ({ name: d.name, type: d.type, category: d.category, amount: parseFloat(d.amount) || 0 }));
+  const documents = (docRows || []).map(d => ({ name: d.name, type: d.type, category: d.category, amount: parseFloat(d.amount) || 0, ex: (d.extracted_data && typeof d.extracted_data === 'object') ? d.extracted_data : {} }));
   const cd = profile.cnpj_data && typeof profile.cnpj_data === 'object' ? profile.cnpj_data : null;
   return { now, k, act, regime: k ? PJ_TYPES[k].regime : null, cd, docType: profile.document_type || null, docNumber: profile.document_number || null, transactions, documents,
     client: { tipo: k ? PJ_TYPES[k].label : null, atividade: act ? PJ_ACTIVITIES[act].label : null, razao: cd && cd.razao_social || null, plano: profile.plan || 'free' } };

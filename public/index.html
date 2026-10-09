@@ -1366,7 +1366,7 @@ body.gt-on #demo-banner{display:none}
       <div class="sidebar-logo-col">
         <span class="sidebar-logo-name">SM Financial</span>
         <div class="sidebar-badges">
-          <span class="sidebar-plan plan-badge-free" id="plan-badge">Free</span>
+          <span class="sidebar-plan plan-badge-free" id="plan-badge">Sem plano</span>
           <span class="sidebar-type-badge" id="profile-type-badge">Personal</span>
           <span class="sidebar-type-badge occ-chip" id="occ-chip" title="Alterar perfil" onclick="openProfileModal()" hidden></span>
         </div>
@@ -2161,7 +2161,7 @@ const TOUR_STEPS = [
   { target: '[data-tab="estrategia"]', title: '🧠 Estratégia', desc: 'Consultoria personalizada com plano em fases, dicas contextuais e simulador de cenários. Monte sua estratégia financeira ideal.', arrow: 'top', tabHighlight: true },
   { target: '[data-tab="openfinance"]', title: '📄 Extratos Bancários', desc: 'Importe o extrato do seu banco (OFX ou CSV) e as transações entram automaticamente no seu histórico, com categoria sugerida.', arrow: 'top', tabHighlight: true },
   { target: '[data-tab="cambio"]', title: '💱 Câmbio', desc: 'Acompanhe cotações de moedas em tempo real. Útil para quem tem rendimentos, despesas ou investimentos em moeda estrangeira.', arrow: 'top', tabHighlight: true },
-  { target: '[data-tab="plano"]', title: '⭐ Plano', desc: 'Gerencie sua assinatura do SM Financial. Compare os planos Free e Plus, e desbloqueie recursos premium como importação de extrato e projeções avançadas.', arrow: 'top', tabHighlight: true },
+  { target: '[data-tab="plano"]', title: '⭐ Plano', desc: 'Gerencie sua assinatura do SM Financial. Compare os planos (Basic, Plus, Pro e Business) e desbloqueie recursos premium como importação de extrato e projeções avançadas.', arrow: 'top', tabHighlight: true },
   // ── Volta ao geral ──
   { target: '.hero-card', title: 'Visão Geral', desc: 'O card principal mostra seu saldo patrimonial atualizado. Abaixo, os KPIs resumem receitas, despesas, resultado e taxa de economia do período.', arrow: 'bottom' },
   { target: '#btn-export', title: 'Exportar Dados', desc: 'Exporte seus dados a qualquer momento em JSON (backup completo) ou CSV (transações para planilhas).', arrow: 'top' },
@@ -2488,7 +2488,7 @@ function openHelpPanel() {
 
         '<div class="help-card" onclick="closeHelpPanel();switchTab(\'plano\')">' +
           '<div class="help-card-header"><span class="help-card-icon">⭐</span><span class="help-card-title">Plano</span></div>' +
-          '<div class="help-card-desc">Gerencie sua assinatura, compare Free vs Plus e desbloqueie recursos premium.</div>' +
+          '<div class="help-card-desc">Gerencie sua assinatura, compare os planos e desbloqueie recursos premium.</div>' +
         '</div>' +
 
         '<div class="help-section-title">Recursos do Header</div>' +
@@ -2676,7 +2676,7 @@ var CHAT_KB = [
   {
     id: 'planos',
     keywords: ['plano','planos','plus','free','gratuito','premium','upgrade','assinar plano','qual plano'],
-    answer: 'O SM Financial tem 2 planos:<ul><li><b>Free</b> — todas as funcionalidades essenciais: receitas, despesas, orçamento, metas, dívidas, patrimônio e saúde financeira.</li><li><b>Plus</b> — libera recursos avançados como importação de extrato bancário (OFX/CSV), projeções avançadas e relatórios exclusivos.</li></ul>Você pode comparar e fazer upgrade na aba <b>⭐ Plano</b>.',
+    answer: 'O SM Financial é pago e tem 4 planos:<ul><li><b>Basic</b> — o essencial: lançamentos, orçamento, metas, dívidas, patrimônio e saúde financeira.</li><li><b>Plus</b> — histórico completo, importação de extrato e projeções.</li><li><b>Pro</b> — estratégia, relatórios em PDF e importação ilimitada.</li><li><b>Business</b> — perfil Empresa (PJ), painel fiscal e consolidado PF + PJ.</li></ul>Você pode comparar e trocar de plano na aba <b>⭐ Plano</b>.',
     related: ['Como faço o pagamento?', 'Como cancelo minha assinatura?']
   },
   {
@@ -2694,7 +2694,7 @@ var CHAT_KB = [
   {
     id: 'cancelar',
     keywords: ['cancelar assinatura','cancelar plano','cancelar pagamento','estornar','reembolso','downgrade'],
-    answer: 'Para cancelar sua assinatura, vá até a aba <b>⭐ Plano</b> e selecione "Cancelar assinatura". Você continua com acesso ao Plus até o fim do período já pago, depois volta automaticamente para o plano Free — seus dados não são perdidos. Para reembolsos, fale com um atendente humano.',
+    answer: 'Para cancelar sua assinatura, vá até a aba <b>⭐ Plano</b> e selecione "Cancelar assinatura". Você continua com acesso ao Plus até o fim do período já pago, depois o acesso é bloqueado até uma nova assinatura — seus dados não são apagados e você pode exportá-los. Para reembolsos, fale com um atendente humano.',
     related: ['Falar com atendente', 'Planos e pagamento']
   },
   {
@@ -4468,21 +4468,26 @@ function renderNav() {
 // PLANOS — FREE vs PLUS: limites e bloqueios (fonte única da verdade)
 // ═══════════════════════════════════════════════════════
 var PLAN_LIMITS_BY_PLAN = {
-  // Free: o mais enxuto possível — serve para conhecer o app
-  free:  { maxTransactionsPerMonth: 10, maxActiveGoals: 1, maxBudgetCategories: 1, maxPatrimonioItems: 1, maxSubscriptions: 1, maxDocumentsPerMonth: 0, maxDebts: 1 },
-  // Basic: pago (R$ 8/semana) — os limites que o plano gratuito tinha antes
+  // Basic: plano de entrada (R$ 8/semana). Não existe plano gratuito.
   basic: { maxTransactionsPerMonth: 20, maxActiveGoals: 1, maxBudgetCategories: 2, maxPatrimonioItems: 2, maxSubscriptions: 2, maxDocumentsPerMonth: 3, maxDebts: 3 },
 };
 // PLAN_LIMITS lê sempre os limites do plano atual (free ou basic); Plus+ nunca passa por checkPlanLimit.
 var PLAN_LIMITS = {};
-Object.keys(PLAN_LIMITS_BY_PLAN.free).forEach(function(k) {
+Object.keys(PLAN_LIMITS_BY_PLAN.basic).forEach(function(k) {
   Object.defineProperty(PLAN_LIMITS, k, { enumerable: true, get: function() {
-    return PLAN_LIMITS_BY_PLAN[(typeof profile !== 'undefined' && profile && profile.plan === 'basic') ? 'basic' : 'free'][k];
+    return PLAN_LIMITS_BY_PLAN.basic[k];
   } });
 });
 function currentPlanLabel() {
-  var p = (typeof profile !== 'undefined' && profile && profile.plan) || 'free';
-  return { free: 'Free', basic: 'Basic', plus: 'Plus', pro: 'Pro', business: 'Business' }[p] || 'Free';
+  var p = (typeof profile !== 'undefined' && profile && profile.plan) || '';
+  return { basic: 'Basic', plus: 'Plus', pro: 'Pro', business: 'Business' }[p] || 'Sem plano';
+}
+// Não há plano gratuito: sem assinatura ativa, só a aba Plano (e os direitos do titular) ficam acessíveis.
+function hasActivePlan() {
+  if (typeof DEMO !== 'undefined' && DEMO.on) return true;
+  var pl = profile && profile.plan, st = profile && profile.plan_status;
+  if (['basic', 'plus', 'pro', 'business'].indexOf(pl) < 0) return false;
+  return ['canceled', 'cancelled', 'unpaid', 'incomplete_expired'].indexOf(st) < 0;
 }
 
 // Limites que escalonam entre planos pagos (Plus recebe menos, Pro/Business recebem "premium")
@@ -5152,7 +5157,7 @@ function countThisMonth(list, dateField) {
   }).length;
 }
 
-// Chame antes de criar um novo item; retorna false (e mostra upsell) se o limite Free foi atingido
+// Chame antes de criar um novo item; retorna false (e mostra upsell) se o limite do plano foi atingido
 function checkPlanLimit(current, max, message) {
   if (isPlusUser()) return true;
   if (current >= max) {
@@ -5185,6 +5190,7 @@ let currentTab = 'dashboard';
 let searchQuery = '';
 
 function renderCurrentTab() {
+  if (!hasActivePlan() && currentTab !== 'plano') { currentTab = 'plano'; document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === 'plano')); }
   const c = compute();
   const main = document.getElementById('main');
   const renderers = {
@@ -5769,7 +5775,7 @@ function processUploadedFiles(files) {
       return;
     }
     if (fileArray.length > remaining) {
-      showToast('Apenas ' + remaining + ' documento(s) processado(s) — limite mensal do plano Free atingido.', 'info');
+      showToast('Apenas ' + remaining + ' documento(s) processado(s) — limite mensal do seu plano atingido.', 'info');
       fileArray = fileArray.slice(0, remaining);
     }
   }
@@ -6975,20 +6981,10 @@ function bindConverter() {
 // PLANO & STRIPE
 // ═══════════════════════════════════════════════════════
 function renderPlano() {
-  const cur = profile?.plan || 'free';
+  const cur = hasActivePlan() ? (profile?.plan || '') : '';
   const status = profile?.plan_status || 'active';
   const L = PLAN_LIMITS;
   const plans = [
-    { id: 'free', name: 'Free', price: 'R$ 0', period: '/sempre', features: [
-      'Até ' + PLAN_LIMITS_BY_PLAN.free.maxTransactionsPerMonth + ' lançamentos/mês',
-      PLAN_LIMITS_BY_PLAN.free.maxActiveGoals + ' meta ativa',
-      'Orçamento em ' + PLAN_LIMITS_BY_PLAN.free.maxBudgetCategories + ' categoria',
-      PLAN_LIMITS_BY_PLAN.free.maxPatrimonioItems + ' item em Patrimônio',
-      PLAN_LIMITS_BY_PLAN.free.maxSubscriptions + ' assinatura monitorada',
-      PLAN_LIMITS_BY_PLAN.free.maxDebts + ' dívida registrada',
-      'Sem documentos, sem exportação',
-      'Somente o mês atual',
-    ], cta: 'Plano atual', priceId: null },
     { id: 'basic', name: 'Basic', price: 'R$ 8', period: '/semana', hotmartUrl: appConfig.hotmartCheckoutBasic, features: [
       'Até ' + PLAN_LIMITS_BY_PLAN.basic.maxTransactionsPerMonth + ' lançamentos/mês',
       'Até ' + PLAN_LIMITS_BY_PLAN.basic.maxActiveGoals + ' meta ativa',
@@ -7031,7 +7027,8 @@ function renderPlano() {
     : profile?.stripe_customer_id
       ? `<button class="btn-add" onclick="openBillingPortal()">Gerenciar assinatura</button>`
       : '';
-  return `<div class="section-header animate-in"><div><div class="section-title">Seu Plano</div><div class="section-desc">Plano atual: <strong>${plans.find(p => p.id === cur)?.name || 'Free'}</strong>${status !== 'active' ? ' — ' + status : ''}</div></div>${manageBtn}</div>
+  const paywall = hasActivePlan() ? '' : `<div class="card mb-24 animate-in" style="border-left:3px solid var(--gold)"><div class="card-title">🔒 Escolha um plano para começar</div><div class="occ-b-desc" style="margin-top:6px">O SM Financial é um serviço pago, a partir do Basic. Assim que o pagamento for confirmado, o acesso é liberado. Seus dados continuam seus: você pode <a href="#" onclick="exportJSON();return false">exportar tudo</a> ou <a href="#" onclick="openDeleteAccount();return false">excluir a conta</a> a qualquer momento.</div></div>`;
+  return paywall + `<div class="section-header animate-in"><div><div class="section-title">Seu Plano</div><div class="section-desc">Plano atual: <strong>${plans.find(p => p.id === cur)?.name || 'Nenhum'}</strong>${status !== 'active' ? ' — ' + status : ''}</div></div>${manageBtn}</div>
   ${PJ_OPEN_TO_ALL ? '<div class="card mb-24 animate-in" style="border-left:3px solid var(--teal)"><div class="card-title">🏢 Área Empresa liberada</div><div class="occ-b-desc" style="margin-top:6px">Por tempo limitado, o modo Empresa está liberado para todos os planos.</div></div>' : ''}
   <div class="card mb-24 animate-in"><div class="card-title">🔔 Notificações por WhatsApp e e-mail <span class="soon-badge">Em breve</span></div><div class="occ-b-desc" style="margin-top:6px">Receba avisos de contas a vencer, orçamento estourado e metas direto no celular e na caixa de entrada. Estamos preparando e vamos avisar quando estiver disponível.</div><div style="display:flex;gap:16px;margin-top:10px;flex-wrap:wrap;opacity:.55"><label><input type="checkbox" disabled> WhatsApp</label><label><input type="checkbox" disabled> E-mail</label></div></div>
   <div class="pricing-grid">${plans.map((p, i) => {
@@ -7047,8 +7044,6 @@ function renderPlano() {
         (p.priceId ? `<button class="btn-sm" style="width:100%;margin-top:8px" onclick="startCheckout('${p.priceId}')">ou cartão internacional (Stripe)</button>` : '');
     } else if (p.priceId) {
       ctaHtml = `<button class="btn-pricing" onclick="startCheckout('${p.priceId}')">Fazer upgrade</button>`;
-    } else if (p.id === 'free') {
-      ctaHtml = `<button class="btn-pricing" disabled>Plano gratuito</button>`;
     } else {
       ctaHtml = `<button class="btn-pricing" disabled title="Configure o link de checkout">Em breve</button>`;
     }
@@ -7413,10 +7408,10 @@ async function showApp() {
   document.getElementById('auth-screen').hidden = true;
   document.getElementById('onboarding-screen').hidden = true;
   document.getElementById('app-screen').hidden = false;
-  const planNames = { free: 'Free', basic: 'Basic', plus: 'Plus', pro: 'Pro', business: 'Business' };
-  const planKey = profile?.plan || (state.profile_type === 'PJ' ? 'business' : 'free');
+  const planNames = { basic: 'Basic', plus: 'Plus', pro: 'Pro', business: 'Business' };
+  const planKey = hasActivePlan() ? (profile?.plan || 'basic') : 'free';
   const planBadgeEl = document.getElementById('plan-badge');
-  planBadgeEl.textContent = planNames[planKey] || 'Free';
+  planBadgeEl.textContent = planNames[planKey] || 'Sem plano';
   planBadgeEl.className = 'sidebar-plan plan-badge-' + (planNames[planKey] ? planKey : 'free');
   updatePeriodDisplay();
   updateThemeIcon();

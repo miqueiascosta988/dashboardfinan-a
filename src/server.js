@@ -87,7 +87,7 @@ app.use('/interno', (req, res, next) => { res.set({ 'X-Robots-Tag': 'noindex, no
 app.use('/api', (req, res) => res.status(404).json({ error: 'Não encontrado.' }));
 
 // ─── Static files ───────────────────────────────────
-app.use(express.static(PUBLIC_DIR));
+app.use(express.static(PUBLIC_DIR, { setHeaders: (res, file) => { if (/[\\/]sw\.js$/.test(file)) res.setHeader('Cache-Control', 'no-cache'); } }));
 
 // SPA fallback
 app.get('*', (req, res) => {

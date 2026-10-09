@@ -2,7 +2,8 @@
 // - Só entra quem estiver na tabela `staff` (verificado no servidor com o token do próprio usuário).
 // - Os dados dos clientes são lidos com o token da equipe, sob RLS (policies em 009_staff_auditoria.sql). Nenhuma chave de serviço é usada.
 // - O motor de auditoria roda aqui; o navegador só recebe o relatório pronto e a interface é entregue apenas a quem passou na checagem.
-// - Cada auditoria é registrada em `staff_audit_log` (quem auditou qual cliente e quando).
+// - Cada auditoria é registrada em `staff_audit_log` ANTES de ler os dados (se o registro falhar, nada é entregue).
+// - A equipe só enxerga empresas (PJ) que autorizaram a auditoria (014_seguranca_plano_e_equipe.sql).
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
@@ -70,7 +71,11 @@ router.get('/clients', limiter(60, 60000), staffOnly, async (req, res) => {
 router.post('/audit', limiter(20, 60000), staffOnly, express.json({ limit: '5kb' }), async (req, res) => {
   const id = String((req.body && req.body.clientId) || '');
   if (!UUID.test(id)) return res.status(400).json({ error: 'Empresa inválida.' });
+  const reason = String((req.body && req.body.reason) || 'auditoria fiscal').trim().slice(0, 200) || 'auditoria fiscal';
   try {
+    // Trilha de auditoria (LGPD) GRAVADA ANTES de ler os dados: se o registro falhar, nada é entregue.
+    const lg = await rest(req, 'staff_audit_log', { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }, req.staff.headers), body: JSON.stringify({ staff_id: req.staff.id, client_id: id, action: 'audit', reason }) });
+    if (!lg.ok) return res.status(503).json({ error: 'Não foi possível registrar o acesso. Por segurança, a consulta não foi feita.' });
     const since = new Date(); since.setMonth(since.getMonth() - 14); const d0 = since.toISOString().slice(0, 10);
     const [pr, tr, dr] = await Promise.all([
       rest(req, 'profiles?id=eq.' + id + '&select=plan,company_type,pj_activity,document_type,document_number,cnpj_data&limit=1'),
@@ -79,11 +84,9 @@ router.post('/audit', limiter(20, 60000), staffOnly, express.json({ limit: '5kb'
     ]);
     if (!pr.ok) return res.status(502).json({ error: 'Não foi possível ler os dados da empresa.' });
     const prof = await pr.json();
-    if (!Array.isArray(prof) || !prof[0]) return res.status(404).json({ error: 'Empresa não encontrada.' });
+    if (!Array.isArray(prof) || !prof[0]) return res.status(404).json({ error: 'Empresa não encontrada ou sem autorização do cliente para a auditoria.' });
     const tx = tr.ok ? await tr.json() : [], docs = dr.ok ? await dr.json() : [];
     const report = audit(prof[0], Array.isArray(tx) ? tx : [], Array.isArray(docs) ? docs : []);
-    // trilha de auditoria (LGPD): quem consultou qual empresa
-    try { await rest(req, 'staff_audit_log', { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }, req.staff.headers), body: JSON.stringify({ staff_id: req.staff.id, client_id: id, action: 'audit', score: report.score }) }); } catch (e) {}
     res.set('Cache-Control', 'no-store').json({ report });
   } catch (e) { res.status(500).json({ error: 'Não foi possível concluir a auditoria.' }); }
 });
@@ -110,7 +113,7 @@ router.post('/requests', limiter(30, 60000), staffOnly, express.json({ limit: '5
     const r = await rest(req, 'audit_requests', { method: 'POST', headers: jsonHeaders(req), body: JSON.stringify({ client_id: id, staff_id: req.staff.id, title, detail: clip(b.detail, 500) || null, period: clip(b.period, 40) || null }) });
     if (!r.ok) return res.status(502).json({ error: 'Não foi possível criar o pedido.' });
     const rows = await r.json();
-    try { await rest(req, 'staff_audit_log', { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }, req.staff.headers), body: JSON.stringify({ staff_id: req.staff.id, client_id: id, action: 'request' }) }); } catch (e) {}
+    try { await rest(req, 'staff_audit_log', { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }, req.staff.headers), body: JSON.stringify({ staff_id: req.staff.id, client_id: id, action: 'request', reason: 'pedido de documento' }) }); } catch (e) {}
     res.json({ request: Array.isArray(rows) ? rows[0] : rows });
   } catch (e) { res.status(502).json({ error: 'Não foi possível criar o pedido.' }); }
 });

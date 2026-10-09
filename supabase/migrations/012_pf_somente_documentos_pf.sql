@@ -1,6 +1,36 @@
 -- 012 · Conta Pessoal (PF) só recebe documentos da pessoa física
 -- Segunda camada de proteção: mesmo que alguém contorne a tela, o banco recusa.
 -- Rode no SQL Editor do Supabase (idempotente).
+--
+-- O app já grava na tabela public.documents, mas ela não existia neste banco
+-- (erro 42P01). Sem ela, os documentos enviados não eram salvos na nuvem.
+-- Por isso a tabela é criada aqui (se faltar), com RLS: cada usuário só enxerga os seus.
+
+create table if not exists public.documents (
+  id            uuid primary key,
+  user_id       uuid not null references auth.users(id) on delete cascade,
+  name          text,
+  type          text,
+  category      text,
+  amount        numeric default 0,
+  date          text,
+  status        text,
+  file_size     bigint,
+  mime_type     text,
+  extracted_data jsonb default '{}'::jsonb,
+  created_at    timestamptz not null default now()
+);
+create index if not exists documents_user_idx on public.documents (user_id, created_at desc);
+
+alter table public.documents enable row level security;
+drop policy if exists "documents select own" on public.documents;
+drop policy if exists "documents insert own" on public.documents;
+drop policy if exists "documents update own" on public.documents;
+drop policy if exists "documents delete own" on public.documents;
+create policy "documents select own" on public.documents for select using (auth.uid() = user_id);
+create policy "documents insert own" on public.documents for insert with check (auth.uid() = user_id);
+create policy "documents update own" on public.documents for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "documents delete own" on public.documents for delete using (auth.uid() = user_id);
 
 create or replace function public.documents_pf_guard()
 returns trigger

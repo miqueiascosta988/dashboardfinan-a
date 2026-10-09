@@ -5492,7 +5492,20 @@ function nfTxt(root, names) { if (!root) return ''; for (var i = 0; i < names.le
 function nfNum(s) { var n = parseFloat(String(s || '').replace(',', '.')); return isNaN(n) ? 0 : n; }
 function nfDigits(s) { return String(s || '').replace(/[^0-9A-Za-z]/g, '').toUpperCase(); }
 function nfParty(el) { return el ? { doc: nfDigits(nfTxt(el, ['CNPJ', 'Cnpj', 'CPF', 'Cpf', 'CpfCnpj'])), nome: nfTxt(el, ['xNome', 'RazaoSocial', 'Nome', 'xFant']) } : { doc: '', nome: '' }; }
-function nfOwnDoc() { return state.doc_type === 'cnpj' ? nfDigits(state.doc_number) : ''; }
+function nfOwnDoc() { return (state.doc_type === 'cnpj' || state.doc_type === 'cpf') ? nfDigits(state.doc_number) : ''; }
+// ── Proteção PF: conta Pessoal (CPF) só recebe documentos da pessoa física ──
+function pfLocked() { return state.profile_type !== 'PJ'; }
+var PJ_DOC_RX = /(^|[^a-z0-9])(cnpj|mei|ccmei|dasn|dasn-simei|pgdas|pgdas-d|das-mei|das mei|guia das|simples nacional|nf-?e|nfs-?e|nfc-?e|danfe|dre|balan[cç]o|pj)([^a-z0-9]|$)|nota[ _-]?fiscal|contrato[ _-]?social|raz[aã]o[ _-]?social|pessoa[ _-]?jur[ií]dica|extrato[ _-]?pj|cart[aã]o[ _-]?cnpj|pr[oó][ _-]?labore/i;
+var PJ_STMT_RX = /pessoa\s+jur[ií]dica|conta\s+(pj|mei|empresarial|empresa)\b|\bcnpj\b/i;
+function pfBlockedName(name) { return pfLocked() && PJ_DOC_RX.test(String(name || '').normalize('NFC')); }
+function pfBlockedStatement(name, text) { return pfLocked() && (PJ_DOC_RX.test(String(name || '')) || PJ_STMT_RX.test(String(text || '').slice(0, 2000))); }
+function pfBlockModal(items, extra) {
+  var list = (items || []).slice(0, 6).map(function(n) { return '<li>' + fxEsc(n) + '</li>'; }).join('') + ((items || []).length > 6 ? '<li>e mais ' + (items.length - 6) + '…</li>' : '');
+  openModal('Documento da empresa não permitido',
+    '<div class="occ-b-desc" style="margin-bottom:10px">Sua conta é <b>Pessoal (CPF)</b>. Aqui só entram documentos ligados à sua pessoa física. Documentos de empresa (CNPJ, MEI, notas fiscais, DAS, balanços, extrato PJ) devem ser enviados em um perfil <b>Empresa</b>.</div>' +
+    (list ? '<ul style="margin:0 0 10px 18px;font-size:13px">' + list + '</ul>' : '') + (extra ? '<div class="occ-b-desc">' + extra + '</div>' : '') +
+    '<div class="modal-actions"><button class="btn-save" onclick="closeModal()">Entendi</button></div>');
+}
 function nfDirection(emitDoc, destDoc) {
   var own = nfOwnDoc(); if (!own) return 'indef';
   var same = function(a) { return !!a && (a === own || (a.length === 14 && own.length === 14 && a.slice(0, 8) === own.slice(0, 8))); };
@@ -5536,23 +5549,26 @@ function nfDocKey(n) { return n.chave || [n.kind, n.numero, n.emit && n.emit.doc
 function nfDocFromNote(n, file) {
   var other = n.dir === 'emitida' ? n.dest : n.emit;
   return { id: genId(), name: (n.kind === 'nfe' ? 'NF-e' : 'NFS-e') + ' nº ' + (n.numero || '—') + ' · ' + (other && other.nome ? other.nome : (n.dir === 'emitida' ? 'cliente' : 'fornecedor')),
-    type: n.dir === 'recebida' ? 'expense' : 'income', category: 'nf', amount: n.valor, date: nfDateBR(n.emissao), status: 'processado', fileSize: file.size, mimeType: 'application/xml',
+    type: n.dir === 'recebida' ? 'expense' : 'income', category: pfLocked() ? 'outro' : 'nf', amount: n.valor, date: nfDateBR(n.emissao), status: 'processado', fileSize: file.size, mimeType: 'application/xml',
     extractedData: { fonte: 'xml', kind: n.kind, dir: n.dir, chave: n.chave, numero: n.numero, serie: n.serie, emissao: n.emissao, natOp: n.natOp, fin: n.fin, valor: n.valor, emit: n.emit, dest: n.dest, crt: n.crt, impostos: n.impostos, status: n.status } };
 }
 var pendingNf = null;
 function handleNfXmlFiles(files) {
   var reads = files.map(function(f) { return new Promise(function(res) { var r = new FileReader(); r.onload = function() { res({ file: f, text: String(r.result || '') }); }; r.onerror = function() { res({ file: f, text: '' }); }; r.readAsText(f, 'utf-8'); }); });
   Promise.all(reads).then(function(list) {
-    var notes = [], cancels = [], bad = 0, seen = {}, known = {};
+    var notes = [], cancels = [], bad = 0, seen = {}, known = {}, blocked = 0;
+    if (pfLocked() && !nfOwnDoc()) { showToast('Informe seu CPF no cadastro antes de enviar notas fiscais.', 'info'); return; }
     state.documents.forEach(function(d) { if (d.extractedData && d.extractedData.fonte === 'xml') known[nfDocKey(d.extractedData)] = 1; });
     list.forEach(function(it) {
       var n = nfParseXml(it.text);
       if (!n) { bad++; return; }
       if (n.kind === 'cancelamento') { if (n.chave) cancels.push(n.chave); return; }
+      if (pfLocked() && n.dir === 'indef') { blocked++; return; }
       var k = nfDocKey(n); n._dup = !!(known[k] || seen[k]); seen[k] = 1; n._file = it.file; notes.push(n);
     });
+    if (blocked && !notes.length) { pfBlockModal([], blocked + ' nota(s) fiscal(is) não têm o seu CPF como emitente nem como destinatário, então não foram aceitas. Em conta Pessoal só entram notas emitidas para você ou por você (pessoa física).'); return; }
     if (!notes.length && !cancels.length) { showToast('Não reconheci esse XML como nota fiscal (NF-e ou NFS-e).', 'info'); return; }
-    pendingNf = { notes: notes, cancels: cancels, bad: bad };
+    pendingNf = { notes: notes, cancels: cancels, bad: bad, blocked: blocked };
     openNfPreviewModal();
   });
 }
@@ -5562,7 +5578,7 @@ function openNfPreviewModal() {
   var dirTag = { emitida: ['Emitida', 'var(--income)'], recebida: ['Recebida', 'var(--expense)'], indef: ['CNPJ não confere', 'var(--gold,#AD8A2A)'] };
   openModal('Notas fiscais lidas (' + p.notes.length + ')',
     (own ? '' : '<div class="occ-b-desc" style="margin-bottom:10px">⚠️ Informe o CNPJ da empresa no cadastro para classificar as notas como emitidas ou recebidas.</div>') +
-    '<div class="stmt-summary-bar"><span>' + nNew + ' nova(s)</span><span>' + (p.notes.length - nNew) + ' já enviada(s)' + (p.bad ? ' · ' + p.bad + ' arquivo(s) ignorado(s)' : '') + '</span></div>' +
+    '<div class="stmt-summary-bar"><span>' + nNew + ' nova(s)</span><span>' + (p.notes.length - nNew) + ' já enviada(s)' + (p.bad ? ' · ' + p.bad + ' arquivo(s) ignorado(s)' : '') + (p.blocked ? ' · ' + p.blocked + ' bloqueada(s): não são do seu CPF' : '') + '</span></div>' +
     '<div class="stmt-preview-list">' + p.notes.map(function(n, i) {
       var o = n.dir === 'emitida' ? n.dest : n.emit, t = dirTag[n.dir];
       return '<label class="stmt-row' + (n._dup ? ' dup' : '') + '"><input type="checkbox" id="nf-chk-' + i + '"' + (n._dup ? '' : ' checked') + ' /><span class="stmt-row-date">' + fxEsc(nfDateBR(n.emissao)) + '</span><span class="stmt-row-desc" title="' + fxEsc(o && o.nome || '') + '">' + (n.kind === 'nfe' ? 'NF-e' : 'NFS-e') + ' nº ' + fxEsc(n.numero || '—') + ' · ' + fxEsc(o && o.nome || '—') + '</span><span class="stmt-row-cat" style="color:' + t[1] + '">' + t[0] + '</span><span class="stmt-row-amount">' + fmtD(n.valor) + '</span>' + (n._dup ? '<span class="stmt-row-dup-tag">já enviada</span>' : '') + '</label>';
@@ -5729,6 +5745,10 @@ function bindUploadZone() {
 function processUploadedFiles(files) {
   const isPJ = state.profile_type === 'PJ';
   let fileArray = Array.from(files);
+  if (pfLocked()) {
+    const bl = fileArray.filter(f => pfBlockedName(f.name));
+    if (bl.length) { fileArray = fileArray.filter(f => !pfBlockedName(f.name)); pfBlockModal(bl.map(f => f.name)); if (!fileArray.length) return; }
+  }
   const xmlFiles = fileArray.filter(f => /\.xml$/i.test(f.name));
   if (xmlFiles.length) { handleNfXmlFiles(xmlFiles); fileArray = fileArray.filter(f => !/\.xml$/i.test(f.name)); if (!fileArray.length) return; }
   if (!canImportFree()) {
@@ -5820,6 +5840,7 @@ function pickDocType(el) {
 }
 
 function saveManualDoc() {
+  if (pfBlockedName((document.getElementById('m-docname') || {}).value)) { pfBlockModal([(document.getElementById('m-docname') || {}).value]); return; }
   if (!checkPlanLimit(countThisMonth(state.documents, 'date'), PLAN_LIMITS.maxDocumentsPerMonth, 'Plano ' + currentPlanLabel() + ' permite até ' + PLAN_LIMITS.maxDocumentsPerMonth + ' documentos por mês. Faça upgrade para enviar mais.')) return;
   const selectedType = document.querySelector('#doc-type-pick .doc-type-btn.selected')?.dataset.dtype || 'outro';
   const doc = {
@@ -6399,6 +6420,7 @@ function handleStatementFileChange(input) {
 
 function isoStr(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
 function processStatementText(filename, text) {
+  if (pfBlockedStatement(filename, text)) { pfBlockModal([filename], 'O arquivo parece ser de uma conta de pessoa jurídica. Envie apenas extratos da sua conta pessoal (CPF).'); return; }
   const lower = filename.toLowerCase();
   const isOFX = lower.endsWith('.ofx') || lower.endsWith('.qfx') || /<OFX>/i.test(text);
   const parsed = isOFX ? parseOFXStatement(text) : parseCSVStatement(text);
@@ -7408,7 +7430,7 @@ function demoBuild(id) {
     // ── Empresas ──
     var cfg = {
       mei:       { ct: 'mei', act: 'servicos', bill: 'projeto', doc: '12.345.678/0001-95', razao: 'LUZ DESIGN E COMUNICACAO VISUAL LTDA ME', fant: 'Studio Luz Design', cnae: 7410202, cnaed: 'Design de produto / comunicação visual', porte: 'MICRO EMPRESA', simples: true, mei: true, nat: 'Empresário Individual', rev: 5600, revVar: .25 },
-      simples:   { ct: 'simples', act: 'servicos', bill: 'recorrente', doc: '23.456.789/0001-05', razao: 'TECNOVA SOLUCOES EM TECNOLOGIA LTDA', fant: 'Tecnova', cnae: 6201501, cnaed: 'Desenvolvimento de programas de computador sob encomenda', porte: 'MICRO EMPRESA', simples: true, mei: false, nat: 'Sociedade Empresária Limitada', rev: 48000, revVar: .15 },
+      simples:   { ct: 'simples', act: 'servicos', bill: 'recorrente', doc: '23.456.789/0001-05', razao: 'TECNOVA SOLUCOES EM TECNOLOGIA LTDA', fant: 'Tecnova', cnae: 6201501, cnaed: 'Desenvolvimento de programas de computador sob encomenda', porte: 'MICRO EMPRESA', simples: true, mei: false, nat: 'Sociedade Empresária Limitada', rev: 22000, revVar: .1 },
       presumido: { ct: 'presumido', act: 'comercio', bill: 'recorrente', doc: '34.567.890/0001-15', razao: 'DISTRIBUIDORA HORIZONTE DE ALIMENTOS LTDA', fant: 'Horizonte Distribuidora', cnae: 4639701, cnaed: 'Comércio atacadista de produtos alimentícios em geral', porte: 'DEMAIS', simples: false, mei: false, nat: 'Sociedade Empresária Limitada', rev: 185000, revVar: .12 }
     }[id];
     st.company_type = cfg.ct; st.pj_activity = cfg.act; st.pj_billing = cfg.bill; st.doc_type = 'cnpj'; st.doc_number = cfg.doc.replace(/\D/g, '');
@@ -7422,12 +7444,12 @@ function demoBuild(id) {
         add(m, 15, 'Coworking', 'Aluguel/Sede', 450, 'expense', true); if (m % 4 === 0) add(m, 22, 'Equipamento', 'Equipamentos', jit(700, .4), 'expense');
         add(m, 28, 'Pró-labore (retirada)', 'Outros', 2600, 'expense', true);
       } else if (id === 'simples') {
-        add(m, 5, 'Contrato mensal — Cliente Alfa', 'Serviços prestados', 22000, 'income', true); add(m, 10, 'Contrato mensal — Cliente Beta', 'Serviços prestados', 12000, 'income', true);
-        add(m, 20, 'Projetos avulsos', 'Consultoria', Math.max(2000, rev - 34000), 'income');
-        add(m, 20, 'DAS Simples Nacional', 'Impostos', rev * 0.115, 'expense', true); add(m, 5, 'Folha de pagamento', 'Folha de pagamento', 11500, 'expense', true);
-        add(m, 28, 'Pró-labore sócios', 'Folha de pagamento', 7000, 'expense', true); add(m, 1, 'Aluguel do escritório', 'Aluguel/Sede', 3200, 'expense', true);
-        add(m, 12, 'Google Ads', 'Marketing', jit(2500, .25), 'expense'); add(m, 15, 'Cloud e licenças', 'Serviços', jit(2300, .1), 'expense', true);
-        add(m, 8, 'Freelancers', 'Subcontratados', jit(2400, .3), 'expense'); add(m, 25, 'Contabilidade', 'Serviços', 650, 'expense', true);
+        add(m, 5, 'Contrato mensal — Cliente Alfa', 'Serviços prestados', 12000, 'income', true); add(m, 10, 'Contrato mensal — Cliente Beta', 'Serviços prestados', 6000, 'income', true);
+        add(m, 20, 'Projetos avulsos', 'Consultoria', Math.max(1500, rev - 18000), 'income');
+        add(m, 20, 'DAS Simples Nacional', 'Impostos', rev * 0.115, 'expense', true); add(m, 5, 'Folha de pagamento', 'Folha de pagamento', 5000, 'expense', true);
+        add(m, 28, 'Pró-labore sócios', 'Folha de pagamento', 4000, 'expense', true); add(m, 1, 'Aluguel do escritório', 'Aluguel/Sede', 2200, 'expense', true);
+        add(m, 12, 'Google Ads', 'Marketing', jit(1500, .25), 'expense'); add(m, 15, 'Cloud e licenças', 'Serviços', jit(1500, .1), 'expense', true);
+        add(m, 8, 'Freelancers', 'Subcontratados', jit(1500, .3), 'expense'); add(m, 25, 'Contabilidade', 'Serviços', 650, 'expense', true);
         if (m % 5 === 0) add(m, 18, 'Notebooks', 'Equipamentos', jit(6000, .2), 'expense');
       } else {
         add(m, 4, 'Vendas — atacado', 'Vendas', rev * .7, 'income'); add(m, 16, 'Vendas — varejo parceiro', 'Vendas', rev * .3, 'income');
@@ -7440,9 +7462,9 @@ function demoBuild(id) {
     }
     if (id === 'mei') { G('🛟', 'Reserva da empresa', 16800, 6200, 600); G('💻', 'Computador novo', 8000, 2500, 400); A('Conta PJ', 7400); A('Equipamentos', 9500); S('Adobe Creative Cloud', 'Software', 249, '#FA0F00'); S('Figma', 'Software', 75, '#A259FF'); st.budgets = { 'Marketing': 400, 'Serviços': 300 }; }
     if (id === 'simples') {
-      G('🏢', 'Reserva de 4 meses', 220000, 98000, 6000); G('📈', 'Contratar 2 devs', 60000, 21000, 3000); D('Capital de giro', 'Empréstimo', 38000, 2.1, 24, 1950); A('Conta PJ', 74000); A('Aplicações', 98000); A('Equipamentos', 52000);
+      G('🏢', 'Reserva de 4 meses', 90000, 41000, 3000); G('📈', 'Contratar 1 dev', 40000, 14000, 2000); D('Capital de giro', 'Empréstimo', 18000, 2.1, 20, 1050); A('Conta PJ', 32000); A('Aplicações', 41000); A('Equipamentos', 28000);
       S('HubSpot CRM', 'Software', 199, '#FF7A59'); S('Slack', 'Software', 89, '#4A154B'); st.budgets = { 'Marketing': 3000, 'Serviços': 4000 };
-      var notes = [['emitida', 1, 5, 'ALFA INDUSTRIA S.A.', 22000], ['emitida', 2, 10, 'BETA COMERCIO LTDA', 12000], ['emitida', 3, 20, 'GAMA LOGISTICA', 9400], ['recebida', 4, 12, 'GOOGLE BRASIL', 2500]];
+      var notes = [['emitida', 1, 5, 'ALFA INDUSTRIA S.A.', 12000], ['emitida', 2, 10, 'BETA COMERCIO LTDA', 6000], ['emitida', 3, 20, 'GAMA LOGISTICA', 3000], ['recebida', 4, 12, 'GOOGLE BRASIL', 1500]];
       notes.forEach(function(nt, i) {
         var iso = demoISO(1, nt[2]), emit = nt[0] === 'emitida' ? { doc: cfg.doc.replace(/\D/g, ''), nome: cfg.razao } : { doc: '06990590000123', nome: nt[3] }, dest = nt[0] === 'emitida' ? { doc: '11222333000181', nome: nt[3] } : { doc: cfg.doc.replace(/\D/g, ''), nome: cfg.razao };
         st.documents.push({ id: 'demo-simples-doc' + i, name: 'NFS-e nº ' + (100 + nt[1]) + ' · ' + nt[3], type: nt[0] === 'recebida' ? 'expense' : 'income', category: 'nf', amount: nt[4], date: iso.slice(8, 10) + '/' + iso.slice(5, 7), status: 'processado', fileSize: 4200, mimeType: 'application/xml', extractedData: { fonte: 'xml', kind: 'nfse', dir: nt[0], chave: '', numero: String(100 + nt[1]), serie: '', emissao: iso, natOp: 'Prestação de serviço', fin: 'normal', valor: nt[4], emit: emit, dest: dest, status: 'autorizada' } });

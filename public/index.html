@@ -5764,7 +5764,7 @@ function renderDocCard(d, i) {
     <div class="doc-icon ${dt.color}">${dt.icon}</div>
     <div class="doc-info">
       <div class="doc-name">${fxEsc(d.name)}</div>
-      <div class="doc-meta">${d.date} · ${formatFileSize(d.fileSize)} ${statusTag}${copies}${x.txId && state.transactions.some(t => t.id === x.txId) ? ' <span class="doc-tag auto">Lançado</span>' : ''}</div>
+      <div class="doc-meta">${d.date} · ${formatFileSize(d.fileSize)} ${statusTag}${copies}${x.txId && state.transactions.some(t => t.id === x.txId) ? ' <span class="doc-tag auto">Lançado</span>' + (() => { const tt = state.transactions.find(t => t.id === x.txId); return tt && !txInPeriod(tt) ? ' <button type="button" class="doc-tag manual" style="cursor:pointer;border:0" onclick="showTxMonth(\'' + tt.id + '\', event)" title="O painel mostra só o período selecionado">Lançado em ' + fxEsc(txMonthLabel(tt)) + ' · ver nesse mês</button>' : ''; })() : ''}</div>
       ${d.amount > 0 ? `<div class="doc-amount" style="color:${d.type === 'income' ? 'var(--income)' : 'var(--expense)'}">${d.type === 'income' ? '+' : '-'} ${fmt(d.amount)}${x.payslip ? ' <span style="font-weight:400;font-size:11px;color:var(--ink-3)">líquido</span>' : ''}</div>` : ''}
       <div class="doc-actions">
         ${x.payslip ? `<button class="doc-btn" onclick="event.stopPropagation();openPayslipReview('${d.id}')">${needs ? 'Revisar' : 'Ver dados'}</button>` : ''}
@@ -5820,6 +5820,14 @@ function docTxDate(comp) {            // data do ganho: 5º dia do mês seguinte
   const y = +comp.slice(0, 4), m = +comp.slice(5, 7), d = new Date(y, m, 5);
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-05';
 }
+function txInPeriod(t) { return filterByPeriod([t], 'date').length > 0; }
+function txMonthLabel(t) { const MN = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez']; return MN[+String(t.date).slice(5, 7) - 1] + '/' + String(t.date).slice(0, 4); }
+function showTxMonth(txId, ev) {             // leva ao mês do lançamento (o painel só mostra o período selecionado)
+  if (ev) ev.stopPropagation();
+  const t = state.transactions.find(x => x.id === txId); if (!t) return;
+  selectedPeriod = { month: +String(t.date).slice(5, 7) - 1, year: +String(t.date).slice(0, 4), startDate: null, endDate: null, mode: 'month' };
+  switchTab(t.type === 'income' ? 'receitas' : 'despesas');
+}
 function docTxPersist(t) {
   dbUpsert('transactions', { id: t.id, user_id: currentUser && currentUser.id, type: t.type, description: t.desc, category: t.cat, amount: t.amount, date: t.date, recurring: false, profile: t.profile });
 }
@@ -5872,7 +5880,7 @@ function syncDocTransaction(d) {
   const t = { id: genId(), date: ev.date, desc: ev.desc, cat: ev.cat, amount: ev.amount, type: ev.type, recur: false, profile: state.profile_type };
   state.transactions.push(t); docTxPersist(t);
   x.txId = t.id; x.txOwned = true; persistDoc(d);
-  showToast((ev.type === 'income' ? '💰 Receita de ' : '💸 Despesa de ') + fmt(ev.amount) + ' lançada (' + ev.label + ') e integrada ao painel.', 'success');
+  showToast((ev.type === 'income' ? '💰 Receita de ' : '💸 Despesa de ') + fmt(ev.amount) + ' lançada (' + ev.label + ') e integrada ao painel' + (txInPeriod(t) ? '.' : '. Atenção: ela está em ' + txMonthLabel(t) + ', fora do período exibido; use "ver nesse mês" no card do documento.'), 'success');
   return t;
 }
 function syncDocDebt(d, ev) {          // empréstimo/financiamento → página Dívidas

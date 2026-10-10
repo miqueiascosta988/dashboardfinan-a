@@ -24,8 +24,8 @@ for (const persona of ['clt', 'autonomo', 'negativado', 'mei', 'simples', 'presu
       assert.equal(st.sub, st.g > 1 ? 1 : 0, 'sub-aba ativa em ' + id);
     }
     // clique real no menu e na sub-aba
-    await page.click('#nav .nav-btn:has-text("Planejar")'); assert.ok(await page.evaluate(() => ['metas', 'projecao', 'estrategia', 'insights'].includes(currentTab)));
-    await page.click('.subnav-btn >> nth=1'); assert.ok(await page.evaluate(() => currentTab !== 'metas'));
+    await page.click('#nav .nav-btn:has-text("Planejar")'); assert.ok(await page.evaluate(() => ['agenda', 'metas', 'projecao', 'estrategia', 'insights'].includes(currentTab)));
+    await page.click('.subnav-btn >> nth=1'); assert.ok(await page.evaluate(() => currentTab !== 'agenda'));
     assert.deepEqual(errs, []); await page.close();
   });
 }

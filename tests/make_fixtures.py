@@ -115,6 +115,66 @@ save('K_fatura.pdf', k)
 # L) outro trabalhador no mesmo mês (distinto), M) sem CPF (identidade fraca) igual ao A
 l = base(nome='ANA CLARA TESTE', cpf='111.222.333-96', sal=4000.00)
 save('L_outro_trabalhador.pdf', lambda c: (layout_colunas(c, H - 60, l), c.showPage()))
+
+# ───── documentos financeiros (boleto/fatura/guia/NF/empréstimo) ─────
+def mod10(s):
+    t=0; w=2
+    for ch in reversed(s):
+        x=int(ch)*w; t+= x-9 if x>9 else x; w=1 if w==2 else 2
+    return (10-t%10)%10
+def mod11bar(s):
+    t=0; w=2
+    for ch in reversed(s):
+        t+=int(ch)*w; w=2 if w==9 else w+1
+    dv=11-t%11
+    return 1 if dv in (0,10,11) else dv
+def mod11nf(s):
+    t=0; w=2
+    for ch in reversed(s):
+        t+=int(ch)*w; w=2 if w==9 else w+1
+    r=t%11
+    return 0 if r<2 else 11-r
+def linha(valor_cent, fator='9107', livre='1234567890123456789012345', banco='341'):
+    bar43 = banco + '9' + fator + str(valor_cent).zfill(10) + livre
+    dvg = mod11bar(bar43)
+    c1 = banco + '9' + livre[:5]; c2 = livre[5:15]; c3 = livre[15:25]
+    c1 += str(mod10(c1)); c2 += str(mod10(c2)); c3 += str(mod10(c3))
+    fv = fator + str(valor_cent).zfill(10)
+    return f"{c1[:5]}.{c1[5:]} {c2[:5]}.{c2[5:]} {c3[:5]}.{c3[5:]} {dvg} {fv}"
+def boleto(name, benef, imp, valor_cent, venc):
+    def f(c):
+        c.setFont('Helvetica', 10); c.drawString(40, H-60, 'BOLETO DE COBRANÇA'); c.drawString(40, H-80, 'Beneficiário: ' + benef)
+        c.drawString(40, H-100, 'Linha digitável: ' + linha(valor_cent)); c.drawString(40, H-120, 'Valor do documento: ' + imp); c.drawString(40, H-140, 'Vencimento ' + venc); c.showPage()
+    save(name, f)
+boleto('M_boleto_valido.pdf', 'CONDOMINIO RESIDENCIAL TESTE', '260,00', 26000, '10/10/2026')
+boleto('N_boleto_valor_divergente.pdf', 'CONDOMINIO RESIDENCIAL TESTE', '300,00', 26000, '10/10/2026')
+def fat(c):
+    c.setFont('Helvetica', 10); c.drawString(40, H-60, 'Nubank - FATURA DO CARTÃO DE CRÉDITO'); c.drawString(40, H-80, 'Total da fatura: 1.234,56'); c.drawString(40, H-100, 'Pagamento mínimo: 185,18')
+    c.drawString(40, H-120, 'Limite disponível: 2.000,00'); c.drawString(40, H-140, 'Vencimento 15/11/2026'); c.showPage()
+save('O_fatura_total.pdf', fat)
+def das(c):
+    c.setFont('Helvetica', 10); c.drawString(40, H-60, 'Documento de Arrecadação do Simples Nacional - DAS'); c.drawString(40, H-80, 'CNPJ: 12.345.678/0001-95'); c.drawString(40, H-100, 'Período de Apuração: 09/2026')
+    c.drawString(40, H-120, 'Data de vencimento: 20/10/2026'); c.drawString(40, H-140, 'Valor total do documento: 75,60'); c.showPage()
+save('P_das.pdf', das)
+def chave_nf(cnpj, num, uf='35', aamm='2610'):
+    base43 = uf + aamm + cnpj + '55' + '001' + str(num).zfill(9) + '1' + '12345678'
+    return base43 + str(mod11nf(base43))
+USER_CNPJ='12345678000195'; OUTRO_CNPJ='11222333000181'
+def nf(name, num, emit, dest, valor, emit_nome, dest_nome):
+    ch = chave_nf(emit, num); g = ' '.join(ch[i:i+4] for i in range(0, 44, 4))
+    fm = lambda c14: f"{c14[:2]}.{c14[2:5]}.{c14[5:8]}/{c14[8:12]}-{c14[12:]}"
+    def f(c):
+        c.setFont('Helvetica', 9); c.drawString(40, H-50, 'DANFE - NOTA FISCAL ELETRÔNICA'); c.drawString(40, H-70, 'Chave de acesso: ' + g); c.drawString(40, H-90, f'Número: {num}')
+        c.drawString(40, H-110, 'Data de emissão: 05/10/2026'); c.drawString(40, H-130, 'Emitente: ' + emit_nome); c.drawString(40, H-145, 'CNPJ: ' + fm(emit))
+        c.drawString(40, H-165, 'Destinatário: ' + dest_nome); c.drawString(40, H-180, 'CNPJ: ' + fm(dest)); c.drawString(40, H-200, 'Valor total da nota: ' + valor); c.showPage()
+    save(name, f)
+nf('Q_nf_emitida.pdf', 1234, USER_CNPJ, OUTRO_CNPJ, '1.500,00', 'ACME COMERCIO TESTE LTDA', 'CLIENTE EXEMPLO LTDA')
+nf('R_nf_recebida.pdf', 777, OUTRO_CNPJ, USER_CNPJ, '820,00', 'FORNECEDOR EXEMPLO S/A', 'ACME COMERCIO TESTE LTDA')
+nf('S_nf_terceiros.pdf', 55, OUTRO_CNPJ, '04252011000110', '99,90', 'FORNECEDOR EXEMPLO S/A', 'OUTRA EMPRESA LTDA')
+def emp(c):
+    c.setFont('Helvetica', 10); c.drawString(40, H-60, 'Banco Itaú - Contrato de Empréstimo Pessoal'); c.drawString(40, H-80, 'Saldo devedor: 12.000,00'); c.drawString(40, H-100, 'Valor da parcela: 480,00')
+    c.drawString(40, H-120, '24 parcelas restantes'); c.drawString(40, H-140, 'Taxa de juros: 2,5% a.m. - CET'); c.showPage()
+save('T_emprestimo.pdf', emp)
 import json
 json.dump({'A': setembro, 'F': outubro, 'G': corr, 'L': l, 'E': e13}, open(os.path.join(OUT, 'esperado.json'), 'w'), ensure_ascii=False, indent=1)
 print('ok', sorted(os.listdir(OUT)))

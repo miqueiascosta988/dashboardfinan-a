@@ -426,6 +426,113 @@
   }
 
 
+  // ───────── 6-B. documentos financeiros (boleto, fatura, guia/DAS, nota fiscal, empréstimo) ─────────
+  // Cada documento vira um "evento financeiro" { direction: 'in'|'out'|'unknown', amount, date, counterparty, category, key, checks }.
+  // A direção (entra/sai) é deduzida por regra: boleto, fatura, guia e parcela SEMPRE saem; nota fiscal depende de quem é o emitente
+  // (comparado com o CPF/CNPJ do próprio usuário). Se não der para saber, direction = 'unknown' e o usuário decide. Nada é inventado.
+  var USER_DOCS = [];
+  function setContext(c) { USER_DOCS = ((c && c.userDocs) || []).map(digits).filter(function (d) { return d.length === 11 || d.length === 14; }); }
+  function mod10(s) { var sum = 0, w = 2; for (var i = s.length - 1; i >= 0; i--) { var p = +s[i] * w; sum += p > 9 ? p - 9 : p; w = w === 2 ? 1 : 2; } return (10 - sum % 10) % 10; }
+  function mod11bar(s) { var sum = 0, w = 2; for (var i = s.length - 1; i >= 0; i--) { sum += +s[i] * w; w = w === 9 ? 2 : w + 1; } var dv = 11 - sum % 11; return (dv === 0 || dv === 10 || dv === 11) ? 1 : dv; }
+  function mod11nf(s43) { var sum = 0, w = 2; for (var i = s43.length - 1; i >= 0; i--) { sum += +s43[i] * w; w = w === 9 ? 2 : w + 1; } var r = sum % 11; return r < 2 ? 0 : 11 - r; }
+  function cnpjOk(c) { if (!/^\d{14}$/.test(c) || /^(\d)\1+$/.test(c)) return false; function dv(n) { var w = n === 12 ? [5,4,3,2,9,8,7,6,5,4,3,2] : [6,5,4,3,2,9,8,7,6,5,4,3,2], s = 0; for (var i = 0; i < n; i++) s += +c[i] * w[i]; var r = s % 11; return r < 2 ? 0 : 11 - r; } return dv(12) === +c[12] && dv(13) === +c[13]; }
+  function iso(d, m, y) { return y + '-' + ('0' + m).slice(-2) + '-' + ('0' + d).slice(-2); }
+  function validDate(d, m, y) { var t = new Date(+y, +m - 1, +d); return t.getFullYear() === +y && t.getMonth() === +m - 1 && t.getDate() === +d && +y >= 2000 && +y <= 2100; }
+  function dateAfter(lines, re) {                       // data dd/mm/aaaa na mesma linha do rótulo (depois dele) ou nas 2 linhas seguintes
+    for (var i = 0; i < lines.length; i++) {
+      var t = strip(lines[i].text).toLowerCase(), m = re.exec(t); if (!m) continue;
+      var rest = lines[i].text.slice(Math.min(lines[i].text.length, m.index));
+      for (var k = 0; k < 3; k++) {
+        var src = k === 0 ? rest : (lines[i + k] ? lines[i + k].text : ''), d = /(\d{2})\/(\d{2})\/(20\d{2})/.exec(src);
+        if (d && validDate(d[1], d[2], d[3])) return iso(d[1], d[2], d[3]);
+      }
+    }
+    return null;
+  }
+  function moneyAfter(lines, re) {
+    for (var i = 0; i < lines.length; i++) for (var j = 0; j < lines[i].cells.length; j++) {
+      if (re.test(strip(lines[i].cells[j].s).toLowerCase())) { var v = valueForLabel(lines, i, j); if (v != null && v > 0) return v; }
+    }
+    return null;
+  }
+  function textAfter(lines, re) {                       // texto que vem depois de "Rótulo:" (mesma célula, célula ao lado ou linha seguinte)
+    for (var i = 0; i < lines.length; i++) for (var j = 0; j < lines[i].cells.length; j++) {
+      var s = lines[i].cells[j].s, st = strip(s).toLowerCase(), m = re.exec(st); if (!m) continue;
+      var after = s.slice(m.index + m[0].length).replace(/^[\s:\-–]+/, '').trim();
+      if (after.length > 2) return after.slice(0, 70);
+      var nx = lines[i].cells[j + 1] ? lines[i].cells[j + 1].s : (lines[i + 1] && lines[i + 1].cells[0] ? lines[i + 1].cells[0].s : '');
+      if (nx && nx.trim().length > 2) return nx.trim().slice(0, 70);
+    }
+    return null;
+  }
+  function allDigitsText(lines) { return lines.map(function (l) { return l.text; }).join('\n'); }
+  function ck(list, id, ok, msg, w) { list.push({ id: id, ok: !!ok, msg: ok ? '' : msg, weight: w || 0.2 }); }
+  function boletoLinha(text) {
+    var m = /(\d{5})[.\s]?(\d{5})\s+(\d{5})[.\s]?(\d{6})\s+(\d{5})[.\s]?(\d{6})\s+(\d)\s+(\d{14})/.exec(text); if (!m) return null;
+    var c1 = m[1] + m[2], c2 = m[3] + m[4], c3 = m[5] + m[6], dvg = m[7], fv = m[8];
+    var dvOk = mod10(c1.slice(0, 9)) === +c1[9] && mod10(c2.slice(0, 10)) === +c2[10] && mod10(c3.slice(0, 10)) === +c3[10];
+    var bar43 = c1.slice(0, 4) + fv + c1.slice(4, 9) + c2.slice(0, 10) + c3.slice(0, 10);
+    return { digits: c1 + c2 + c3 + dvg + fv, valor: parseInt(fv.slice(4), 10) / 100, dvOk: dvOk && mod11bar(bar43) === +dvg };
+  }
+  var BANKS = [['nubank', 'Nubank'], ['itau', 'Itaú'], ['bradesco', 'Bradesco'], ['santander', 'Santander'], ['banco inter|\\binter\\b', 'Inter'], ['c6', 'C6 Bank'], ['caixa', 'Caixa'], ['banco do brasil|\\bbb\\b', 'Banco do Brasil'], ['mercado pago', 'Mercado Pago'], ['picpay', 'PicPay'], ['xp\\b', 'XP'], ['btg', 'BTG'], ['porto', 'Porto']];
+  function issuer(text) { for (var i = 0; i < BANKS.length; i++) if (new RegExp(BANKS[i][0]).test(text)) return BANKS[i][1]; return null; }
+
+  function parseFin(kind, lines) {
+    var text = strip(allDigitsText(lines)).toLowerCase(), checks = [], f = { kind: kind, direction: 'unknown', amount: null, date: null, counterparty: null, key: null, notes: [], extra: {} };
+    if (kind === 'boleto') {
+      var bl = boletoLinha(allDigitsText(lines)), printed = moneyAfter(lines, /valor\s*(do\s*documento|cobrado|nominal)|^valor$/);
+      f.direction = 'out'; f.date = dateAfter(lines, /vencimento/); f.counterparty = textAfter(lines, /(benefici[aá]rio|cedente)\b/);
+      f.amount = printed != null ? printed : (bl && bl.valor > 0 ? bl.valor : null);
+      if (bl) { f.extra.linha = bl.digits; ck(checks, 'linha_dv', bl.dvOk, 'Os dígitos verificadores da linha digitável não batem: o número pode ter sido lido errado.', 0.35); if (printed != null && bl.valor > 0) ck(checks, 'valor_linha', Math.abs(printed - bl.valor) < 0.01, 'O valor impresso (' + printed.toFixed(2) + ') difere do valor codificado na linha digitável (' + bl.valor.toFixed(2) + ').', 0.4); }
+      else f.notes.push('Linha digitável não encontrada: o valor vem só do texto do boleto.');
+      f.key = bl ? 'boleto|' + bl.digits : 'boleto|' + norm(f.counterparty || '') + '|' + (f.date || '') + '|' + (f.amount != null ? f.amount.toFixed(2) : '');
+    } else if (kind === 'fatura') {
+      f.direction = 'out'; f.amount = moneyAfter(lines, /(total\s*da\s*fatura|valor\s*total\s*da\s*fatura|valor\s*da\s*fatura|total\s*a\s*pagar|pagamento\s*total|valor\s*total)/);
+      f.date = dateAfter(lines, /vencimento/); f.counterparty = issuer(text); f.extra.minimo = moneyAfter(lines, /pagamento\s*m[ií]nimo/);
+      if (f.amount == null) f.notes.push('Total da fatura não encontrado (só o pagamento mínimo apareceu). Informe o total.');
+      f.key = 'fatura|' + norm(f.counterparty || '') + '|' + (f.date || '');
+    } else if (kind === 'imposto' && /informe\s*de\s*rendimentos|declara[cç][aã]o\s*de\s*imposto|recibo\s*de\s*entrega/.test(text)) {
+      f.direction = 'none'; f.notes.push('Documento informativo (sem valor a pagar ou receber). Fica guardado para o Imposto de Renda.'); f.key = 'info|' + norm(text.slice(0, 60));
+    } else if (kind === 'imposto') {                    // DAS, DARF, guias
+      f.direction = 'out'; f.amount = moneyAfter(lines, /(valor\s*total\s*do\s*documento|valor\s*total|total\s*a\s*pagar|valor\s*do\s*documento)/);
+      f.date = dateAfter(lines, /(data\s*de\s*vencimento|vencimento)/); var pm = /per[ií]odo\s*de\s*apura[cç][aã]o[^0-9]*(\d{2})\/(20\d{2})/.exec(text); f.extra.periodo = pm ? pm[1] + '/' + pm[2] : null;
+      f.counterparty = /\bdas\b|simples nacional/.test(text) ? 'DAS (Simples Nacional)' : (/darf/.test(text) ? 'DARF' : 'Guia de imposto'); f.category = 'imposto';
+      f.key = 'guia|' + f.counterparty + '|' + (f.extra.periodo ? norm(f.extra.periodo) : '') + '|' + (f.date || '');
+    } else if (kind === 'nf') {
+      var chaveM = /(\d{4}\s*){11}/.exec(allDigitsText(lines)), chave = chaveM ? digits(chaveM[0]) : null;
+      var allC = (allDigitsText(lines).match(/\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}/g) || []).map(digits).filter(cnpjOk);
+      var emit = chave && chave.length === 44 ? chave.slice(6, 20) : null;
+      if (chave && chave.length === 44) { f.extra.chave = chave; ck(checks, 'chave_dv', mod11nf(chave.slice(0, 43)) === +chave[43], 'O dígito verificador da chave de acesso não bate: a chave pode ter sido lida errada.', 0.3); }
+      if (!emit) { var em = /(emitente|prestador)[\s\S]{0,200}?(\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2})/.exec(strip(allDigitsText(lines)).toLowerCase()); if (em) emit = digits(em[2]); else if (allC[0]) emit = allC[0]; }
+      var dest = null, dm = /(destinat[aá]rio|tomador|cliente)[\s\S]{0,200}?(\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}|\d{3}\.?\d{3}\.?\d{3}-?\d{2})/.exec(text); if (dm) dest = digits(dm[2]);
+      f.amount = moneyAfter(lines, /(valor\s*total\s*da\s*(nota|nf)|total\s*da\s*nota|valor\s*total\s*dos?\s*servi[cç]os|valor\s*l[ií]quido|valor\s*total)/);
+      f.date = dateAfter(lines, /(data\s*(de\s*)?emiss[aã]o|emitid[ao]\s*em|emiss[aã]o)/); f.extra.emitHash = emit ? hash53(emit) : null; f.extra.destHash = dest ? hash53(dest) : null;
+      f.counterparty = null;
+      if (emit && USER_DOCS.indexOf(emit) >= 0) { f.direction = 'in'; f.counterparty = textAfter(lines, /(destinat[aá]rio|tomador)\b/); f.notes.push('Nota emitida por você: entra como receita.'); }
+      else if (dest && USER_DOCS.indexOf(dest) >= 0) { f.direction = 'out'; f.counterparty = textAfter(lines, /(emitente|prestador)\b/); f.notes.push('Nota emitida contra o seu CPF/CNPJ: sai como despesa.'); }
+      else f.notes.push(USER_DOCS.length ? 'Não foi possível saber se você é o emitente ou o destinatário desta nota. Informe se o valor entrou ou saiu.' : 'Cadastre seu CPF/CNPJ no Perfil para a direção (entrou/saiu) ser deduzida sozinha. Por ora, informe se o valor entrou ou saiu.');
+      var nfn = /n[uú]mero\s*(da\s*nota)?\s*[:\-]?\s*(\d{1,9})/.exec(text); f.extra.numero = nfn ? nfn[2] : null;
+      f.key = chave && chave.length === 44 ? 'nf|' + chave : 'nf|' + (emit || '') + '|' + (f.extra.numero || '') + '|' + (f.date || '') + '|' + (f.amount != null ? f.amount.toFixed(2) : '');
+    } else if (kind === 'emprestimo') {
+      f.direction = 'debt'; f.extra.saldo = moneyAfter(lines, /saldo\s*devedor/); f.extra.parcela = moneyAfter(lines, /(valor\s*da\s*(parcela|presta[cç][aã]o)|presta[cç][aã]o\s*mensal|parcela\s*mensal)/);
+      var np = /(\d{1,3})\s*(parcelas?\s*restantes?|parcelas?\s*a\s*vencer|presta[cç][oõ]es\s*restantes?)/.exec(text) || /(parcelas?|presta[cç][oõ]es)\s*(restantes?)?\s*[:\-]?\s*(\d{1,3})\b/.exec(text);
+      f.extra.parcelas = np ? parseInt(np[1].match(/\d/) ? np[1] : np[3], 10) : null;
+      var tx = /(?:taxa[^0-9]{0,40})(\d{1,2}(?:,\d{1,2})?)\s*%\s*(?:a\.?m|ao\s*m[eê]s)/.exec(text); f.extra.juros = tx ? num(tx[1]) : null;
+      f.amount = f.extra.saldo; f.date = null; f.counterparty = issuer(text) || textAfter(lines, /(institui[cç][aã]o\s*financeira|credor)\b/);
+      f.key = 'divida|' + norm(f.counterparty || '') + '|' + (f.extra.saldo != null ? f.extra.saldo.toFixed(2) : '') + '|' + (f.extra.parcela != null ? f.extra.parcela.toFixed(2) : '');
+      ck(checks, 'divida_dados', f.extra.saldo != null && f.extra.parcela != null, 'Faltam o saldo devedor e/ou o valor da parcela.', 0.5);
+    } else { f.direction = 'none'; f.notes.push(kind === 'extrato' ? 'Extrato em PDF: para lançar as movimentações use "Importar extrato" (OFX ou CSV).' : 'Documento guardado, sem valor financeiro a lançar.'); f.key = null; }
+    // validação comum
+    if (f.direction === 'in' || f.direction === 'out' || f.direction === 'unknown') {
+      ck(checks, 'valor', f.amount != null && f.amount > 0, 'Valor não encontrado.', 0.35);
+      ck(checks, 'data', !!f.date, 'Data (vencimento ou emissão) não encontrada.', 0.2);
+      ck(checks, 'direcao', f.direction !== 'unknown', 'Não foi possível deduzir se o valor entra ou sai.', 0.3);
+    }
+    var conf = 1; checks.forEach(function (c) { if (!c.ok) conf -= c.weight; }); conf = Math.max(0, r2(conf));
+    f.checks = checks; f.confidence = conf; f.status = (f.direction === 'none') ? 'done' : (checks.every(function (c) { return c.ok; }) && conf >= 0.7 ? 'done' : 'needs_review');
+    return f;
+  }
+
   // ───────── 7. entidade lógica única + pipeline do documento ─────────
   function extractAmount(lines, kind) {
     var re = kind === 'fatura' ? /(total\s*da\s*fatura|valor\s*total|total\s*a\s*pagar|pagamento\s*total)/i : /(valor\s*do\s*documento|valor\s*cobrado|total\s*a\s*pagar|valor\s*total|valor)/i;
@@ -466,12 +573,24 @@
   function existingView(docs) {
     return (docs || []).filter(function (d) { return d && d.extractedData && d.extractedData.payslip; }).map(function (d) {
       return { id: d.id, contentHash: d.extractedData.contentHash, payslip: revive(d.extractedData.payslip) };
-    }).concat((docs || []).filter(function (d) { return d && d.extractedData && !d.extractedData.payslip && d.extractedData.contentHash; }).map(function (d) { return { id: d.id, contentHash: d.extractedData.contentHash }; }));
+    }).concat((docs || []).filter(function (d) { return d && d.extractedData && !d.extractedData.payslip && (d.extractedData.contentHash || d.extractedData.finKey); }).map(function (d) { return { id: d.id, contentHash: d.extractedData.contentHash, finKey: d.extractedData.finKey || null, finAmount: d.extractedData.fin && d.extractedData.fin.amount != null ? d.extractedData.fin.amount : null }; }));
   }
 
   // Processa UM arquivo já convertido em páginas/linhas e devolve resultados por entidade lógica.
   // ctx: { fileName, hint, contentHash, newId, now, dateLabel, fileSize, mimeType }
   function processDocument(pagesLines, existingDocs, ctx) {
+    var res = processDocumentCore(pagesLines, existingDocs, ctx);
+    if (ctx && ctx.ocr) res.outcomes.forEach(function (o) { if (o.entity && o.entity.extractedData && !o.unreadable) markOcr(o.entity, ctx); });
+    return res;
+  }
+  // Texto vindo de OCR (foto/escaneado) pode ter erro de leitura: nunca lança sozinho, o usuário confere antes.
+  function markOcr(ent, ctx) {
+    var ed = ent.extractedData; ed.ocr = true; ed.ocrConf = ctx.ocrConf == null ? null : Math.round(ctx.ocrConf);
+    if (ed.state === 'done') { ed.state = 'needs_review'; ent.status = 'revisar'; }
+    ed.userConfirmed = false; ed.notes = (ed.notes || []).concat(['Lido por OCR (foto ou documento escaneado): confira os valores antes de lançar.']);
+    if (ctx.ocrConf != null) ed.confidence = Math.min(ed.confidence == null ? 1 : ed.confidence, Math.max(0, ctx.ocrConf / 100));
+  }
+  function processDocumentCore(pagesLines, existingDocs, ctx) {
     var text = pagesLines.map(allText).join('\n').trim();
     var result = { classification: null, outcomes: [] };
     if (text.replace(/\s/g, '').length < 25) {            // sem camada de texto (foto, escaneado, imagem)
@@ -488,9 +607,17 @@
     if (cls.kind !== 'holerite') {
       var dup = decide(existingView(existingDocs), null, ctx.contentHash);
       if (dup.action === 'duplicate') { result.outcomes.push({ action: 'duplicate', target: dup.target, reason: dup.reason }); return result; }
-      var amt = extractAmount([].concat.apply([], pagesLines), cls.kind);
-      result.outcomes.push({ action: 'new', entity: { id: ctx.newId(), name: ctx.fileName, type: KIND_TYPE[cls.kind] || 'expense', category: cls.kind, amount: amt, date: ctx.dateLabel || '', status: cls.byContent ? 'processado' : 'revisar', fileSize: ctx.fileSize || 0, mimeType: ctx.mimeType || '',
-        extractedData: { schema: SCHEMA, kind: cls.kind, contentHash: ctx.contentHash || null, classification: { kind: cls.kind, confidence: cls.confidence, byContent: cls.byContent }, hint: ctx.hint || null, confidence: cls.confidence, state: cls.byContent ? 'done' : 'needs_review', files: [ctx.fileName], processedAt: ctx.now || null, userConfirmed: false } } });
+      var fin = parseFin(cls.kind, [].concat.apply([], pagesLines)), fkey = fin.key ? hash53(fin.key) : null, vw = existingView(existingDocs);
+      var isoLabel = function (i) { return i ? i.slice(8, 10) + '/' + i.slice(5, 7) + '/' + i.slice(0, 4) : ''; };
+      var KL = { boleto: 'Boleto', fatura: 'Fatura de cartão', nf: 'Nota fiscal', imposto: 'Guia/imposto', emprestimo: 'Empréstimo/financiamento', extrato: 'Extrato', contrato: 'Contrato' };
+      var ent = { id: ctx.newId(), name: (KL[cls.kind] || ctx.fileName) + (fin.counterparty ? ' · ' + fin.counterparty : '') + (fin.date ? ' · ' + isoLabel(fin.date) : (KL[cls.kind] ? '' : '')), type: fin.direction === 'in' ? 'income' : 'expense', category: cls.kind, amount: fin.amount != null ? fin.amount : 0,
+        date: fin.date ? fin.date.slice(8, 10) + '/' + fin.date.slice(5, 7) : (ctx.dateLabel || ''), status: (cls.byContent && fin.status === 'done') ? 'processado' : 'revisar', fileSize: ctx.fileSize || 0, mimeType: ctx.mimeType || '',
+        extractedData: { schema: SCHEMA, kind: cls.kind, contentHash: ctx.contentHash || null, finKey: fkey, fin: fin, classification: { kind: cls.kind, confidence: cls.confidence, byContent: cls.byContent }, hint: ctx.hint || null, confidence: Math.min(cls.confidence || 0, fin.confidence), state: (cls.byContent && fin.status === 'done') ? 'done' : 'needs_review', files: [ctx.fileName], processedAt: ctx.now || null, userConfirmed: false } };
+      if (fkey) for (var vi = 0; vi < vw.length; vi++) if (vw[vi].finKey === fkey) {
+        if (vw[vi].finAmount != null && fin.amount != null && Math.abs(vw[vi].finAmount - fin.amount) >= 0.005) { result.outcomes.push({ action: 'conflict', target: vw[vi].id, reason: 'mesmo documento já registrado, porém com valor diferente (correção ou erro de leitura?)', entity: ent }); return result; }
+        result.outcomes.push({ action: 'duplicate', target: vw[vi].id, reason: 'mesmo documento (mesma identificação e valor)' }); return result;
+      }
+      result.outcomes.push({ action: 'new', entity: ent });
       return result;
     }
     var segs = analyzePages(pagesLines);
@@ -517,7 +644,7 @@
   function resolveOutcome(outcome, choice) {
     if (choice === 'ignore') return { op: 'none' };
     if (choice === 'replace') return { op: 'replace', id: outcome.target, entity: outcome.entity };
-    if (choice === 'keep_both') { var e = JSON.parse(JSON.stringify(outcome.entity)); e.extractedData.payslip.tipo = 'complementar'; e.extractedData.userConfirmed = true; e.name = e.name.replace(/ · .*/, '') + ' · complementar'; return { op: 'add', entity: e }; }
+    if (choice === 'keep_both') { var e = JSON.parse(JSON.stringify(outcome.entity)); if (e.extractedData.payslip) e.extractedData.payslip.tipo = 'complementar'; else e.extractedData.finKey = null; e.extractedData.userConfirmed = true; e.name = (e.extractedData.payslip ? e.name.replace(/ · .*/, '') : e.name) + ' · complementar'; return { op: 'add', entity: e }; }
     return { op: 'none' };
   }
 
@@ -547,8 +674,8 @@
     function setS(it, st, msg) { it.status = st; it.msg = msg || ''; notify(); }
     function exec(it) {
       setS(it, 'analisando');
-      return Promise.resolve().then(function () { return Promise.all([deps.extractPages(it.file), deps.hashFile(it.file)]); }).then(function (r) {
-        var ctx = { fileName: it.name, hint: it.hint, contentHash: r[1], newId: deps.newId, now: deps.now ? deps.now() : null, dateLabel: deps.dateLabel ? deps.dateLabel() : '', fileSize: it.file && it.file.size, mimeType: it.file && it.file.type };
+      return Promise.resolve().then(function () { return Promise.all([deps.extractPages(it.file, function (m) { it.msg = m; notify(); }), deps.hashFile(it.file)]); }).then(function (r) {
+        var ctx = { fileName: it.name, hint: it.hint, contentHash: r[1], newId: deps.newId, now: deps.now ? deps.now() : null, dateLabel: deps.dateLabel ? deps.dateLabel() : '', fileSize: it.file && it.file.size, mimeType: it.file && it.file.type, ocr: !!(r[0] && r[0].ocr), ocrConf: r[0] && r[0].ocrConf };
         var res = processDocument(r[0], deps.getDocs(), ctx);
         it.classification = res.classification; it.added = 0; it.dups = 0; it.pending = []; it.addedIds = [];
         res.outcomes.forEach(function (o) {
@@ -588,6 +715,6 @@
     SCHEMA: SCHEMA, num: num, norm: norm, buildLines: buildLines, allText: allText, classify: classify,
     parsePayslip: parsePayslip, validatePayslip: validatePayslip, identityString: identityString, finSig: finSig,
     compare: compare, decide: decide, mergeSegments: mergeSegments, splitSegments: splitSegments, analyzePages: analyzePages,
-    createIngestor: createIngestor, processDocument: processDocument, resolveOutcome: resolveOutcome, payslipsForCalc: payslipsForCalc, calcInputs: calcInputs, pendingReview: pendingReview, hash53: hash53, existingView: existingView
+    createIngestor: createIngestor, processDocument: processDocument, resolveOutcome: resolveOutcome, payslipsForCalc: payslipsForCalc, calcInputs: calcInputs, pendingReview: pendingReview, hash53: hash53, existingView: existingView, parseFin: parseFin, setContext: setContext
   };
 });

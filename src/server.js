@@ -23,7 +23,8 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://js.stripe.com"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'wasm-unsafe-eval'", "https://cdn.jsdelivr.net", "https://js.stripe.com"],   // wasm-unsafe-eval: OCR (Tesseract) hospedado em /ocr
+      workerSrc: ["'self'", "blob:", "https://cdn.jsdelivr.net"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "blob:"],
@@ -90,7 +91,7 @@ app.use('/interno', (req, res, next) => { res.set({ 'X-Robots-Tag': 'noindex, no
 app.use('/api', (req, res) => res.status(404).json({ error: 'Não encontrado.' }));
 
 // ─── Static files ───────────────────────────────────
-app.use(express.static(PUBLIC_DIR, { setHeaders: (res, file) => { if (/[\\/]sw\.js$/.test(file)) res.setHeader('Cache-Control', 'no-cache'); } }));
+app.use(express.static(PUBLIC_DIR, { setHeaders: (res, file) => { if (/[\\/]sw\.js$/.test(file)) res.setHeader('Cache-Control', 'no-cache'); else if (/[\\/]ocr[\\/]/.test(file)) res.setHeader('Cache-Control', 'public, max-age=2592000'); } }));
 
 // SPA fallback
 app.get('*', (req, res) => {

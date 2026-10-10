@@ -59,8 +59,11 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Dados institucionais do rodapé: preenchidos por variáveis de ambiente (nada é inventado; vazio = não aparece).
+const siteVar = (k) => { const v = (process.env[k] || '').trim().slice(0, 200); return v || null; };
 app.get('/api/config', (req, res) => {
   res.json({
+    contact: { email: siteVar('SITE_EMAIL'), phone: siteVar('SITE_PHONE'), address: siteVar('SITE_ADDRESS'), hours: siteVar('SITE_HOURS'), legalName: siteVar('SITE_LEGAL_NAME'), cnpj: siteVar('SITE_CNPJ') },
     supabaseUrl: process.env.SUPABASE_URL,
     supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
     // Hotmart — forma de pagamento principal (Brasil)

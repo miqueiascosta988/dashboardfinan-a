@@ -10,16 +10,23 @@ function getSupabaseAdmin() {
   );
 }
 
-// Mapeia o ID do produto/oferta cadastrado na Hotmart para o plano interno do Finança.
-// Configure HOTMART_PRODUCT_PLUS (e opcionalmente _PRO / _BUSINESS) com o "Product ID"
-// que aparece no painel da Hotmart (Produtos > seu produto > Detalhes).
+// Mapeia o ID do produto cadastrado na Hotmart para o plano interno.
+// Configure HOTMART_PRODUCT_BASIC, _PLUS, _PRO e _BUSINESS com o "Product ID" de cada produto
+// (Hotmart > Produtos > seu produto > Detalhes). Produto desconhecido NÃO libera plano nenhum.
 function resolvePlanFromProduct(productId) {
   const id = String(productId || '');
-  if (process.env.HOTMART_PRODUCT_BUSINESS && id === process.env.HOTMART_PRODUCT_BUSINESS) return 'business';
-  if (process.env.HOTMART_PRODUCT_PRO && id === process.env.HOTMART_PRODUCT_PRO) return 'pro';
-  if (process.env.HOTMART_PRODUCT_PLUS && id === process.env.HOTMART_PRODUCT_PLUS) return 'plus';
-  // Fallback: se só existe um produto configurado (o mais comum no começo), assume Plus.
-  return 'plus';
+  const map = [['business', process.env.HOTMART_PRODUCT_BUSINESS], ['pro', process.env.HOTMART_PRODUCT_PRO],
+    ['plus', process.env.HOTMART_PRODUCT_PLUS], ['basic', process.env.HOTMART_PRODUCT_BASIC]];
+  for (const [plan, pid] of map) if (pid && id === String(pid)) return plan;
+  return null;
+}
+
+// Escapa % _ \ para o e-mail do comprador não virar curinga no ilike.
+const likeEscape = (v) => String(v).replace(/[\\%_]/g, (c) => '\\' + c);
+const crypto = require('crypto');
+function safeEqual(a, b) {
+  const x = Buffer.from(String(a || '')), y = Buffer.from(String(b || ''));
+  return x.length === y.length && crypto.timingSafeEqual(x, y);
 }
 
 // Eventos da Hotmart: https://developers.hotmart.com/docs/pt-BR/webhooks/
@@ -37,7 +44,7 @@ router.post('/webhook', express.json(), async (req, res) => {
     console.warn('HOTMART_HOTTOK não configurado — webhook da Hotmart ignorado por segurança.');
     return res.status(503).json({ error: 'Hotmart not configured' });
   }
-  if (receivedToken !== process.env.HOTMART_HOTTOK) {
+  if (!safeEqual(receivedToken, process.env.HOTMART_HOTTOK)) {
     console.warn('Hotmart webhook: hottok inválido.');
     return res.status(401).json({ error: 'Invalid hottok' });
   }
@@ -59,6 +66,10 @@ router.post('/webhook', express.json(), async (req, res) => {
   try {
     if (UPGRADE_EVENTS.includes(event)) {
       const plan = resolvePlanFromProduct(productId);
+      if (!plan) {
+        console.warn('Hotmart: produto não mapeado (' + productId + ') — nenhum plano liberado. Configure HOTMART_PRODUCT_*.');
+        return res.json({ received: true, skipped: 'unknown_product' });
+      }
       const { data: updated, error } = await supabase
         .from('profiles')
         .update({
@@ -68,7 +79,7 @@ router.post('/webhook', express.json(), async (req, res) => {
           hotmart_subscriber_code: subscriberCode || null,
           hotmart_transaction_id: transactionId || null,
         })
-        .ilike('email', buyerEmail)
+        .ilike('email', likeEscape(buyerEmail))
         .select('id');
       if (error) throw error;
       if (!updated || updated.length === 0) {
@@ -88,10 +99,10 @@ router.post('/webhook', express.json(), async (req, res) => {
     } else if (DOWNGRADE_EVENTS.includes(event)) {
       await supabase
         .from('profiles')
-        .update({ plan: 'free', plan_status: 'canceled' })
-        .ilike('email', buyerEmail);
-      await supabase.from('pending_purchases').delete().ilike('email', buyerEmail);
-      console.log('Hotmart: plano revertido para free —', buyerEmail, '(' + event + ')');
+        .update({ plan: 'free', plan_status: 'canceled' }) // 'free' = sem assinatura (o app bloqueia o acesso)
+        .ilike('email', likeEscape(buyerEmail));
+      await supabase.from('pending_purchases').delete().ilike('email', likeEscape(buyerEmail));
+      console.log('Hotmart: assinatura encerrada —', buyerEmail, '(' + event + ')');
     } else {
       console.log('Hotmart: evento não tratado:', event);
     }

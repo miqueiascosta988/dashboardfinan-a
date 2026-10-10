@@ -1,0 +1,288 @@
+{
+ "A": {
+  "nome": "MARIA APARECIDA DA SILVA TESTE",
+  "cpf": "123.456.789-09",
+  "comp": "09/2026",
+  "comp_txt": "09/2026",
+  "emp": "ACME COMERCIO TESTE LTDA",
+  "cnpj": "12.345.678/0001-95",
+  "rows": [
+   [
+    "001",
+    "SALÁRIO MENSAL",
+    30.0,
+    5000.0,
+    "v"
+   ],
+   [
+    "012",
+    "HORAS EXTRAS 50%",
+    10.0,
+    450.0,
+    "v"
+   ],
+   [
+    "018",
+    "DSR SOBRE HORAS EXTRAS",
+    null,
+    90.0,
+    "v"
+   ],
+   [
+    "101",
+    "INSS",
+    11.0,
+    609.4,
+    "d"
+   ],
+   [
+    "102",
+    "IRRF",
+    22.5,
+    380.45,
+    "d"
+   ],
+   [
+    "150",
+    "VALE TRANSPORTE 6%",
+    6.0,
+    300.0,
+    "d"
+   ]
+  ],
+  "tv": 5540.0,
+  "td": 1289.85,
+  "liq": 4250.15,
+  "sal": 5000.0,
+  "binss": 5540.0,
+  "bfgts": 5540.0,
+  "fgts": 443.2,
+  "birrf": 4930.6
+ },
+ "F": {
+  "nome": "MARIA APARECIDA DA SILVA TESTE",
+  "cpf": "123.456.789-09",
+  "comp": "10/2026",
+  "comp_txt": "10/2026",
+  "emp": "ACME COMERCIO TESTE LTDA",
+  "cnpj": "12.345.678/0001-95",
+  "rows": [
+   [
+    "001",
+    "SALÁRIO MENSAL",
+    30.0,
+    5000.0,
+    "v"
+   ],
+   [
+    "012",
+    "HORAS EXTRAS 50%",
+    20.0,
+    900.0,
+    "v"
+   ],
+   [
+    "018",
+    "DSR SOBRE HORAS EXTRAS",
+    null,
+    180.0,
+    "v"
+   ],
+   [
+    "101",
+    "INSS",
+    11.0,
+    668.8,
+    "d"
+   ],
+   [
+    "102",
+    "IRRF",
+    22.5,
+    380.45,
+    "d"
+   ],
+   [
+    "150",
+    "VALE TRANSPORTE 6%",
+    6.0,
+    300.0,
+    "d"
+   ]
+  ],
+  "tv": 6080.0,
+  "td": 1349.25,
+  "liq": 4730.75,
+  "sal": 5000.0,
+  "binss": 6080.0,
+  "bfgts": 6080.0,
+  "fgts": 486.4,
+  "birrf": 5411.2
+ },
+ "G": {
+  "nome": "MARIA APARECIDA DA SILVA TESTE",
+  "cpf": "123.456.789-09",
+  "comp": "09/2026",
+  "comp_txt": "09/2026",
+  "emp": "ACME COMERCIO TESTE LTDA",
+  "cnpj": "12.345.678/0001-95",
+  "rows": [
+   [
+    "001",
+    "SALÁRIO MENSAL",
+    30.0,
+    5000.0,
+    "v"
+   ],
+   [
+    "012",
+    "HORAS EXTRAS 50%",
+    12.0,
+    540.0,
+    "v"
+   ],
+   [
+    "018",
+    "DSR SOBRE HORAS EXTRAS",
+    null,
+    108.0,
+    "v"
+   ],
+   [
+    "101",
+    "INSS",
+    11.0,
+    621.28,
+    "d"
+   ],
+   [
+    "102",
+    "IRRF",
+    22.5,
+    380.45,
+    "d"
+   ],
+   [
+    "150",
+    "VALE TRANSPORTE 6%",
+    6.0,
+    300.0,
+    "d"
+   ]
+  ],
+  "tv": 5648.0,
+  "td": 1301.73,
+  "liq": 4346.27,
+  "sal": 5000.0,
+  "binss": 5648.0,
+  "bfgts": 5648.0,
+  "fgts": 451.84,
+  "birrf": 5026.72
+ },
+ "L": {
+  "nome": "ANA CLARA TESTE",
+  "cpf": "111.222.333-96",
+  "comp": "09/2026",
+  "comp_txt": "09/2026",
+  "emp": "ACME COMERCIO TESTE LTDA",
+  "cnpj": "12.345.678/0001-95",
+  "rows": [
+   [
+    "001",
+    "SALÁRIO MENSAL",
+    30.0,
+    4000.0,
+    "v"
+   ],
+   [
+    "012",
+    "HORAS EXTRAS 50%",
+    10.0,
+    450.0,
+    "v"
+   ],
+   [
+    "018",
+    "DSR SOBRE HORAS EXTRAS",
+    null,
+    90.0,
+    "v"
+   ],
+   [
+    "101",
+    "INSS",
+    11.0,
+    499.4,
+    "d"
+   ],
+   [
+    "102",
+    "IRRF",
+    22.5,
+    380.45,
+    "d"
+   ],
+   [
+    "150",
+    "VALE TRANSPORTE 6%",
+    6.0,
+    240.0,
+    "d"
+   ]
+  ],
+  "tv": 4540.0,
+  "td": 1119.85,
+  "liq": 3420.15,
+  "sal": 4000.0,
+  "binss": 4540.0,
+  "bfgts": 4540.0,
+  "fgts": 363.2,
+  "birrf": 4040.6
+ },
+ "E": {
+  "nome": "MARIA APARECIDA DA SILVA TESTE",
+  "cpf": "123.456.789-09",
+  "comp": "12/2026",
+  "comp_txt": "Dezembro/2026",
+  "emp": "ACME COMERCIO TESTE LTDA",
+  "cnpj": "12.345.678/0001-95",
+  "rows": [
+   [
+    "001",
+    "SALÁRIO MENSAL",
+    30.0,
+    2500.0,
+    "v"
+   ],
+   [
+    "101",
+    "INSS",
+    11.0,
+    275.0,
+    "d"
+   ],
+   [
+    "102",
+    "IRRF",
+    22.5,
+    380.45,
+    "d"
+   ],
+   [
+    "150",
+    "VALE TRANSPORTE 6%",
+    6.0,
+    150.0,
+    "d"
+   ]
+  ],
+  "tv": 2500.0,
+  "td": 805.45,
+  "liq": 1694.55,
+  "sal": 2500.0,
+  "binss": 2500.0,
+  "bfgts": 2500.0,
+  "fgts": 200.0,
+  "birrf": 2225.0
+ }
+}

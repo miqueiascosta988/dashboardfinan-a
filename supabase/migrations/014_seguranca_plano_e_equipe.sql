@@ -10,18 +10,18 @@ declare
   o jsonb;
   k text;
 begin
-  if coalesce(auth.role(), '') <> 'authenticated' then
+  if coalesce(auth.role(), '') <> 'authenticated' or current_setting('app.billing_sync', true) = '1' then
     return new;                      -- service role, SQL Editor, triggers internos
   end if;
   if tg_op = 'INSERT' then
     if n ? 'plan' then n := jsonb_set(n, array['plan'], to_jsonb('free'::text)); end if;
-    foreach k in array array['plan_status','stripe_customer_id','stripe_subscription_id','plan_expires_at','hotmart_transaction'] loop
+    foreach k in array array['plan_status','stripe_customer_id','stripe_subscription_id','plan_expires_at','hotmart_transaction','hotmart_transaction_id','hotmart_subscriber_code','payment_provider'] loop
       if n ? k then n := jsonb_set(n, array[k], 'null'::jsonb); end if;
     end loop;
     return jsonb_populate_record(new, n);
   end if;
   o := to_jsonb(old);
-  foreach k in array array['plan','plan_status','stripe_customer_id','stripe_subscription_id','plan_expires_at','hotmart_transaction'] loop
+  foreach k in array array['plan','plan_status','stripe_customer_id','stripe_subscription_id','plan_expires_at','hotmart_transaction','hotmart_transaction_id','hotmart_subscriber_code','payment_provider'] loop
     if o ? k then n := jsonb_set(n, array[k], o -> k); end if;
   end loop;
   return jsonb_populate_record(new, n);

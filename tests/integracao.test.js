@@ -75,3 +75,16 @@ test('Integração: documento duvidoso/ilegível NÃO gera receita até ser conf
   await page.evaluate(() => { const d = state.documents.find(x => x.extractedData.payslip); const p = d.extractedData.payslip; p.competencia = '2026-08'; p.totals = { venc: 3000, desc: 500, liquido: 2500 }; d.extractedData.userConfirmed = true; d.extractedData.state = 'done'; syncDocTransaction(d); });
   const t = await txs(page); assert.equal(t.length, 1); assert.equal(t[0].amount, 2500); assert.equal(t[0].date, '2026-09-05'); await ctx.close();
 });
+
+test('Integração: holerite de competência antiga fica visível — card avisa e leva ao mês do lançamento', async () => {
+  const { page, errs, ctx } = await openApp();
+  await page.evaluate(() => { state.transactions = []; selectedPeriod = { month: 4, year: 2026, startDate: null, endDate: null, mode: 'month' }; });
+  await send(page, 'A_holerite_colunas.pdf');
+  const t = await txs(page); assert.equal(t.length, 1); assert.equal(t[0].amount, 4250.15); assert.equal(t[0].date, '2026-10-05');
+  assert.equal(await page.evaluate(() => compute().totalIncome), 0);            // fora do período atual: o painel não soma
+  const btn = await page.$('button:has-text("ver nesse mês")'); assert.ok(btn); assert.match(await btn.textContent(), /out\/2026/);
+  await btn.click();
+  assert.equal(await page.evaluate(() => currentTab), 'receitas');
+  assert.equal(await page.evaluate(() => compute().totalIncome), 4250.15);       // agora o painel mostra e soma
+  assert.deepEqual(errs, []); await ctx.close();
+});

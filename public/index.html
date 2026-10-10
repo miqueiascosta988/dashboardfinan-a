@@ -583,6 +583,14 @@ body.pj-mode .chat-send-btn:hover { background: var(--pj-accent-mid); }
 .site-footer a, .site-footer button.sf-link { color: var(--ink-2); text-decoration: none; background: none; border: 0; padding: 0; font: inherit; cursor: pointer; }
 .site-footer a:hover, .site-footer button.sf-link:hover { color: var(--teal); text-decoration: underline; }
 .site-footer .sf-links { display: flex; flex-direction: column; gap: 3px; align-items: flex-start; }
+.site-footer .sf-wa-wrap{position:relative;display:inline-block;margin:2px 0 6px}
+.sf-wa{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:999px;border:0;background:#25D366;color:#fff;font:inherit;font-weight:700;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.18)}
+.sf-wa:hover{filter:brightness(.95)}.sf-wa:focus-visible,.sf-wa-opt:focus-visible{outline:3px solid #075E54;outline-offset:2px}
+.sf-wa-pop{position:absolute;bottom:calc(100% + 8px);left:0;z-index:50;min-width:240px;background:var(--card,#fff);color:inherit;border:1px solid var(--border,#ddd);border-radius:12px;padding:12px;box-shadow:0 8px 24px rgba(0,0,0,.22)}
+.sf-wa-pop[hidden]{display:none}.sf-wa-q{font-weight:700;font-size:13px;margin-bottom:8px;color:var(--ink,#111)}
+.site-footer .sf-wa-opt{display:flex;align-items:center;gap:8px;padding:10px 12px!important;margin-top:6px;border-radius:8px;background:#25D366!important;color:#fff!important;text-decoration:none!important;font-weight:700}
+.site-footer .sf-wa-opt:hover{filter:brightness(.93);color:#fff!important}
+.site-footer .sf-wa{color:#fff;background:#25D366}
 .site-footer .sf-social { display: flex; gap: 14px; margin-top: 8px; }
 .site-footer .sf-social a { display: inline-flex; align-items: center; gap: 6px; }
 .site-footer .sf-note { margin-top: 16px; padding-top: 12px; border-top: 1px dashed var(--border-subtle, #e5e7eb); font-size: 11.5px; }
@@ -2426,6 +2434,7 @@ function openHelpPanel() {
       '</div>' +
       '<div class="help-panel-body">' +
         '<button class="help-tour-btn" onclick="closeHelpPanel();setTimeout(gtStart,300)">🎓 Tutorial guiado com narração</button>' +
+        '<button class="help-tour-btn" onclick="closeHelpPanel();setTimeout(openHolVideo,300)">🎬 Vídeo: como enviar o holerite</button>' +
         '<button class="help-tour-btn" onclick="closeHelpPanel();setTimeout(startTour,300)">🚀 Refazer Tour Guiado (balões na tela)</button>' +
         (DEMO.on ? '' : '<button class="help-tour-btn" onclick="closeHelpPanel();setTimeout(demoOpenPicker,300)">👀 Ver exemplo com dados fictícios</button>') +
 
@@ -3539,7 +3548,14 @@ function openModal(title, bodyHtml) {
   document.getElementById('modal-body').innerHTML = bodyHtml;
   document.getElementById('modal-overlay').classList.add('open');
 }
-function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); stopScanner(); }
+function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); document.querySelectorAll('#modal-overlay video').forEach(v => { try { v.pause(); } catch (e) {} }); stopScanner(); }
+const HOLERITE_STEPS = ['Abra a aba Documentos, no menu.', 'Envie o holerite em PDF (o do RH, em texto) ou uma foto nítida, de frente e bem iluminada. A leitura acontece no seu aparelho: o arquivo não é enviado para ninguém.', 'O app lê o holerite, confere os totais e identifica o mês de competência. O card mostra "Lançado": foi lançado o valor líquido, o que realmente cai na sua conta.', 'Fotos e PDFs escaneados ficam como "Revisar": confira os valores e confirme antes de lançar.', 'A receita entra na aba Renda no 5º dia do mês seguinte à competência (data legal de pagamento) e alimenta o painel, o orçamento, a saúde financeira e as projeções.', 'Se o holerite for de um mês antigo, o card mostra "ver nesse mês" para ir direto ao período certo.', 'Enviou duas vezes ou mandou as duas vias? O app conta uma vez só. Excluir o documento remove o lançamento.', 'Adiantamento, vale e INSS aparecem como descontos: o líquido já considera tudo isso.'];
+function openHolVideo() {
+  openModal('🎬 Como enviar o holerite', '<video controls playsinline preload="metadata" poster="/tutorial/holerite.jpg" style="width:100%;border-radius:10px;background:#000" aria-label="Vídeo tutorial: como enviar o holerite e como o valor é distribuído"><source src="/tutorial/holerite.mp4" type="video/mp4">Seu navegador não reproduz este vídeo. Leia os passos abaixo.</video>' +
+    '<div class="occ-b-desc" style="margin:8px 0">O vídeo usa um holerite fictício e tem legendas na tela (sem áudio).</div>' +
+    '<details><summary style="cursor:pointer;font-weight:700">Ler os passos em texto</summary><ol style="margin:8px 0 0 18px;font-size:13px;line-height:1.5">' + HOLERITE_STEPS.map(s => '<li>' + fxEsc(s) + '</li>').join('') + '</ol></details>' +
+    '<div class="modal-actions"><button class="btn-cancel" onclick="closeModal()">Fechar</button><button class="btn-save" onclick="closeModal();switchTab(\'documentos\')">Ir para Documentos</button></div>');
+}
 document.getElementById('modal-overlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
@@ -4383,12 +4399,24 @@ const SITE_SOCIALS = [
     svg: '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M16.6 3c.3 2.3 1.7 3.9 3.9 4.1v3.1c-1.4.1-2.7-.3-3.9-1.1v6.1c0 3.2-2.3 5.7-5.5 5.7a5.5 5.5 0 0 1-.9-10.9v3.2a2.4 2.4 0 1 0 1.7 2.3V3h4.7z"/></svg>' }
 ];
 function siteContact() { const c = (appConfig && appConfig.contact) || {}; return { email: c.email || SITE_DEFAULT_EMAIL, phone: c.phone || '', address: c.address || '', hours: c.hours || '', legalName: c.legalName || '', cnpj: c.cnpj || '' }; }
+function toggleWaPicker(ev) {
+  if (ev) ev.stopPropagation();
+  const pop = document.getElementById('sf-wa-pop'), b = document.getElementById('sf-wa-btn'); if (!pop) return;
+  const open = pop.hidden; pop.hidden = !open; b.setAttribute('aria-expanded', String(open));
+  if (open) { const first = pop.querySelector('a'); if (first) first.focus(); }
+}
+document.addEventListener('click', e => { const pop = document.getElementById('sf-wa-pop'); if (pop && !pop.hidden && !pop.contains(e.target)) toggleWaPicker(); });
+document.addEventListener('keydown', e => { const pop = document.getElementById('sf-wa-pop'); if (e.key === 'Escape' && pop && !pop.hidden) { toggleWaPicker(); const b = document.getElementById('sf-wa-btn'); if (b) b.focus(); } });
 function renderFooter() {
   const el = document.getElementById('site-footer'); if (!el) return;
   const c = siteContact(), wa = (typeof CHAT_WHATSAPP_NUMBERS !== 'undefined' ? CHAT_WHATSAPP_NUMBERS : []);
   const okMail = /^[^\s@<>"']+@[^\s@<>"']+\.[^\s@<>"']+$/.test(c.email);
   const tel = c.phone.replace(/[^\d+]/g, '');
-  const contact = wa.map(n => '<div>💬 <a href="https://wa.me/' + n.phone + '" target="_blank" rel="noopener noreferrer">WhatsApp ' + fxEsc(n.display) + '</a></div>').join('') +
+  const WA_SVG = '<svg viewBox="0 0 32 32" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M16.04 3C9.4 3 4 8.38 4 15c0 2.35.69 4.64 1.98 6.6L4 29l7.6-1.95A12.03 12.03 0 0 0 16.04 27C22.66 27 28 21.62 28 15S22.66 3 16.04 3zm0 21.96c-1.8 0-3.56-.5-5.1-1.45l-.37-.22-4.5 1.15 1.2-4.37-.24-.4A9.9 9.9 0 0 1 6.1 15c0-5.47 4.47-9.93 9.94-9.93S25.9 9.53 25.9 15s-4.4 9.96-9.86 9.96zm5.46-7.45c-.3-.15-1.77-.87-2.04-.97-.27-.1-.47-.15-.67.15s-.77.97-.94 1.17c-.17.2-.35.22-.65.07-.3-.15-1.26-.46-2.4-1.48-.89-.79-1.49-1.77-1.66-2.07-.17-.3-.02-.46.13-.6.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.5h-.57c-.2 0-.52.07-.8.37-.27.3-1.04 1.02-1.04 2.48s1.07 2.88 1.22 3.08c.15.2 2.1 3.2 5.08 4.49.71.3 1.26.49 1.7.63.71.23 1.36.2 1.87.12.57-.08 1.77-.72 2.02-1.42.25-.7.25-1.3.17-1.42-.07-.12-.27-.2-.57-.35z"/></svg>';
+  const waBox = wa.length ? '<div class="sf-wa-wrap"><button type="button" class="sf-wa" id="sf-wa-btn" aria-haspopup="true" aria-expanded="false" aria-controls="sf-wa-pop" onclick="toggleWaPicker(event)">' + WA_SVG + '<span>Falar no WhatsApp</span></button>' +
+    '<div class="sf-wa-pop" id="sf-wa-pop" role="dialog" aria-label="Escolha o número do WhatsApp" hidden><div class="sf-wa-q">Com qual número você deseja falar?</div>' +
+    wa.map(n => '<a class="sf-wa-opt" href="https://wa.me/' + n.phone + '" target="_blank" rel="noopener noreferrer" onclick="toggleWaPicker()">' + WA_SVG + '<span>' + fxEsc(n.display) + '</span></a>').join('') + '</div></div>' : '';
+  const contact = waBox +
     (okMail ? '<div>✉️ <a href="mailto:' + fxEsc(c.email) + '">' + fxEsc(c.email) + '</a></div>' : '') +
     (tel.length >= 8 ? '<div>📞 <a href="tel:' + fxEsc(tel) + '">' + fxEsc(c.phone) + '</a></div>' : '') +
     (c.hours ? '<div>🕘 ' + fxEsc(c.hours) + '</div>' : '') +
@@ -5726,7 +5754,7 @@ function renderDocumentos(c) {
   docs.forEach(d => { byType[d.category] = (byType[d.category] || 0) + 1; });
   const totalExtracted = docs.filter(d => d.amount > 0).reduce((s, d) => s + d.amount, 0);
 
-  return `<div class="section-header animate-in"><div><div class="section-title">Central de Documentos</div><div class="section-desc">${isPJ ? 'NFs, relatórios e documentos fiscais' : 'Faturas, holerites e comprovantes'} — upload inteligente com categorização automática.</div></div>
+  return `<div class="section-header animate-in"><div><div class="section-title">Central de Documentos</div><div class="section-desc"><a href="#" onclick="openHolVideo();return false" style="font-weight:700">🎬 Vídeo: como enviar o holerite</a><br>${isPJ ? 'NFs, relatórios e documentos fiscais' : 'Faturas, holerites e comprovantes'} — upload inteligente com categorização automática.</div></div>
   <div style="display:flex;gap:8px"><button class="scan-trigger-btn" onclick="openScanModal()">📷 Escanear boleto/QR</button><button class="btn-add" onclick="openDocUploadModal()">+ Upload manual</button></div></div>
 
   ${renderRequestsCard()}

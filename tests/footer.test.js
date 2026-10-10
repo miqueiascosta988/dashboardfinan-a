@@ -6,7 +6,11 @@ test.after(async () => { await browser.close(); server.close(); });
 async function open(w) { const p = await browser.newPage({ viewport: { width: w, height: 800 } }); await p.route(/cdn\.jsdelivr\.net|fonts\.g/, r => r.abort()); await p.goto(base + '/index.html?demo=clt'); await p.waitForFunction(() => typeof renderFooter === 'function' && !document.getElementById('app-screen').hidden); return p; }
 test('rodapé: sem dados institucionais configurados mostra só o que existe (WhatsApp do projeto + links), sem inventar nada', async () => {
   const p = await open(1280); const t = await p.locator('#site-footer').innerText();
-  assert.match(t, /WhatsApp \(11\) 96038-4846/); assert.match(t, /Termos de Uso/); assert.match(t, /Política de Privacidade/);
+  assert.match(t, /Falar no WhatsApp/); assert.equal(await p.locator('#sf-wa-pop').isHidden(), true); assert.equal(await p.locator('#site-footer a[href^="https://wa.me/"]').count(), 2);
+  await p.click('#sf-wa-btn'); assert.equal(await p.locator('#sf-wa-pop').isVisible(), true); const q = await p.locator('#sf-wa-pop').innerText(); assert.match(q, /Com qual número você deseja falar\?/); assert.match(q, /\(11\) 96038-4846/); assert.match(q, /\(11\) 98759-4995/);
+  assert.equal(await p.getAttribute('#sf-wa-btn', 'aria-expanded'), 'true'); await p.keyboard.press('Escape'); assert.equal(await p.locator('#sf-wa-pop').isHidden(), true);
+  await p.click('#sf-wa-btn'); await p.click('h4:has-text("SM Financial")'); assert.equal(await p.locator('#sf-wa-pop').isHidden(), true);
+  assert.match(t, /Termos de Uso/); assert.match(t, /Política de Privacidade/);
   assert.doesNotMatch(t, /📍|🕘|CNPJ|\[|360/);
   assert.match(t, /smfinancialcorporate@gmail\.com/);
   assert.equal(await p.locator('#site-footer a[href="mailto:smfinancialcorporate@gmail.com"]').count(), 1);
@@ -30,4 +34,18 @@ test('rodapé: responsivo (sem rolagem horizontal no celular)', async () => {
   const w = await p.evaluate(() => ({ sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth, fw: document.getElementById('site-footer').scrollWidth }));
   assert.ok(w.sw <= w.cw + 1, 'sem rolagem horizontal: ' + JSON.stringify(w));
   await p.locator('#site-footer').scrollIntoViewIfNeeded(); await p.screenshot({ path: '/tmp/footer_mobile.png' });
+});
+
+test('tutorial em vídeo do holerite: botão na Ajuda e em Documentos, vídeo existe, passos em texto, fecha pausando', async () => {
+  const p = await open(1280);
+  await p.evaluate(() => { openHelpPanel(); });
+  assert.equal(await p.locator('.help-tour-btn:has-text("Vídeo: como enviar o holerite")').count(), 1);
+  await p.evaluate(() => { closeHelpPanel(); switchTab('documentos'); });
+  assert.equal(await p.locator('#main a:has-text("Vídeo: como enviar o holerite")').count(), 1);
+  await p.click('#main a:has-text("Vídeo: como enviar o holerite")');
+  assert.equal(await p.locator('#modal-overlay video source[src="/tutorial/holerite.mp4"]').count(), 1);
+  assert.equal(await p.locator('#modal-overlay details li').count(), 8);
+  const r = await p.evaluate(async () => { const a = await fetch('/tutorial/holerite.mp4'), n = (await a.arrayBuffer()).byteLength, b = await fetch('/tutorial/holerite.jpg'); return [a.status, n, b.status]; });
+  assert.equal(r[0], 200); assert.ok(r[1] > 100000); assert.equal(r[2], 200);
+  await p.evaluate(() => closeModal()); assert.equal(await p.locator('#modal-overlay.open').count(), 0);
 });

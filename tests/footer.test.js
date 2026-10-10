@@ -7,7 +7,11 @@ async function open(w) { const p = await browser.newPage({ viewport: { width: w,
 test('rodapé: sem dados institucionais configurados mostra só o que existe (WhatsApp do projeto + links), sem inventar nada', async () => {
   const p = await open(1280); const t = await p.locator('#site-footer').innerText();
   assert.match(t, /WhatsApp \(11\) 96038-4846/); assert.match(t, /Termos de Uso/); assert.match(t, /Política de Privacidade/);
-  assert.doesNotMatch(t, /@|📍|🕘|CNPJ|\[/);
+  assert.doesNotMatch(t, /📍|🕘|CNPJ|\[|360/);
+  assert.match(t, /smfinancialcorporate@gmail\.com/);
+  assert.equal(await p.locator('#site-footer a[href="mailto:smfinancialcorporate@gmail.com"]').count(), 1);
+  assert.equal(await p.locator('#site-footer a[href="https://www.instagram.com/smfinancial.oficial"] svg').count(), 1);
+  assert.equal(await p.locator('#site-footer a[href="https://www.tiktok.com/@smfinancial.oficial"] svg').count(), 1);
   assert.equal(await p.locator('#site-footer a[href="/termos.html"]').count(), 1); assert.equal(await p.locator('#site-footer a[href="/privacidade.html"]').count(), 1);
 });
 test('rodapé: campos configurados aparecem; HTML malicioso é escapado; e-mail inválido é ignorado', async () => {

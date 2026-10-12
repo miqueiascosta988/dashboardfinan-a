@@ -5946,7 +5946,7 @@ async function ocrGetWorker() {
   if (OCR.worker) return OCR.worker;
   if (!OCR.loading) OCR.loading = (async () => {
     if (!window.Tesseract) await new Promise((ok, no) => { const sc = document.createElement('script'); sc.src = '/ocr/tesseract.min.js'; sc.onload = ok; sc.onerror = () => no(new Error('Leitor de imagens (OCR) indisponível agora.')); document.head.appendChild(sc); });
-    return Tesseract.createWorker('por', 1, { workerPath: '/ocr/worker.min.js', corePath: '/ocr', langPath: '/ocr/lang', workerBlobURL: false });
+    return Tesseract.createWorker('por', 1, { workerPath: '/ocr/worker.min.js', corePath: '/ocr', langPath: '/ocr/lang', workerBlobURL: false, logger: m => { try { if (OCR.note && m && m.status) OCR.note('Lendo o documento por OCR… ' + ({ 'loading tesseract core': 'carregando leitor', 'loading language traineddata': 'carregando idioma', 'initializing api': 'iniciando', 'recognizing text': 'reconhecendo texto' }[m.status] || m.status) + (m.status === 'recognizing text' && m.progress != null ? ' ' + Math.round(m.progress * 100) + '%' : '')); } catch (e) {} } });
   })().then(w => (OCR.worker = w)).catch(e => { OCR.loading = null; throw e; });
   return OCR.loading;
 }
@@ -5981,7 +5981,8 @@ function ocrFixMoney(t) {                          // erro típico de OCR: milha
   return String(t).replace(/^(\d{1,3})[,.](\d{3})[,.](\d{2})$/, '$1.$2,$3').replace(/^(\d{1,3})\.(\d{3})\.(\d{3})[,.](\d{2})$/, '$1.$2.$3,$4');
 }
 async function ocrLinesFromCanvas(cv) {            // OCR → mesma estrutura de linhas/células que o leitor de PDF usa
-  const w = await ocrGetWorker(), res = await w.recognize(cv), data = res.data, k = 595 / cv.width, H = cv.height;
+  const lim = (p, ms, msg) => new Promise((ok, no) => { const t = setTimeout(() => { OCR.worker && OCR.worker.terminate && OCR.worker.terminate().catch(() => {}); OCR.worker = null; OCR.loading = null; no(new Error(msg)); }, ms); p.then(v => { clearTimeout(t); ok(v); }, e => { clearTimeout(t); no(e); }); });
+  const w = await lim(ocrGetWorker(), 60000, 'O leitor de imagens (OCR) não carregou a tempo. Verifique a conexão e tente de novo.'), res = await lim(w.recognize(cv), 120000, 'A leitura da imagem demorou demais. Tente uma imagem menor ou use o PDF do holerite.'), data = res.data, k = 595 / cv.width, H = cv.height;
   const items = (data.words || []).filter(x => x.text && x.text.trim()).map(x => ({ s: ocrFixMoney(x.text), x: x.bbox.x0 * k, y: (H - (x.bbox.y0 + x.bbox.y1) / 2) * k, w: (x.bbox.x1 - x.bbox.x0) * k }));
   return { lines: DocIntel.buildLines(items), conf: data.confidence };
 }
@@ -5989,7 +5990,7 @@ async function ingestExtractPages(file, note) {
   note = note || function () {};
   const nm = (file.name || '').toLowerCase();
   const ocrPages = async (canvases) => {
-    note('Lendo o documento por OCR… pode levar alguns segundos.');
+    OCR.note = note; note('Lendo o documento por OCR… pode levar alguns segundos.');
     const pages = []; let sum = 0;
     for (const cv of canvases) { const r = await ocrLinesFromCanvas(cv); pages.push(r.lines); sum += r.conf || 0; }
     pages.ocr = true; pages.ocrConf = canvases.length ? sum / canvases.length : 0; return pages;

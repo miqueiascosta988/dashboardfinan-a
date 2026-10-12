@@ -588,7 +588,7 @@
   function markOcr(ent, ctx) {
     var ed = ent.extractedData; ed.ocr = true; ed.ocrConf = ctx.ocrConf == null ? null : Math.round(ctx.ocrConf);
     if (ed.state === 'done') { ed.state = 'needs_review'; ent.status = 'revisar'; }
-    ed.userConfirmed = false; ed.notes = (ed.notes || []).concat(['Lido por OCR (foto ou documento escaneado): confira os valores antes de lançar.']);
+    ed.userConfirmed = false; ed.notes = (ed.notes || []).concat(['Lido por OCR (foto ou documento escaneado): confira os valores antes de lançar. Para uma leitura mais precisa, envie o arquivo em PDF (o original, com texto) em vez de foto ou imagem.']);
     if (ctx.ocrConf != null) ed.confidence = Math.min(ed.confidence == null ? 1 : ed.confidence, Math.max(0, ctx.ocrConf / 100));
   }
   function processDocumentCore(pagesLines, existingDocs, ctx) {
@@ -601,7 +601,7 @@
       var dup0 = decide(existingView(existingDocs), null, ctx.contentHash);
       if (dup0.action === 'duplicate') { result.outcomes.push({ action: 'duplicate', target: dup0.target, reason: dup0.reason }); return result; }
       result.outcomes.push({ action: 'new', unreadable: true, entity: { id: ctx.newId(), name: ctx.fileName, type: KIND_TYPE[kind0] || 'expense', category: kind0, amount: 0, date: ctx.dateLabel || '', status: 'revisar', fileSize: ctx.fileSize || 0, mimeType: ctx.mimeType || '',
-        extractedData: { schema: SCHEMA, kind: kind0, contentHash: ctx.contentHash || null, classification: result.classification, hint: ctx.hint || null, confidence: 0, state: 'needs_review', unreadable: true, notes: ['Sem texto legível (digitalizado ou foto). Confirme os dados manualmente.'], files: [ctx.fileName], processedAt: ctx.now || null, userConfirmed: false } } });
+        extractedData: { schema: SCHEMA, kind: kind0, contentHash: ctx.contentHash || null, classification: result.classification, hint: ctx.hint || null, confidence: 0, state: 'needs_review', unreadable: true, notes: ['Sem texto legível (digitalizado ou foto). Confirme os dados manualmente. Para uma leitura mais precisa, envie o arquivo em PDF (o original, com texto) em vez de foto ou imagem.'], files: [ctx.fileName], processedAt: ctx.now || null, userConfirmed: false } } });
       return result;
     }
     var cls = classify(text, ctx.fileName, ctx.hint); result.classification = cls;
@@ -624,7 +624,7 @@
     var segs = analyzePages(pagesLines);
     if (!segs.length) { // parece holerite, mas nada estruturado foi lido
       result.outcomes.push({ action: 'new', unreadable: true, entity: { id: ctx.newId(), name: ctx.fileName, type: 'income', category: 'holerite', amount: 0, date: ctx.dateLabel || '', status: 'revisar', fileSize: ctx.fileSize || 0, mimeType: ctx.mimeType || '',
-        extractedData: { schema: SCHEMA, kind: 'holerite', contentHash: ctx.contentHash || null, classification: { kind: 'holerite', confidence: cls.confidence, byContent: true }, hint: ctx.hint || null, confidence: 0, state: 'needs_review', unreadable: true, notes: ['Documento reconhecido como holerite, mas os valores não puderam ser lidos.'], files: [ctx.fileName], processedAt: ctx.now || null, userConfirmed: false } } });
+        extractedData: { schema: SCHEMA, kind: 'holerite', contentHash: ctx.contentHash || null, classification: { kind: 'holerite', confidence: cls.confidence, byContent: true }, hint: ctx.hint || null, confidence: 0, state: 'needs_review', unreadable: true, notes: ['Documento reconhecido como holerite, mas os valores não puderam ser lidos. Para uma leitura mais precisa, envie o arquivo em PDF (o original, com texto) em vez de foto ou imagem.'], files: [ctx.fileName], processedAt: ctx.now || null, userConfirmed: false } } });
       return result;
     }
     var pool = (existingDocs || []).slice(), accepted = [];

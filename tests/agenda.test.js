@@ -170,3 +170,16 @@ test('Integração assistente ↔ calendário: comandos abrem o calendário pree
   assert.match(await page.textContent('#ag-strip'), /Até o próximo recebimento/);
   assert.deepEqual(errs, []); await ctx.close();
 });
+
+test('calendário continua estilizado mesmo se a aba for desenhada duas vezes antes de entrar na página (corrida de renderização)', async () => {
+  const { page, errs, ctx } = await openApp();
+  const r = await page.evaluate(() => {
+    document.getElementById('ag-style') && document.getElementById('ag-style').remove();
+    renderAgenda(); const html2 = renderAgenda();            // 1ª chamada descartada; só a 2ª entra na página
+    const host = document.createElement('div'); host.id = 'agtest'; host.innerHTML = html2; document.body.appendChild(host);
+    const g = host.querySelector('.ag-grid'); const cs = g && getComputedStyle(g);
+    return { grid: cs && cs.display, cols: cs && cs.gridTemplateColumns.split(' ').length, styles: document.querySelectorAll('#ag-style').length };
+  });
+  assert.deepEqual(r, { grid: 'grid', cols: 7, styles: 1 });
+  assert.deepEqual(errs, []); await ctx.close();
+});

@@ -107,7 +107,7 @@
     for (var d = 1; d <= nd; d++) {
       var iso = y + '-' + pad(m) + '-' + pad(d), ev = byDay[iso] || [];
       cells += '<div class="ag-cell' + (iso === t ? ' ag-today' : '') + (risk[iso] ? ' ag-risk' : '') + '"' + (risk[iso] ? ' title="' + esc(risk[iso]) + '"' : '') + ' data-day="' + iso + '" tabindex="0" role="button" aria-label="Dia ' + d + ', ' + ev.length + ' evento(s)" onclick="agDay(\'' + iso + '\')" onkeydown="if(event.key===\'Enter\')agDay(\'' + iso + '\')"><div class="ag-dn">' + d + '</div>'
-        + ev.slice(0, 3).map(function (e) { var v = view(e); return '<div class="ag-chip ' + (e.kind === 'income' ? 'ag-in' : 'ag-' + v) + '" title="' + esc(e.title) + '">' + esc(e.title) + '</div>'; }).join('') + (ev.length > 3 ? '<div class="ag-more">+' + (ev.length - 3) + '</div>' : '') + '</div>';
+        + ev.slice(0, 3).map(function (e) { var v = view(e); return '<div class="ag-chip ' + (e.kind === 'income' ? 'ag-in' : 'ag-' + v) + '" title="' + (e.kind === 'income' ? 'Entra: ' : 'Sai: ') + esc(e.title) + '">' + (e.kind === 'income' ? '＋ ' : '－ ') + esc(e.title) + '</div>'; }).join('') + (ev.length > 3 ? '<div class="ag-more">+' + (ev.length - 3) + '</div>' : '') + '</div>';
     }
     var strip = agStrip();
     var up = s.finEvents.filter(function (e) { return e.status !== 'cancelled' && e.status !== 'paid' && e.dueDate >= FP.addDays(t, -60); }).sort(function (a, b) { return a.dueDate < b.dueDate ? -1 : 1; }).slice(0, 25);
@@ -115,7 +115,7 @@
     if (!s.finEvents.length) no = '<div class="ag-empty">Nenhum evento ainda. Use <b>+ Novo evento</b> para cadastrar a data do seu salário, de uma dívida ou de qualquer conta. Você também pode repetir por vários meses.</div>';
     var undated = ctxx.undatedDebts.length ? '<div class="ag-note">Dívidas sem data de vencimento no calendário: ' + ctxx.undatedDebts.map(function (d) { return '<a href="#" onclick="agEventModal({debtId:\'' + d.id + '\'});return false">' + esc(d.name) + '</a>'; }).join(', ') + '. Informe o dia para elas entrarem na linha do tempo.</div>' : '';
     return strip + '<div class="card animate-in"><div class="ag-nav"><button class="btn-sm" aria-label="Mês anterior" onclick="agMonth(-1)">‹</button><div class="card-title" style="margin:0">' + MONTHS[m - 1] + ' de ' + y + '</div><button class="btn-sm" aria-label="Próximo mês" onclick="agMonth(1)">›</button><button class="btn-sm" onclick="agMonth(0)">Hoje</button></div>'
-      + '<div class="ag-grid">' + cells + '</div><div class="ag-legend"><span class="ag-chip ag-in">Receita</span><span class="ag-chip ag-a_pagar">A pagar</span><span class="ag-chip ag-proximo">Em breve</span><span class="ag-chip ag-vencido">Vencido</span><span class="ag-chip ag-pago">Pago</span><span class="ag-chip ag-aguardando">Aguardando</span></div></div>'
+      + '<div class="ag-grid">' + cells + '</div><div class="ag-legend"><span class="ag-chip ag-in">＋ Entra</span><span class="ag-chip ag-a_pagar">－ Sai (a pagar)</span><span class="ag-chip ag-proximo">Em breve</span><span class="ag-chip ag-vencido">Vencido</span><span class="ag-chip ag-pago">Pago</span><span class="ag-chip ag-aguardando">Aguardando</span></div></div>'
       + undated + no + '<div class="card animate-in" style="margin-top:16px"><div class="card-title">Próximos e pendentes</div>'
       + (up.length ? '<div class="ag-list">' + up.map(agRow).join('') + '</div>' : '<div class="ag-sub">Nada pendente.</div>') + '</div>';
   }
@@ -132,7 +132,7 @@
     return '<div class="ag-note" id="ag-strip"><b>🤖 Leitura do assistente</b><ul class="ag-ul">' + items.map(function (x) { return '<li>' + x + '</li>'; }).join('') + (a.questions[0] ? '<li>' + esc(a.questions[0].text) + '</li>' : '') + '</ul><button class="btn-sm" onclick="agView(\'ia\')">Conversar com o assistente</button> <button class="btn-sm" onclick="agView(\'plans\')">Ver opções de plano</button></div>';
   }
   function agRow(e) {
-    return '<div class="ag-row" data-ev="' + e.id + '"><div class="ag-rd"><b>' + br(e.dueDate) + '</b></div><div class="ag-rm"><div>' + (e.kind === 'income' ? '💰 ' : '') + esc(e.title) + ' ' + badge(e) + (e.origin === 'plan' ? ' <span class="ag-tag">plano</span>' : '') + '</div><div class="ag-sub">' + esc(e.category || '') + (e.notes ? ' · ' + esc(e.notes) : '') + '</div></div><div class="ag-ra ' + (e.kind === 'income' ? 'ag-pos' : '') + '">' + (e.kind === 'income' ? '+' : '') + brl(e.amount) + '</div><div class="ag-btns">'
+    return '<div class="ag-row" data-ev="' + e.id + '" data-dir="' + (e.kind === 'income' ? 'in' : 'out') + '"><div class="ag-rd"><b>' + br(e.dueDate) + '</b></div><div class="ag-rm"><div><span class="ag-dir ' + (e.kind === 'income' ? 'ag-dir-in' : 'ag-dir-out') + '">' + (e.kind === 'income' ? '⬆ Entra' : '⬇ Sai') + '</span> ' + esc(e.title) + ' ' + badge(e) + (e.origin === 'plan' ? ' <span class="ag-tag">plano</span>' : '') + (e.origin === 'document' ? ' <span class="ag-tag">documento</span>' : '') + (e.key.indexOf(':p') > 0 && e.key.indexOf('doc:') === 0 ? ' <span class="ag-tag">previsto</span>' : '') + '</div><div class="ag-sub">' + esc(e.category || '') + (e.notes ? ' · ' + esc(e.notes) : '') + '</div></div><div class="ag-ra ' + (e.kind === 'income' ? 'ag-pos' : 'ag-neg') + '">' + (e.kind === 'income' ? '+' : '−') + brl(e.amount) + '</div><div class="ag-btns">'
       + (e.status === 'paid' ? '<button class="btn-sm" onclick="agUndo(\'' + e.id + '\')">Desfazer</button>' : '<button class="btn-sm btn-primary-sm" onclick="agPayModal(\'' + e.id + '\')">' + (e.kind === 'income' ? 'Recebi' : 'Pagar') + '</button>') + '<button class="btn-sm" onclick="agEventModal({id:\'' + e.id + '\'})">Editar</button></div></div>';
   }
   window.agAskDay = function (iso) { closeModal(); AG.view = 'ia'; var p = iso.split('-'); ask('o que vence dia ' + p[2] + '/' + p[1] + '?'); };
@@ -196,7 +196,9 @@
     var date = document.getElementById('ag-pdate').value, amt = parseFloat(document.getElementById('ag-pamt').value);
     if (!FP.valid(date) || !(amt > 0)) { document.getElementById('ag-err').textContent = 'Informe uma data válida e um valor maior que zero.'; return; }
     var s = S(), info = { date: date, amount: amt }, extra = {};
-    if (document.getElementById('ag-ptx') && document.getElementById('ag-ptx').checked) {
+    var docOf = e.key.indexOf('doc:') === 0 && e.key.indexOf(':p') < 0 ? s.documents.filter(function (z) { return z.id === e.key.split(':')[1]; })[0] : null, docTx = docOf && docOf.extractedData && docOf.extractedData.txId && s.transactions.some(function (t) { return t.id === docOf.extractedData.txId; }) ? docOf.extractedData.txId : null;
+    if (docTx) { extra.linkedTx = docTx; }
+    else if (document.getElementById('ag-ptx') && document.getElementById('ag-ptx').checked) {
       var type = e.kind === 'income' ? 'income' : 'expense', dup = s.transactions.filter(function (t) { return t.type === type && Math.abs(t.amount - amt) < 0.01 && String(t.date).slice(0, 10) === date; })[0];
       if (dup) { extra.linkedTx = dup.id; showToast('Já existe um lançamento desse valor nessa data: vinculei, sem duplicar.', 'info'); }
       else { var t = { id: genId(), date: date, desc: e.title, cat: e.category || (type === 'income' ? 'Outras receitas' : 'Outros'), amount: FP.r2(amt), type: type, recur: false, profile: s.profile_type }; s.transactions.push(t); docTxPersist(t); extra.txId = t.id; }
@@ -359,6 +361,81 @@
     closeModal(); renderCurrentTab(); showToast('Plano cancelado; o histórico foi mantido', 'info');
   };
 
+  // ───────── documentos → agenda (entra / sai) ─────────
+  var RECUR_CATS = ['Moradia', 'Assinaturas'];
+  function docSpecs(d, t) {
+    var x = d && d.extractedData, out = [], ev = typeof docEvent === 'function' ? docEvent(d) : null; if (!x) return out;
+    var id = d.id, d0 = t, past = function (iso) { return iso < d0; };
+    if (ev && !ev.debt && FP.diffDays(ev.date, d0) > 90) return out;   // documento antigo (histórico): já entrou nos lançamentos, não polui a agenda
+    function proj(main, n, why) {   // previsões dos próximos meses (estimativa; trocadas pelo documento real quando ele chegar)
+      var day = FP.parse(main.dueDate).d, made = 0;
+      for (var k = 1; k <= 6 && made < n; k++) {
+        var iso = FP.addMonths(main.dueDate, k, day);
+        if (iso < d0 || FP.diffDays(d0, iso) > 62) continue; made++;
+        out.push(Object.assign({}, main, { key: 'doc:' + id + ':p' + k, title: main.title + ' (previsto)', dueDate: iso, status: 'pending', notes: 'Previsão (' + why + '): mesmo valor e dia. Confirme quando o documento do mês chegar.' }));
+      }
+    }
+    if (x.payslip && ev) {
+      var p = x.payslip, tt = p.totals || {}, comp = p.competencia, lab = comp.slice(5) + '/' + comp.slice(0, 4);
+      var det = 'ENTRA · salário líquido do holerite ' + lab + (tt.venc > 0 ? ' · bruto ' + brl(tt.venc) : '') + (tt.desc > 0 ? ' · descontos ' + brl(tt.desc) : '') + ' · líquido ' + brl(ev.amount) + '. Data estimada (5º dia do mês seguinte): ajuste se o seu salário cai em outro dia.';
+      var main = { key: 'doc:' + id + ':0', kind: 'income', title: 'Salário · ' + lab, category: 'Salário', amount: ev.amount, dueDate: ev.date, priority: 'essential', status: past(ev.date) ? 'awaiting' : 'pending', notes: det + (past(ev.date) ? ' Data já passou: confirme que recebeu.' : '') };
+      out.push(main);
+      if (p.tipo == null || p.tipo === 'mensal') { if (FP.diffDays(ev.date, d0) <= 100) proj(main, 2, 'holerite ' + lab); }
+      return out;
+    }
+    var f = x.fin; if (!f) return out;
+    if (ev && ev.debt) {
+      var debt = x.debtId ? S().debts.filter(function (z) { return z.id === x.debtId; })[0] : null, dia = f.extra && f.extra.diaVenc;
+      if (debt && dia) {
+        var n = Math.min(60, ev.parcelas || 12), first = d0.slice(0, 8) + ('0' + Math.min(dia, FP.dim(+d0.slice(0, 4), +d0.slice(5, 7)))).slice(-2); if (first < d0) first = FP.addMonths(first, 1, dia);
+        for (var k = 0; k < n; k++) out.push({ key: 'doc:' + id + ':d' + (k + 1), kind: 'payable', title: 'Parcela ' + (k + 1) + '/' + n + ' · ' + debt.name, category: 'Dívidas', amount: ev.parcela, dueDate: FP.addMonths(first, k, dia), priority: 'high', sourceRef: debt.id, status: 'pending', notes: 'SAI · parcela da dívida lida do contrato (vence todo dia ' + dia + '). Parcelas restantes na data do envio.' });
+      }
+      return out;
+    }
+    if (!ev) return out;
+    var inc = ev.type === 'income', due = ev.date, kind = f.kind;
+    var essential = ['Moradia', 'Saúde', 'Educação', 'Transporte'].indexOf(ev.cat) >= 0 || kind === 'imposto';
+    var notes = (inc ? 'ENTRA · ' : 'SAI · ') + ev.desc + ' · ' + (kind === 'nf' ? 'emissão ' : 'vencimento ') + br(due) + ' · ' + brl(ev.amount) + ' (lido do documento)' + (kind === 'fatura' && f.extra && f.extra.minimo ? '. Pagamento mínimo: ' + brl(f.extra.minimo) + ' (pagar só o mínimo gera juros altos)' : '') + '.';
+    var m = { key: 'doc:' + id + ':0', kind: inc ? 'income' : 'payable', title: ev.desc, category: ev.cat, amount: ev.amount, dueDate: due, priority: kind === 'fatura' ? 'high' : (essential ? 'essential' : 'normal'), status: (past(due) || kind === 'nf') ? 'awaiting' : 'pending', notes: notes + (kind === 'nf' ? ' Data de emissão: confirme quando ' + (inc ? 'receber.' : 'pagar.') : (past(due) ? ' Data já passou: confirme se foi ' + (inc ? 'recebido.' : 'pago.') : '')) };
+    out.push(m);
+    var recurring = kind === 'fatura' || (kind === 'imposto' && /DAS/.test(f.counterparty || '')) || (kind === 'boleto' && RECUR_CATS.indexOf(ev.cat) >= 0);
+    if (recurring && !inc && FP.diffDays(due, d0) <= 100) proj(m, 2, ev.desc);
+    return out;
+  }
+  window.agendaFromDoc = function (d) {
+    var x = d && d.extractedData; if (!x || !(x.state === 'done' || x.userConfirmed)) return null;
+    var s = S(), t = today(), specs = docSpecs(d, t), prefix = 'doc:' + d.id + ':', ts = nowIso(), res = { created: 0, updated: 0, cancelled: 0, linked: 0 }, saves = [];
+    var byKey = {}; s.finEvents.forEach(function (e) { if (e.key.indexOf(prefix) === 0) byKey[e.key] = e; });
+    specs.forEach(function (sp) {
+      var e = byKey[sp.key];
+      if (!e) {
+        var dup = s.finEvents.filter(function (z) { return z.key.indexOf('doc:') !== 0 && z.kind === sp.kind && z.status !== 'cancelled' && z.dueDate === sp.dueDate && Math.abs(z.amount - sp.amount) < 0.01; })[0];
+        if (dup && sp.key.indexOf(':p') < 0) { res.linked++; return; }
+        var o = Object.assign({ id: genId(), origin: 'document', remindDays: [3, 1, 0] }, sp); var ne = FP.newEvent(o, ts); s.finEvents.push(ne); saves.push(ne); res.created++;
+        // o documento real substitui a previsão do mesmo mês feita por outro documento
+        if (sp.key.indexOf(':p') < 0) s.finEvents.forEach(function (z) { if (z.key.indexOf(prefix) !== 0 && z.key.indexOf(':p') > 0 && z.key.indexOf('doc:') === 0 && z.kind === sp.kind && (z.status === 'pending') && !z.userEdited && FP.ym(z.dueDate) === FP.ym(sp.dueDate) && (z.title === sp.title + ' (previsto)' || (sp.category === 'Salário' && z.category === 'Salário'))) { z.status = 'cancelled'; z.version++; z.history = FP.pushHistory(z, 'cancelado: documento do mês chegou', { doc: d.id }, ts); saves.push(z); res.cancelled++; } });
+        return;
+      }
+      if (e.status === 'paid' || e.status === 'cancelled' || e.userEdited) return;
+      var ch = e.amount !== FP.r2(sp.amount) || e.dueDate !== sp.dueDate || e.title !== sp.title || (e.notes || '') !== (sp.notes || '').slice(0, 300);
+      if (ch) { e.amount = FP.r2(sp.amount); e.dueDate = sp.dueDate; e.title = sp.title; e.notes = (sp.notes || '').slice(0, 300); e.version++; e.history = FP.pushHistory(e, 'atualizado pelo documento', null, ts); saves.push(e); res.updated++; }
+    });
+    var keep = {}; specs.forEach(function (sp) { keep[sp.key] = 1; });
+    Object.keys(byKey).forEach(function (k) { var e = byKey[k]; if (!keep[k] && (e.status === 'pending' || e.status === 'awaiting') && !e.userEdited) { e.status = 'cancelled'; e.version++; e.history = FP.pushHistory(e, 'cancelado: documento atualizado', null, ts); saves.push(e); res.cancelled++; } });
+    saves.forEach(saveEvent);
+    if (res.created) { var first = specs[0]; showToast('📅 Agenda: ' + res.created + ' evento(s) criado(s) (' + (first && first.kind === 'income' ? 'ENTRA' : 'SAI') + '). Veja em Agenda & IA.', 'success'); }
+    if (res.linked) showToast('Já havia um compromisso igual na agenda: vinculei, sem duplicar.', 'info');
+    var dd = x.fin && x.fin.direction === 'debt' && x.debtId && !(x.fin.extra && x.fin.extra.diaVenc);
+    if (dd) showToast('Dívida cadastrada. Informe o dia de vencimento da parcela na Agenda para ela entrar no calendário.', 'info');
+    if (AG.view || currentTab === 'agenda') { try { if (currentTab === 'agenda') renderCurrentTab(); } catch (e) {} }
+    return res;
+  };
+  window.agendaDropDoc = function (id) {
+    var s = S(), ts = nowIso(), n = 0;
+    s.finEvents.forEach(function (e) { if (e.key.indexOf('doc:' + id + ':') === 0 && (e.status === 'pending' || e.status === 'awaiting')) { e.status = 'cancelled'; e.version++; e.history = FP.pushHistory(e, 'cancelado: documento excluído', null, ts); saveEvent(e); n++; } });
+    if (n) showToast(n + ' evento(s) da agenda ligados a esse documento foram cancelados (o que já estava pago continua no histórico).', 'info');
+  };
+
   // ───────── painel / lembretes ─────────
   window.agendaCard = function () {
     var s = S(); if (!s.finEvents.length) return '';
@@ -379,7 +456,7 @@
     return '<style id="ag-style">.ag-tabs{display:flex;gap:8px;margin:0 0 16px;flex-wrap:wrap}.ag-tab{padding:8px 14px;border-radius:999px;border:1px solid var(--border,#ddd);background:var(--card,#fff);color:inherit;cursor:pointer;font:inherit}.ag-tab.on{background:var(--teal,#0f766e);color:#fff;border-color:transparent}.ag-sub{font-size:12px;opacity:.75;margin-top:4px}.ag-kpis .kpi-value{font-size:22px}'
       + '.ag-nav{display:flex;align-items:center;gap:10px;justify-content:space-between;margin-bottom:12px}.ag-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}.ag-wd{text-align:center;font-size:11px;opacity:.7;padding:4px 0}.ag-cell{min-height:74px;border:1px solid var(--border,#e5e7eb);border-radius:8px;padding:4px;cursor:pointer;overflow:hidden;background:var(--card-alt,transparent)}.ag-cell.ag-empty{border:none;background:none;cursor:default}.ag-cell.ag-today{outline:2px solid var(--teal,#0f766e)}.ag-dn{font-size:11px;font-weight:700;opacity:.8}'
       + '.ag-chip{font-size:10px;padding:1px 5px;border-radius:5px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;background:#e5e7eb;color:#111}.ag-in{background:#bbf7d0;color:#14532d}.ag-vencido{background:#fecaca;color:#7f1d1d}.ag-proximo{background:#fde68a;color:#78350f}.ag-a_pagar{background:#dbeafe;color:#1e3a8a}.ag-pago{background:#e5e7eb;color:#4b5563;text-decoration:line-through}.ag-aguardando{background:#ede9fe;color:#4c1d95}.ag-risk{outline:2px dashed #dc2626}.ag-more{font-size:10px;opacity:.7}.ag-legend{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}.ag-legend .ag-chip{display:inline-block}'
-      + '.ag-list{display:flex;flex-direction:column;gap:6px}.ag-row{display:grid;grid-template-columns:78px 1fr auto auto;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border,#eee)}.ag-ra{font-weight:700;white-space:nowrap}.ag-pos{color:#15803d}.ag-btns{display:flex;gap:6px}.ag-badge{font-size:10px;padding:2px 7px;border-radius:999px;font-weight:700}.ag-st-open{background:#dbeafe;color:#1e3a8a}.ag-st-near{background:#fde68a;color:#78350f}.ag-st-late{background:#fecaca;color:#7f1d1d}.ag-st-paid{background:#d1fae5;color:#065f46}.ag-st-off{background:#e5e7eb;color:#4b5563}.ag-st-wait{background:#ede9fe;color:#4c1d95}.ag-tag{font-size:10px;border:1px solid currentColor;border-radius:999px;padding:1px 6px;opacity:.75}'
+      + '.ag-list{display:flex;flex-direction:column;gap:6px}.ag-row{display:grid;grid-template-columns:78px 1fr auto auto;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border,#eee)}.ag-ra{font-weight:700;white-space:nowrap}.ag-pos{color:#15803d}.ag-neg{color:#b91c1c}.ag-dir{font-size:10px;font-weight:800;padding:2px 7px;border-radius:6px}.ag-dir-in{background:#bbf7d0;color:#14532d}.ag-dir-out{background:#fecaca;color:#7f1d1d}.ag-btns{display:flex;gap:6px}.ag-badge{font-size:10px;padding:2px 7px;border-radius:999px;font-weight:700}.ag-st-open{background:#dbeafe;color:#1e3a8a}.ag-st-near{background:#fde68a;color:#78350f}.ag-st-late{background:#fecaca;color:#7f1d1d}.ag-st-paid{background:#d1fae5;color:#065f46}.ag-st-off{background:#e5e7eb;color:#4b5563}.ag-st-wait{background:#ede9fe;color:#4c1d95}.ag-tag{font-size:10px;border:1px solid currentColor;border-radius:999px;padding:1px 6px;opacity:.75}'
       + '.ag-note{margin:10px 0;padding:10px 12px;border-radius:8px;background:var(--card-alt,#f3f4f6);font-size:13px}.ag-active-b{border-left:3px solid var(--teal,#0f766e)}.ag-empty{padding:16px;text-align:center;opacity:.8}.ag-err{color:#b91c1c;font-size:13px;min-height:18px}.ag-checks{display:flex;gap:12px;flex-wrap:wrap;align-items:center;font-size:13px}.ag-ul{margin:6px 0 6px 18px;font-size:13px}.ag-r-alto{color:#b91c1c}.ag-r-medio{color:#b45309}'
       + '.ag-chat{max-height:320px;overflow:auto;margin:10px 0;display:flex;flex-direction:column;gap:8px}.ag-msg{padding:8px 12px;border-radius:12px;max-width:92%;font-size:14px}.ag-user{align-self:flex-end;background:var(--teal,#0f766e);color:#fff}.ag-ai{align-self:flex-start;background:var(--card-alt,#f3f4f6)}.ag-suggest{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}.ag-ask{display:flex;gap:8px;flex-wrap:wrap;align-items:end}.ag-ask .form-input,.ag-ask .form-select{flex:1;min-width:120px}.ag-lbl{display:flex;flex-direction:column;font-size:12px;gap:4px;flex:1;min-width:150px}.ag-q{margin-top:10px}.ag-qrow{margin:6px 0;font-size:13px}'
       + '.ag-plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}.ag-ph{display:flex;justify-content:space-between;align-items:center;gap:8px}.ag-mets{display:grid;gap:4px;margin:10px 0}.ag-mets div{display:flex;justify-content:space-between;gap:10px;font-size:13px;border-bottom:1px dashed var(--border,#e5e7eb);padding:3px 0}.ag-active{border:2px solid var(--teal,#0f766e)}.ag-offer{font-size:14px}'

@@ -3500,6 +3500,7 @@ async function loadAllData() {
   await loadRequests();
   await agendaLoad();
   await prefsLoad();
+  try { setTimeout(docsHeal, 800); } catch (e) {}
   consentCheck();
   // Load budgets as object { category: amount }
   state.budgets = {};
@@ -3599,7 +3600,7 @@ async function saveTransaction(type, editId) {
   closeModal(); renderCurrentTab();
   showToast(editId ? 'Lançamento atualizado' : 'Lançamento adicionado', 'success');
 }
-async function deleteTransaction(id) { state.transactions = state.transactions.filter(t => t.id !== id); await dbDelete('transactions', id); closeModal(); renderCurrentTab(); showToast('Lançamento excluído', 'info'); }
+async function deleteTransaction(id) { state.documents.forEach(d => { if (d.extractedData && d.extractedData.txId === id) { d.extractedData.txDeleted = true; persistDoc(d); } }); state.transactions = state.transactions.filter(t => t.id !== id); await dbDelete('transactions', id); closeModal(); renderCurrentTab(); showToast('Lançamento excluído', 'info'); }
 function confirmBulkDelete(title, desc, onConfirmFnName, arg) {
   openModal(title, `<div style="font-size:14px;color:var(--ink-2);line-height:1.6;margin-bottom:8px">${desc}</div>
     <div class="modal-actions"><button class="btn-cancel" onclick="closeModal()">Cancelar</button>
@@ -5891,7 +5892,8 @@ function docEvent(d) {                 // o que o documento significa financeira
   const desc = k === 'boleto' ? 'Boleto' + cp : k === 'fatura' ? 'Fatura do cartão' + cp : k === 'nf' ? (f.direction === 'in' ? 'NF emitida' : 'NF recebida') + cp + (f.extra && f.extra.numero ? ' nº ' + f.extra.numero : '') : (f.counterparty || 'Guia de imposto') + (f.extra && f.extra.periodo ? ' · ' + f.extra.periodo : '');
   return { type: f.direction === 'in' ? 'income' : 'expense', date: f.date, amount: f.amount, cat: finCategory(f, f.direction), desc, match: 'day', label: desc };
 }
-function syncDocTransaction(d) {
+function syncDocTransaction(d) { const r = syncDocTransactionCore(d); try { if (typeof agendaFromDoc === 'function') agendaFromDoc(d); } catch (e) { console.warn('agenda:', e); } return r; }
+function syncDocTransactionCore(d) {
   const x = d && d.extractedData; if (!x) return null;
   if (!(x.state === 'done' || x.userConfirmed)) return null;
   const ev = docEvent(d); if (!ev) return null;
@@ -5901,7 +5903,7 @@ function syncDocTransaction(d) {
     if (x.txOwned !== false && (Math.abs(cur.amount - ev.amount) > 0.001 || cur.date !== ev.date || cur.type !== ev.type || cur.cat !== ev.cat || cur.desc !== ev.desc)) { Object.assign(cur, { amount: ev.amount, date: ev.date, type: ev.type, cat: ev.cat, desc: ev.desc }); docTxPersist(cur); }
     return cur;
   }
-  if (x.txId) return null;             // o usuário excluiu o lançamento de propósito: não recria
+  if (x.txId) { if (x.txDeleted) return null; x.txId = null; x.txOwned = undefined; }   // só a exclusão deliberada (marcada em deleteTransaction) impede recriar; lançamento que sumiu sozinho (falha ao salvar, troca de aparelho) é recuperado
   const same = t => t.type === ev.type && Math.abs(t.amount - ev.amount) < 0.01 && (ev.match === 'month' ? String(t.date).slice(0, 7) === ev.date.slice(0, 7) : String(t.date).slice(0, 10) === ev.date);
   const dup = state.transactions.find(same);
   if (dup) { x.txId = dup.id; x.txOwned = false; persistDoc(d); showToast('Já existe um lançamento de ' + fmt(ev.amount) + ' nessa data. Vinculei ao documento, sem duplicar.', 'info'); return dup; }
@@ -5910,6 +5912,16 @@ function syncDocTransaction(d) {
   x.txId = t.id; x.txOwned = true; persistDoc(d);
   showToast((ev.type === 'income' ? '💰 Receita de ' : '💸 Despesa de ') + fmt(ev.amount) + ' lançada (' + ev.label + ') e integrada ao painel' + (txInPeriod(t) ? '.' : '. Atenção: ela está em ' + txMonthLabel(t) + ', fora do período exibido; use "ver nesse mês" no card do documento.'), 'success');
   return t;
+}
+function docsHeal() {                 // documentos já enviados que nunca chegaram (ou perderam) o lançamento: distribui de novo, sem duplicar
+  let n = 0;
+  state.documents.forEach(d => {
+    const x = d.extractedData; if (!x || !(x.state === 'done' || x.userConfirmed) || x.txDeleted) return;
+    const ev = docEvent(d); if (!ev || ev.debt) { try { if (typeof agendaFromDoc === 'function') agendaFromDoc(d); } catch (e) {} return; }
+    if (x.txId && state.transactions.some(t => t.id === x.txId)) { try { if (typeof agendaFromDoc === 'function') agendaFromDoc(d); } catch (e) {} return; }
+    const t = syncDocTransaction(d); if (t) n++;
+  });
+  if (n) { showToast('Recuperei ' + n + ' lançamento(s) de documentos que já tinham sido enviados e não apareciam nas outras páginas.', 'success'); docsChanged && docsChanged(); }
 }
 function syncDocDebt(d, ev) {          // empréstimo/financiamento → página Dívidas
   const x = d.extractedData, cur = x.debtId ? state.debts.find(z => z.id === x.debtId) : null;
@@ -6029,7 +6041,7 @@ function ingestInit() {
         const e = ch.entity;
         if (pfLocked() && e.category === 'nf') { pfBlockModal([e.name]); return; }
         if (!canImportFree() && countThisMonth(state.documents, 'date') >= PLAN_LIMITS.maxDocumentsPerMonth) {
-          showToast('🔒 Plano ' + currentPlanLabel() + ' permite até ' + PLAN_LIMITS.maxDocumentsPerMonth + ' documentos por mês. Faça upgrade para enviar mais.', 'info'); return;
+          openModal('🔒 Limite de documentos do plano', '<div class="occ-b-desc">O plano ' + fxEsc(currentPlanLabel()) + ' permite até <b>' + PLAN_LIMITS.maxDocumentsPerMonth + ' documentos por mês</b>. O arquivo "' + fxEsc(e.name) + '" foi lido, mas <b>não foi salvo nem distribuído</b> para Renda, Despesas e Agenda.</div><div class="modal-actions"><button class="btn-cancel" onclick="closeModal()">Fechar</button><button class="btn-save" onclick="closeModal();switchTab(\'plano\')">Ver planos</button></div>'); return;
         }
         state.documents.unshift(e); persistDoc(e); syncDocTransaction(e);
       } else if (ch.op === 'replace') {
@@ -6227,7 +6239,10 @@ function openDocDetailModal(id) {
 function createTransactionFromDoc(id) {
   const d = state.documents.find(x => x.id === id);
   if (!d) return;
+
   if (d.extractedData && d.extractedData.txId && state.transactions.some(t => t.id === d.extractedData.txId)) { showToast('Esse documento já está lançado. Edite o valor em Lançamentos, se precisar.', 'info'); return; }
+  if (d.extractedData && d.extractedData.txDeleted) d.extractedData.txDeleted = false;   // pedido explícito de lançar de novo
+  if (docEvent(d) && (d.extractedData.state === 'done' || d.extractedData.userConfirmed)) { const r = syncDocTransaction(d); if (r) { docsChanged(); return; } }
   const catMap = { boleto: 'Outros', fatura: 'Outros', holerite: 'Trabalho', emprestimo: 'Outros', nf: 'Vendas', relatorio: 'Outros', outro: 'Outros' };
   const cat = d.type === 'income' ? (getCatsIncome().includes(catMap[d.category]) ? catMap[d.category] : getCatsIncome()[0]) : (getCatsExpense().includes(catMap[d.category]) ? catMap[d.category] : getCatsExpense()[getCatsExpense().length - 1]);
   openTransactionModal(d.type, { date: d.date, desc: d.extractedData && d.extractedData.payslip ? 'Salário líquido · ' + d.name.replace('Holerite ', '') : d.name, cat, amount: d.amount, recur: false });
@@ -6240,6 +6255,7 @@ function deleteDoc(id) {
     if (tx) { state.transactions = state.transactions.filter(t => t.id !== tx.id); dbDelete('transactions', tx.id); showToast('O lançamento criado por esse documento também foi removido.', 'info'); }
   }
   if (xx && xx.debtId && xx.debtOwned !== false) { state.debts = state.debts.filter(z => z.id !== xx.debtId); dbDelete('debts', xx.debtId); showToast('A dívida criada por esse documento também foi removida.', 'info'); }
+  try { if (typeof agendaDropDoc === 'function') agendaDropDoc(id); } catch (e) {}
   state.documents = state.documents.filter(d => d.id !== id);
   dbDelete('documents', id);
   renderCurrentTab();

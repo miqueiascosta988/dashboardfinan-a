@@ -175,6 +175,13 @@ def emp(c):
     c.setFont('Helvetica', 10); c.drawString(40, H-60, 'Banco Itaú - Contrato de Empréstimo Pessoal'); c.drawString(40, H-80, 'Saldo devedor: 12.000,00'); c.drawString(40, H-100, 'Valor da parcela: 480,00')
     c.drawString(40, H-120, '24 parcelas restantes'); c.drawString(40, H-140, 'Taxa de juros: 2,5% a.m. - CET'); c.showPage()
 save('T_emprestimo.pdf', emp)
+def emp2(c):
+    c.setFont('Helvetica', 10)
+    for i, t in enumerate(['Banco Itaú - Contrato de Empréstimo Pessoal', 'Saldo devedor: 3.000,00', 'Valor da parcela: 500,00', '6 parcelas restantes', 'Taxa de juros: 2,0% a.m. - CET', 'Dia de vencimento: 10']): c.drawString(40, H-60-20*i, t)
+    c.showPage()
+save('U_emprestimo_dia.pdf', emp2)
 import json
 json.dump({'A': setembro, 'F': outubro, 'G': corr, 'L': l, 'E': e13}, open(os.path.join(OUT, 'esperado.json'), 'w'), ensure_ascii=False, indent=1)
 print('ok', sorted(os.listdir(OUT)))
+
+# V_recibo_informativos.pdf: layout 'RECIBO DE PAGAMENTO' com itens informativos e 'Total Liquido -->' (gerado a parte, ver historico do projeto)

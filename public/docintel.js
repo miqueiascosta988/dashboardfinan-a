@@ -518,6 +518,7 @@
       var np = /(\d{1,3})\s*(parcelas?\s*restantes?|parcelas?\s*a\s*vencer|presta[cç][oõ]es\s*restantes?)/.exec(text) || /(parcelas?|presta[cç][oõ]es)\s*(restantes?)?\s*[:\-]?\s*(\d{1,3})\b/.exec(text);
       f.extra.parcelas = np ? parseInt(np[1].match(/\d/) ? np[1] : np[3], 10) : null;
       var tx = /(?:taxa[^0-9]{0,40})(\d{1,2}(?:,\d{1,2})?)\s*%\s*(?:a\.?m|ao\s*m[eê]s)/.exec(text); f.extra.juros = tx ? num(tx[1]) : null;
+      var dvm = /(?:dia\s*(?:de|do)\s*vencimento|vencimento\s*(?:das?\s*parcelas?\s*)?(?:todo\s*)?(?:dia)?)[^0-9]{0,25}(\d{1,2})\b/.exec(text); f.extra.diaVenc = dvm && +dvm[1] >= 1 && +dvm[1] <= 31 ? +dvm[1] : null;
       f.amount = f.extra.saldo; f.date = null; f.counterparty = issuer(text) || textAfter(lines, /(institui[cç][aã]o\s*financeira|credor)\b/);
       f.key = 'divida|' + norm(f.counterparty || '') + '|' + (f.extra.saldo != null ? f.extra.saldo.toFixed(2) : '') + '|' + (f.extra.parcela != null ? f.extra.parcela.toFixed(2) : '');
       ck(checks, 'divida_dados', f.extra.saldo != null && f.extra.parcela != null, 'Faltam o saldo devedor e/ou o valor da parcela.', 0.5);

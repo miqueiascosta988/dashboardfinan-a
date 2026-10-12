@@ -168,3 +168,10 @@ test('14. documentos que não são holerite não são classificados como holerit
   const a = app(); await a.up('J_boleto.pdf', 'outro'); await a.up('K_fatura.pdf', 'outro');
   assert.equal(holerites(a.docs).length, 0); assert.equal(a.docs.find(d => d.category === 'boleto').amount, 260);
 });
+
+test('empréstimo: lê o dia de vencimento quando existe e devolve null quando não existe (não inventa)', () => {
+  const D = require('../public/docintel.js'), L = a => a.map((t, i) => ({ y: i, text: t, cells: [{ s: t, x: 0, w: t.length }] }));
+  const base = ['Banco Itaú - Contrato de Empréstimo Pessoal', 'Saldo devedor: 12.000,00', 'Valor da parcela: 480,00', '24 parcelas restantes', 'Taxa de juros: 2,5% a.m. - CET'];
+  assert.equal(D.parseFin('emprestimo', L(base.concat('Dia de vencimento: 10'))).extra.diaVenc, 10);
+  assert.equal(D.parseFin('emprestimo', L(base)).extra.diaVenc, null);
+});

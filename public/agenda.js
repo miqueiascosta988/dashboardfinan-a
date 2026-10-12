@@ -59,12 +59,23 @@
     var by = {}; S().transactions.forEach(function (t) { if (t.type === 'income' && /^\d{4}-\d{2}/.test(String(t.date))) { var m = String(t.date).slice(0, 7); by[m] = (by[m] || 0) + t.amount; } });
     var k = Object.keys(by); return k.length ? k.reduce(function (s, m) { return s + by[m]; }, 0) / k.length : 0;
   }
+  function monthSpend() {                       // despesas lançadas no mês atual, sem as que já estão ligadas a eventos do calendário
+    var s = S(), t0 = today(), ymN = t0.slice(0, 7), linked = {}, by = {}, total = 0;
+    (s.finEvents || []).forEach(function (e) { if (e.txId) linked[e.txId] = true; });
+    visibleList('transactions').forEach(function (t) {
+      if (t.type !== 'expense' || String(t.date).slice(0, 7) !== ymN || linked[t.id]) return;
+      var a = Number(t.amount) || 0; if (!(a > 0)) return; total += a; var c = t.category || 'Outros'; by[c] = (by[c] || 0) + a;
+    });
+    var cats = Object.keys(by).map(function (c) { return { cat: c, amount: Math.round(by[c] * 100) / 100 }; }).sort(function (a, b) { return b.amount - a.amount; });
+    return { total: Math.round(total * 100) / 100, byCat: cats };
+  }
   function inputs() {
     var s = S(), P = prefs();
-    return { today: today(), events: s.finEvents, monthlyIncome: s.monthlyIncome, avgIncome: avgIncome(), openingBalance: P.opening == null ? null : P.opening, reserveMonthly: P.reserve == null ? null : P.reserve, avgEssential: P.essential || 0,
+    return { today: today(), events: s.finEvents, spend: monthSpend(), monthlyIncome: s.monthlyIncome, avgIncome: avgIncome(), openingBalance: P.opening == null ? null : P.opening, reserveMonthly: P.reserve == null ? null : P.reserve, avgEssential: P.essential || 0,
       debts: visibleList('debts').filter(function (d) { return d.saldo > 0; }).map(function (d) { return { id: d.id, name: d.name, saldo: d.saldo, juros: d.juros > 0 ? d.juros : null, mensal: d.mensal, parcelas: d.parcelas }; }) };
   }
   function ctx() { return FP.buildContext(inputs()); }
+  window.agInputs = inputs;
   function planInputs(cx) {
     var payDay = {}, notes = [];
     cx.debts.forEach(function (d) { var e = cx.pending.filter(function (x) { return x.sourceRef === d.id; })[0]; if (e) payDay[d.id] = FP.parse(e.dueDate).d; });

@@ -132,7 +132,7 @@
     // dívidas sem nenhum compromisso pendente no calendário: parcela estimada, sem data (não entra na linha do tempo)
     var covered = {}; pending.forEach(function (e) { if (e.sourceRef) covered[e.sourceRef] = true; });
     var undated = debts.filter(function (d) { return d.saldo > 0 && d.mensal > 0 && !covered[d.id]; });
-    return { today: today, events: events, debts: debts, income: income, nextIncome: nextIncome, incomeEvents: incomeEv, pending: pending, overdue: overdue, upcoming: upcoming, undatedDebts: undated, openingBalance: inp.openingBalance == null ? null : Number(inp.openingBalance), reserveMonthly: inp.reserveMonthly == null ? null : Number(inp.reserveMonthly), horizonEnd: horizonEnd, avgEssential: Number(inp.avgEssential) || 0 };
+    return { today: today, events: events, debts: debts, income: income, nextIncome: nextIncome, incomeEvents: incomeEv, pending: pending, overdue: overdue, upcoming: upcoming, undatedDebts: undated, openingBalance: inp.openingBalance == null ? null : Number(inp.openingBalance), reserveMonthly: inp.reserveMonthly == null ? null : Number(inp.reserveMonthly), horizonEnd: horizonEnd, avgEssential: Number(inp.avgEssential) || 0, spend: inp.spend || null };
   }
 
   // linha do tempo diária com saldo corrido. Sem saldo inicial informado, o saldo é RELATIVO (começa em 0): não é saldo bancário.
@@ -183,6 +183,15 @@
     else if (ctx.income.source !== 'calendário') out.questions.push({ id: 'data_renda', text: 'Em que data você recebe sua renda? Sem essa data eu só consigo analisar o mês inteiro, não o dia a dia.' });
     ctx.undatedDebts.forEach(function (d) { out.questions.push({ id: 'venc_' + d.id, debtId: d.id, text: 'Qual é o dia de vencimento da parcela de "' + d.name + '"? Sem a data ela não entra na linha do tempo.' }); });
     ctx.debts.forEach(function (d) { if (d.saldo > 0 && (d.juros == null || d.juros <= 0)) out.questions.push({ id: 'juros_' + d.id, debtId: d.id, text: 'Qual é a taxa de juros de "' + d.name + '" (% ao mês)? Sem ela não calculo o custo total.' }); });
+    // despesas JÁ LANÇADAS no mês (lançamentos que não estão no calendário): entram na leitura, sem contar duas vezes o que o calendário já tem
+    var sp = ctx.spend; out.spend = null;
+    if (sp && sp.total > 0) {
+      var spC = cents(sp.total), allC = spC + committedC + undatedC;
+      out.spend = { total: money(spC), pct: income > 0 ? Math.round(spC / cents(income) * 1000) / 10 : null, byCat: (sp.byCat || []).slice(0, 3), withCalendar: money(allC), pctAll: income > 0 ? Math.round(allC / cents(income) * 1000) / 10 : null };
+      if (income > 0 && allC > cents(income)) out.risks.push({ level: 'alto', text: 'As despesas já lançadas (R$ ' + out.spend.total.toFixed(2).replace('.', ',') + ') somadas às contas ainda a pagar (R$ ' + money(committedC + undatedC).toFixed(2).replace('.', ',') + ') passam da renda considerada do mês (R$ ' + income.toFixed(2).replace('.', ',') + ').' });
+      else if (income > 0 && out.spend.pctAll >= 85) out.risks.push({ level: 'medio', text: 'Despesas lançadas mais contas a pagar já consomem ' + String(out.spend.pctAll).replace('.', ',') + '% da renda considerada do mês.' });
+      out.notes.push('Despesas lançadas no mês: R$ ' + out.spend.total.toFixed(2).replace('.', ',') + (out.spend.pct != null ? ' (' + String(out.spend.pct).replace('.', ',') + '% da renda considerada)' : '') + (out.spend.byCat.length ? '. Maiores: ' + out.spend.byCat.map(function (c) { return c.cat + ' R$ ' + c.amount.toFixed(2).replace('.', ','); }).join(', ') : '') + '.');
+    }
     if (ctx.openingBalance == null) out.notes.push('Sem saldo inicial informado: o saldo da linha do tempo é relativo (receitas e contas do calendário), não o saldo do seu banco.');
     return out;
   }

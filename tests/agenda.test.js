@@ -183,3 +183,28 @@ test('calendário continua estilizado mesmo se a aba for desenhada duas vezes an
   assert.deepEqual(r, { grid: 'grid', cols: 7, styles: 1 });
   assert.deepEqual(errs, []); await ctx.close();
 });
+
+test('"Leitura da sua situação" lê as despesas lançadas no mês (sem contar em dobro as do calendário) e alerta quando passam da renda', async () => {
+  const { page, errs, ctx } = await openApp();
+  const r = await page.evaluate(() => {
+    window.AG_TODAY = '2026-10-12';
+    state.transactions = [
+      { id: 'a', type: 'income', amount: 3000, date: '2026-10-05', category: 'Salário' },
+      { id: 'b', type: 'expense', amount: 1800, date: '2026-10-03', category: 'Moradia' },
+      { id: 'c', type: 'expense', amount: 900, date: '2026-10-08', category: 'Alimentação' },
+      { id: 'd', type: 'expense', amount: 500, date: '2026-09-20', category: 'Lazer' },          // outro mês: fora
+      { id: 'e', type: 'expense', amount: 400, date: '2026-10-09', category: 'Transporte' }       // ligado a evento do calendário: não conta em dobro
+    ];
+    state.finEvents = [
+      { id: 'ev1', key: 'k1', kind: 'payable', title: 'Luz', category: 'Moradia', amount: 700, dueDate: '2026-10-20', status: 'pending', priority: 'essential', origin: 'manual', remindDays: [1], version: 1, history: [] },
+      { id: 'ev2', key: 'k2', kind: 'payable', title: 'Ônibus', category: 'Transporte', amount: 400, dueDate: '2026-10-09', status: 'paid', paidAmount: 400, paidAt: '2026-10-09', txId: 'e', priority: 'essential', origin: 'manual', remindDays: [1], version: 1, history: [] }
+    ];
+    const a = FinPlan.analyze(FinPlan.buildContext(agInputs()));
+    return { spend: a.spend && a.spend.total, cats: a.spend && a.spend.byCat.map(c => c.cat), risk: a.risks.map(x => x.text), notes: a.notes };
+  });
+  assert.equal(r.spend, 2700);
+  assert.deepEqual(r.cats, ['Moradia', 'Alimentação']);
+  assert.ok(r.risk.some(x => /passam da renda/.test(x)), JSON.stringify(r));
+  assert.ok(r.notes.some(x => /Despesas lançadas no mês: R\$ 2700,00/.test(x)), JSON.stringify(r));
+  await ctx.close();
+});

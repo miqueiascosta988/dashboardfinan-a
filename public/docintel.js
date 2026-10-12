@@ -370,11 +370,29 @@
     return maybe || { action: 'new' };
   }
   // Une segmentos do MESMO arquivo (duas vias na página, páginas repetidas): conta cada lançamento uma vez.
+  // Holerite em 2+ folhas (a folha 1 pode ter os totais ocultos e a folha 2 trazer as últimas rubricas e os totais):
+  // só junta quando as rubricas das duas folhas, somadas, fecham exatamente com os totais impressos.
+  function continuation(a, b) {
+    if (!a.competencia || a.competencia !== b.competencia || (a.tipo || 'mensal') !== (b.tipo || 'mensal')) return null;
+    if (sameWorker(a, b) === false || sameEmployer(a, b) === false) return null;
+    var aHas = a.totals.venc != null && a.totals.desc != null, bHas = b.totals.venc != null && b.totals.desc != null;
+    if (aHas === bHas) return null;
+    var tot = aHas ? a : b, rows = a.rows.concat(b.rows), sm = function (k) { return r2(rows.filter(function (r) { return r.kind === k; }).reduce(function (x, r) { return x + r.valor; }, 0)); };
+    if (!rows.length || Math.abs(sm('provento') - tot.totals.venc) > 0.011 || Math.abs(sm('desconto') - tot.totals.desc) > 0.011) return null;
+    var m = JSON.parse(JSON.stringify(tot)); m.rows = rows;
+    var other = aHas ? b : a; ['inss', 'fgts', 'irrf', 'fgtsMes'].forEach(function (k) { if (m.bases[k] == null && other.bases[k] != null) m.bases[k] = other.bases[k]; });
+    if (!m.worker.name && other.worker.name) m.worker.name = other.worker.name;
+    return validatePayslip(m);
+  }
   function mergeSegments(segs) {
     var out = [];
     segs.forEach(function (s) {
       var merged = false;
-      for (var i = 0; i < out.length; i++) {
+      for (var i = 0; i < out.length && !merged; i++) {
+        var cont = continuation(out[i].payslip, s.payslip);
+        if (cont) { out[i].payslip = cont; out[i].pages = out[i].pages.concat(s.pages); out[i].sheets = (out[i].sheets || 1) + 1; merged = true; }
+      }
+      for (var i = 0; i < out.length && !merged; i++) {
         var c = compare(out[i].payslip, s.payslip);
         if (c.relation === 'duplicate' || c.relation === 'maybe_duplicate') {
           out[i].pages = out[i].pages.concat(s.pages); out[i].copies = (out[i].copies || 1) + 1;

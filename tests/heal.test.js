@@ -54,3 +54,12 @@ test('layout "RECIBO DE PAGAMENTO" (itens informativos, "Total Liquido -->"): li
   await page.evaluate(() => switchTab('dashboard')); assert.match(await page.textContent('#main'), /1\.719|1\.718/);
   assert.deepEqual(errs, []); await ctx.close();
 });
+
+test('holerite em 2 folhas (folha 1 com totais ocultos "*****", folha 2 com a última rubrica e os totais): junta as folhas e lança o líquido', async () => {
+  const { page, errs, ctx } = await openApp();
+  await page.setInputFiles('#doc-file-input', FX('W_holerite_2folhas.pdf')); await settle(page);
+  const d = await page.evaluate(() => { const x = state.documents[0].extractedData; return { n: state.documents.length, st: x.state, liq: x.payslip.totals.liquido, rows: x.payslip.rows.length }; });
+  assert.deepEqual(d, { n: 1, st: 'done', liq: 2348.14, rows: 11 });
+  const s = await st(page); assert.deepEqual(s.tx, [2348.14]); assert.equal(s.inc, 2348.14);
+  assert.deepEqual(errs, []); await ctx.close();
+});

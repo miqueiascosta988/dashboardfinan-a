@@ -21,6 +21,8 @@
     if (!d || !isValidCategory(d.type, profile)) faltam.push('categoria');
     return { ok: faltam.length === 0, faltam: faltam, msg: faltam.indexOf('categoria') >= 0 ? 'Escolha a categoria da dívida para concluir o cadastro.' : (faltam.length ? 'Preencha: ' + faltam.join(', ') + '.' : '') };
   }
+  // Parcela descontada direto na folha/benefício (consignado): já saiu do líquido, então não pode ser subtraída de novo do caixa.
+  function descontoFolha(d) { return !!d && d.folha !== false && (d.folha === true || /^Consignado/.test(normalizeLegacy(d.type) || '')); }
   function needsClassification(d) { return !d || !normalizeLegacy(d.type); }   // 'Cartão', 'Parcelamento', 'Outro' antigos têm equivalente direto; 'Empréstimo'/'Financiamento' antigos são ambíguos
 
   // ───────── matemática básica ─────────
@@ -151,6 +153,6 @@
     return { action: 'new', id: null };
   }
 
-  var api = { CATS_PF: CATS_PF, CATS_PJ: CATS_PJ, categories: categories, isValidCategory: isValidCategory, normalizeLegacy: normalizeLegacy, validateDebt: validateDebt, needsClassification: needsClassification, pmtFor: pmtFor, nper: nper, pvOf: pvOf, monthlyFromAnnual: monthlyFromAnnual, schedule: schedule, understand: understand, simulateExtra: simulateExtra, sugestoesValor: sugestoesValor, compareScenarios: compareScenarios, staleness: staleness, compareDed: compareDed, matchContract: matchContract, fmtBR: fmtBR, brDate: brDate, r2: r2 };
+  var api = { CATS_PF: CATS_PF, CATS_PJ: CATS_PJ, categories: categories, isValidCategory: isValidCategory, normalizeLegacy: normalizeLegacy, validateDebt: validateDebt, needsClassification: needsClassification, descontoFolha: descontoFolha, pmtFor: pmtFor, nper: nper, pvOf: pvOf, monthlyFromAnnual: monthlyFromAnnual, schedule: schedule, understand: understand, simulateExtra: simulateExtra, sugestoesValor: sugestoesValor, compareScenarios: compareScenarios, staleness: staleness, compareDed: compareDed, matchContract: matchContract, fmtBR: fmtBR, brDate: brDate, r2: r2 };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.DebtLab = api;
 })(typeof window !== 'undefined' ? window : this);

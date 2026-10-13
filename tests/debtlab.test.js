@@ -107,3 +107,14 @@ test('18) matemática com valores conhecidos (PMT/PV/Price)', () => {
   near(D.pmtFor(10000, 0.02, 24), 528.71, 0.01); near(D.pvOf(528.71, 0.02, 24), 10000, 0.1); assert.equal(D.pmtFor(1200, 0, 12), 100);
   assert.equal(D.nper(1000, 0.02, 10), Infinity); near(D.nper(10000, 0.02, 528.71), 24, 0.01); near(D.monthlyFromAnnual(12.6825), 1, 0.01);
 });
+// Consignado: parcela já descontada em folha não pode ser subtraída de novo do caixa
+const F = require('../public/finplan.js');
+test('19) consignado descontado em folha: não entra como saída de caixa nem reduz a folga duas vezes', () => {
+  assert.equal(D.descontoFolha({ type: 'Consignado CLT' }), true); assert.equal(D.descontoFolha({ type: 'Consignado público' }), true);
+  assert.equal(D.descontoFolha({ type: 'Empréstimo pessoal' }), false); assert.equal(D.descontoFolha({ type: 'Empréstimo pessoal', folha: true }), true); assert.equal(D.descontoFolha({ type: 'Consignado CLT', folha: false }), false);
+  const mk = folha => F.buildContext({ today: '2026-10-10', events: [], monthlyIncome: 5000, debts: [{ id: 'c', name: 'Consignado', saldo: 5000, juros: 2, mensal: 400, folha }, { id: 'p', name: 'Pessoal', saldo: 3000, juros: 3, mensal: 300, folha: false }] });
+  const com = mk(true), sem = mk(false);
+  near(F.surplusMonthly(sem), 4300, 0.01);   // sem folha: renda 5000 − 400 − 300
+  near(F.surplusMonthly(com) - F.surplusMonthly(sem), 400, 0.01);        // com folha: devolve exatamente a parcela do consignado
+  assert.deepEqual(com.undatedDebts.map(d => d.id), ['p']); assert.deepEqual(sem.undatedDebts.map(d => d.id).sort(), ['c', 'p']);
+});

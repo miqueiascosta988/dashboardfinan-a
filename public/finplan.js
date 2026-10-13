@@ -112,7 +112,7 @@
   var ESSENTIAL_CATS = ['Moradia', 'Alimentação', 'Saúde', 'Transporte', 'Educação', 'Aluguel/Sede', 'Folha de pagamento', 'Impostos'];
   function buildContext(inp) {
     var today = inp.today, events = (inp.events || []).filter(function (e) { return e && valid(e.dueDate); });
-    var debts = (inp.debts || []).map(function (d) { return { id: d.id, name: d.name, saldo: Number(d.saldo) || 0, juros: d.juros == null ? null : Number(d.juros), mensal: Number(d.mensal) || 0, parcelas: d.parcelas || 0 }; });
+    var debts = (inp.debts || []).map(function (d) { return { id: d.id, name: d.name, saldo: Number(d.saldo) || 0, juros: d.juros == null ? null : Number(d.juros), mensal: Number(d.mensal) || 0, parcelas: d.parcelas || 0, folha: !!d.folha }; });
     var horizonEnd = addDays(today, inp.horizonDays || 90), mStart = monthStart(today), mEnd = monthEnd(today);
     var pend = function (e) { return e.status === 'pending' || e.status === 'awaiting'; };
     var incomeEv = events.filter(function (e) { return e.kind === 'income' && e.status !== 'cancelled'; });
@@ -131,7 +131,7 @@
     var upcoming = pending.filter(function (e) { return e.dueDate >= today && e.dueDate <= horizonEnd; }).sort(function (a, b) { return a.dueDate < b.dueDate ? -1 : (a.dueDate > b.dueDate ? 1 : b.amount - a.amount); });
     // dívidas sem nenhum compromisso pendente no calendário: parcela estimada, sem data (não entra na linha do tempo)
     var covered = {}; pending.forEach(function (e) { if (e.sourceRef) covered[e.sourceRef] = true; });
-    var undated = debts.filter(function (d) { return d.saldo > 0 && d.mensal > 0 && !covered[d.id]; });
+    var undated = debts.filter(function (d) { return d.saldo > 0 && d.mensal > 0 && !covered[d.id] && !d.folha; });   // descontado em folha: não é compromisso de caixa
     return { today: today, events: events, debts: debts, income: income, nextIncome: nextIncome, incomeEvents: incomeEv, pending: pending, overdue: overdue, upcoming: upcoming, undatedDebts: undated, openingBalance: inp.openingBalance == null ? null : Number(inp.openingBalance), reserveMonthly: inp.reserveMonthly == null ? null : Number(inp.reserveMonthly), horizonEnd: horizonEnd, avgEssential: Number(inp.avgEssential) || 0, spend: inp.spend || null };
   }
 
@@ -201,9 +201,9 @@
     var ev = ctx.pending.filter(function (e) { return e.priority === 'essential' && ym(e.dueDate) === ym(ctx.today); }).reduce(function (s, e) { return s + cents(e.amount); }, 0);
     return Math.max(money(ev), ctx.avgEssential || 0);
   }
-  function surplusMonthly(ctx, opts) {                                                    // folga mensal = renda − essenciais − parcelas mínimas − reserva
+  function surplusMonthly(ctx, opts) {                                                    // folga mensal = renda − essenciais − parcelas mínimas (exceto as descontadas em folha) − reserva
     var income = ctx.income.amount; if (!(income > 0)) return null;
-    var mins = ctx.debts.reduce(function (s, d) { return s + cents(d.mensal); }, 0), reserve = cents((opts && opts.reserve != null ? opts.reserve : ctx.reserveMonthly) || 0);
+    var mins = ctx.debts.reduce(function (s, d) { return s + (d.folha ? 0 : cents(d.mensal)); }, 0), reserve = cents((opts && opts.reserve != null ? opts.reserve : ctx.reserveMonthly) || 0);
     var other = ctx.pending.filter(function (e) { return ym(e.dueDate) === ym(ctx.today) && !e.sourceRef; }).reduce(function (s, e) { return s + cents(e.amount); }, 0);
     return money(cents(income) - cents(essentialsMonthly(ctx)) * 1 - mins - reserve - Math.max(0, other - cents(essentialsMonthly(ctx))));
   }
@@ -232,6 +232,7 @@
     else if (surplus == null) { A.feasible = false; A.blockers.push('Preciso da sua renda prevista para calcular a folga mensal.'); }
     else {
       var extra = Math.max(0, surplus), s1 = sim(extra, avalOrder); fill(A, s1, extra);
+      if (ctx.debts.some(function (d) { return d.folha && d.saldo > 0; })) A.assumptions.push('Parcelas descontadas em folha (consignado) já saíram do salário líquido: não foram subtraídas de novo da folga.');
       A.assumptions.push('Folga mensal = renda (' + ctx.income.source + ') − essenciais − parcelas mínimas − reserva = ' + surplus.toFixed(2).replace('.', ',') + '.');
       A.assumptions.push('Ordem do pagamento extra: maior taxa primeiro (' + avalOrder.map(function (id) { return (debts.filter(function (d) { return d.id === id; })[0] || {}).name; }).join(' → ') + ').');
       if (extra <= 0) { A.cons.push('Sem folga no mês: só as parcelas mínimas cabem. O plano não acelera a quitação.'); A.risks = ['Orçamento já comprometido.']; }

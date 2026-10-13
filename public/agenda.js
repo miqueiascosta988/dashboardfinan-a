@@ -72,7 +72,7 @@
   function inputs() {
     var s = S(), P = prefs();
     return { today: today(), events: s.finEvents, spend: monthSpend(), monthlyIncome: s.monthlyIncome, avgIncome: avgIncome(), openingBalance: P.opening == null ? null : P.opening, reserveMonthly: P.reserve == null ? null : P.reserve, avgEssential: P.essential || 0,
-      debts: (typeof debtsExpanded === 'function' ? debtsExpanded() : visibleList('debts')).filter(function (d) { return d.saldo > 0; }).map(function (d) { return { id: d.id, name: d.name, saldo: d.saldo, juros: d.juros > 0 ? d.juros : null, mensal: d.mensal, parcelas: d.parcelas }; }) };
+      debts: (typeof debtsExpanded === 'function' ? debtsExpanded() : visibleList('debts')).filter(function (d) { return d.saldo > 0; }).map(function (d) { return { id: d.id, name: d.name, saldo: d.saldo, juros: d.juros > 0 ? d.juros : null, mensal: d.mensal, parcelas: d.parcelas, folha: (typeof DebtLab !== 'undefined' && DebtLab.descontoFolha(d)) }; }) };
   }
   function ctx() { return FP.buildContext(inputs()); }
   window.agInputs = inputs;
@@ -405,6 +405,7 @@
     var f = x.fin; if (!f) return out;
     if (ev && ev.debt) {
       var debt = x.debtId ? S().debts.filter(function (z) { return z.id === x.debtId; })[0] : null, dia = f.extra && f.extra.diaVenc;
+      if (debt && typeof DebtLab !== 'undefined' && DebtLab.descontoFolha(debt)) return out;   // consignado: a parcela já é descontada no holerite, não é uma saída de caixa
       if (debt && dia) {
         var n = Math.min(60, ev.parcelas || 12), first = d0.slice(0, 8) + ('0' + Math.min(dia, FP.dim(+d0.slice(0, 4), +d0.slice(5, 7)))).slice(-2); if (first < d0) first = FP.addMonths(first, 1, dia);
         for (var k = 0; k < n; k++) out.push({ key: 'doc:' + id + ':d' + (k + 1), kind: 'payable', title: 'Parcela ' + (k + 1) + '/' + n + ' · ' + debt.name, category: 'Dívidas', amount: ev.parcela, dueDate: FP.addMonths(first, k, dia), priority: 'high', sourceRef: debt.id, status: 'pending', notes: 'SAI · parcela da dívida lida do contrato (vence todo dia ' + dia + '). Parcelas restantes na data do envio.' });

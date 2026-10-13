@@ -87,3 +87,13 @@ test('modal de vínculo: mostra documento e dívida, "cadastrar nova" cria dívi
   await page.click('text=É outra dívida, cadastrar nova'); await page.waitForFunction(() => state.debts.length === 2);
   assert.equal(await page.evaluate(() => state.documents.find(z => z.id === 'm1').extractedData.dedPending), undefined); assert.deepEqual(errs, []); await ctx.close();
 });
+test('consignado: card avisa "descontada em folha", KPI separa o valor e a agenda não cria saída de caixa', async () => {
+  const { page, errs, ctx } = await openApp();
+  const r = await page.evaluate(() => {
+    state.finEvents = []; state.debts = [{ id: 'cg', name: 'Consignado Banco X', type: 'Consignado CLT', saldo: 4000, juros: 2, parcelas: 12, mensal: 400, profile: 'PF' }];
+    const d = { id: 'k1', name: 'ctr', extractedData: { state: 'done', userConfirmed: true, debtId: 'cg', debtOwned: false, fin: { direction: 'debt', kind: 'emprestimo', counterparty: 'Banco X', extra: { saldo: 4000, parcela: 400, parcelas: 12, juros: 2, diaVenc: 20, categoria: 'Consignado CLT', categoriaConf: 1 } } } };
+    state.documents.push(d); agendaFromDoc(d); switchTab('dividas');
+    return { ev: (state.finEvents || []).filter(e => /^doc:k1:d/.test(e.key) && e.status !== 'cancelled').length, txt: document.body.innerText };
+  });
+  assert.equal(r.ev, 0); assert.ok(/descontada em folha/.test(r.txt), 'card'); assert.ok(/já descontado em folha/i.test(r.txt), 'kpi: ' + r.txt.slice(0, 600)); assert.deepEqual(errs, []); await ctx.close();
+});

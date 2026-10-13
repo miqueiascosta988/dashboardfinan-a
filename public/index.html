@@ -12,6 +12,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 <script src="/docintel.js"></script>
+<script src="/cardplan.js"></script>
 <script src="/finplan.js"></script>
 <script src="/agenda.js"></script>
 <style>
@@ -3649,15 +3650,54 @@ async function deleteAllGoals() {
 // ═══════════════════════════════════════════════════════
 // CRUD: DEBTS
 // ═══════════════════════════════════════════════════════
+
+// ─── CARTÃO PARCELADO: parcelamentos de fatura já feitos (guardados por dívida; espelhados na conta via preferências) ───
+const CARDS = { loaded: false, data: {} };
+function cardsLoad() { if (CARDS.loaded) return CARDS.data; CARDS.loaded = true; try { CARDS.data = JSON.parse(localStorage.getItem(fxKey('cartoes')) || '{}') || {}; } catch (e) { CARDS.data = {}; } return CARDS.data; }
+function cardsSave() { try { localStorage.setItem(fxKey('cartoes'), JSON.stringify(CARDS.data)); } catch (e) {} prefsPush('cartoes', CARDS.data); }
+function cardsMap() { const d = cardsLoad(), out = {}; Object.keys(d).forEach(k => { if (k.charAt(0) !== '_') out[k] = d[k]; }); return out; }
+function debtsExpanded() { return window.CardPlan ? CardPlan.expandDebts(visibleList('debts'), cardsMap()) : visibleList('debts'); }
+function cardsExtra() {          // parcelamentos de fatura que NÃO estão dentro do saldo do cartão + parcelas mensais deles
+  let debt = 0, monthly = 0; if (!window.CardPlan) return { debt, monthly };
+  const map = cardsMap(); visibleList('debts').forEach(d => { const c = map[d.id]; if (!c || !c.plans || !c.plans.length) return; const a = CardPlan.analyzeCard({ name: d.name, saldo: d.saldo, inclui: c.inclui !== false, plans: c.plans }); if (c.inclui === false) debt += a.plansNominal; monthly += a.plansMonthly; });
+  return { debt, monthly };
+}
+function cardRowHtml(p) {
+  p = p || {};
+  const f = (cls, ph, v, st) => '<input class="form-input ' + cls + '" type="number" step="0.01" min="0" placeholder="' + ph + '" value="' + (v == null || v === '' ? '' : v) + '" style="min-width:0">';
+  return '<div class="cp-row" style="display:grid;grid-template-columns:repeat(4,1fr) 34px;gap:6px;margin-bottom:6px;align-items:center">' + f('cp-parcela', 'Parcela R$', p.parcela) + f('cp-rest', 'Faltam (x)', p.restantes) + f('cp-total', 'Total (x)', p.total) + f('cp-valor', 'Valor parcelado', p.valor) + '<button type="button" class="btn-cancel" style="padding:4px" title="Remover" onclick="this.parentNode.remove()">✕</button></div>';
+}
+function cardBoxHtml(existing) {
+  const c = (existing && cardsMap()[existing.id]) || {}, plans = c.plans || [];
+  return '<div id="m-card-box" style="display:none;border:1px dashed var(--border);border-radius:12px;padding:12px;margin:8px 0;background:var(--card-alt)">'
+    + '<div style="font-weight:700;margin-bottom:4px">💳 Já parcelou a fatura? Conte aqui</div>'
+    + '<div class="occ-b-desc" style="margin-bottom:8px;line-height:1.5">Parcelou a fatura 2x, 3x? Informe cada parcelamento (parcela e quantas faltam). Os campos <em>Total</em> e <em>Valor parcelado</em> são opcionais e permitem calcular o juros real que você paga.</div>'
+    + '<div style="font-size:12px;margin-bottom:6px;color:var(--ink-3)">O <strong>Saldo devedor</strong> acima já inclui essas parcelas futuras?</div>'
+    + '<label style="margin-right:14px"><input type="radio" name="m-cinclui" value="1" ' + (c.inclui === false ? '' : 'checked') + '> Sim, já inclui</label><label><input type="radio" name="m-cinclui" value="0" ' + (c.inclui === false ? 'checked' : '') + '> Não, são dívidas além do saldo</label>'
+    + '<div id="m-cplans" style="margin-top:10px">' + plans.map(cardRowHtml).join('') + '</div>'
+    + '<button type="button" class="btn-sm" onclick="document.getElementById(\'m-cplans\').insertAdjacentHTML(\'beforeend\', cardRowHtml())">+ Adicionar parcelamento</button></div>';
+}
+function cardToggleBox() { const t = (document.getElementById('m-dtype') || {}).value || '', b = document.getElementById('m-card-box'); if (b) { b.style.display = /cart[aã]o/i.test(t) ? 'block' : 'none'; if (b.style.display === 'block' && !b.querySelector('.cp-row') && !b.dataset.opened) { b.dataset.opened = '1'; } } }
+function cardSaveFromDom(debtId, type) {
+  const d = cardsLoad(), box = document.getElementById('m-card-box');
+  if (!/cart[aã]o/i.test(type || '') || !box) { if (d[debtId]) { delete d[debtId]; cardsSave(); } return; }
+  const num = (row, cls) => { const v = parseFloat((row.querySelector('.' + cls) || {}).value); return v > 0 ? v : null; };
+  const plans = Array.from(box.querySelectorAll('.cp-row')).map((row, i) => ({ id: 'p' + (i + 1), parcela: num(row, 'cp-parcela'), restantes: num(row, 'cp-rest'), total: num(row, 'cp-total'), valor: num(row, 'cp-valor') })).filter(p => p.parcela && p.restantes);
+  const inc = (box.querySelector('input[name="m-cinclui"]:checked') || {}).value !== '0', prev = d[debtId] || {};
+  if (plans.length) d[debtId] = Object.assign({}, prev, { inclui: inc, plans }); else if (d[debtId]) { d[debtId] = Object.assign({}, prev, { plans: [] }); }
+  cardsSave();
+}
 function openDebtModal(existing = null) {
   const isEdit = !!existing;
   const types = state.profile_type === 'PJ' ? ['Empréstimo','Financiamento','Cartão PJ','Parcelamento','Outro'] : ['Cartão','Financiamento','Empréstimo','Parcelamento','Outro'];
   openModal(isEdit ? 'Editar dívida' : 'Nova dívida', `
-    <div class="form-row"><div class="form-group"><label class="form-label">Nome</label><input class="form-input" type="text" id="m-dname" value="${existing?.name || ''}" /></div><div class="form-group"><label class="form-label">Tipo</label><select class="form-select" id="m-dtype">${types.map(t => `<option ${existing?.type === t ? 'selected' : ''}>${t}</option>`).join('')}</select></div></div>
+    <div class="form-row"><div class="form-group"><label class="form-label">Nome</label><input class="form-input" type="text" id="m-dname" value="${existing?.name || ''}" /></div><div class="form-group"><label class="form-label">Tipo</label><select class="form-select" id="m-dtype" onchange="cardToggleBox()">${types.map(t => `<option ${existing?.type === t ? 'selected' : ''}>${t}</option>`).join('')}</select></div></div>
     <div class="form-row"><div class="form-group"><label class="form-label">Saldo devedor</label><input class="form-input" type="number" id="m-dsaldo" value="${existing?.saldo || ''}" step="0.01" /></div><div class="form-group"><label class="form-label">Juros (% a.m.)</label><input class="form-input" type="number" id="m-djuros" value="${existing?.juros || 0}" step="0.1" /></div></div>
     <div class="form-row"><div class="form-group"><label class="form-label">Parcelas restantes</label><input class="form-input" type="number" id="m-dparcelas" value="${existing?.parcelas || 0}" /></div><div class="form-group"><label class="form-label">Valor mensal</label><input class="form-input" type="number" id="m-dmensal" value="${existing?.mensal || ''}" step="0.01" /></div></div>
+    ${cardBoxHtml(existing)}
     ${profileFieldHtml(existing)}
     <div class="modal-actions">${isEdit ? `<button class="btn-danger" onclick="deleteDebt('${existing.id}')">Excluir</button>` : ''}<button class="btn-cancel" onclick="closeModal()">Cancelar</button><button class="btn-save" onclick="saveDebt(${isEdit ? `'${existing.id}'` : 'null'})">Salvar</button></div>`);
+  cardToggleBox();
 }
 async function saveDebt(editId) {
   if (!editId && !checkPlanLimit(state.debts.length, PLAN_LIMITS.maxDebts, 'Plano ' + currentPlanLabel() + ' permite registrar até ' + PLAN_LIMITS.maxDebts + ' dívidas. Faça upgrade para o Plus (ilimitado).')) return;
@@ -3665,9 +3705,10 @@ async function saveDebt(editId) {
   const d = { id: editId || genId(), name: document.getElementById('m-dname').value, type: document.getElementById('m-dtype').value, saldo: parseFloat(document.getElementById('m-dsaldo').value) || 0, juros: parseFloat(document.getElementById('m-djuros').value) || 0, parcelas: parseInt(document.getElementById('m-dparcelas').value) || 0, mensal: parseFloat(document.getElementById('m-dmensal').value) || 0, profile };
   if (editId) { const i = state.debts.findIndex(x => x.id === editId); if (i >= 0) state.debts[i] = d; } else state.debts.push(d);
   await dbUpsert('debts', { id: d.id, user_id: currentUser?.id, name: d.name, type: d.type, balance: d.saldo, interest_rate: d.juros, installments: d.parcelas || null, monthly_payment: d.mensal, profile });
+  try { cardSaveFromDom(d.id, d.type); } catch (e) { console.warn(e); }
   closeModal(); renderCurrentTab(); showToast(editId ? 'Dívida atualizada' : 'Dívida adicionada', 'success');
 }
-async function deleteDebt(id) { state.debts = state.debts.filter(d => d.id !== id); await dbDelete('debts', id); closeModal(); renderCurrentTab(); showToast('Dívida excluída', 'info'); }
+async function deleteDebt(id) { state.debts = state.debts.filter(d => d.id !== id); try { const cd = cardsLoad(); if (cd[id]) { delete cd[id]; cardsSave(); } } catch (e) {} await dbDelete('debts', id); closeModal(); renderCurrentTab(); showToast('Dívida excluída', 'info'); }
 async function deleteAllDebts() {
   const toRemove = visibleList('debts').map(d => d.id);
   if (toRemove.length === 0) { showToast('Não há dívidas para excluir.', 'info'); return; }
@@ -3753,8 +3794,9 @@ function compute() {
   const totalExpense = expenses.reduce((s, t) => s + t.amount, 0);
   const resultado = totalIncome - totalExpense;
   const taxaEconomia = totalIncome > 0 ? (resultado / totalIncome * 100) : 0;
-  const totalDebt = visibleList('debts').reduce((s, d) => s + d.saldo, 0);
-  const totalDebtMonthly = visibleList('debts').reduce((s, d) => s + d.mensal, 0);
+  const _cx = cardsExtra();
+  const totalDebt = visibleList('debts').reduce((s, d) => s + d.saldo, 0) + _cx.debt;
+  const totalDebtMonthly = visibleList('debts').reduce((s, d) => s + d.mensal, 0) + _cx.monthly;
   const debtPct = totalIncome > 0 ? (totalDebtMonthly / totalIncome * 100) : 0;
   const totalAssets = visibleList('assets').reduce((s, a) => s + a.value, 0);
   const totalLiab = visibleList('liabilities').reduce((s, l) => s + l.value, 0);
@@ -4605,14 +4647,14 @@ async function prefsLoad() {
     if (r && r.error) { console.warn('user_prefs indisponível (rode a migração 011):', r.error.message); PREFS.ok = false; return; }
     cloud = (r && r.data && r.data.data) || {};
   } catch (e) { console.warn(e); return; }
-  const keyOf = { inv: fxKey('inv'), crd: fxKey('crd'), dpl: fxKey('dpl'), reforma: fxKey('reforma'), of: ofKey(), gtd: gtDoneKey(), agenda: fxKey('agenda') };
+  const keyOf = { inv: fxKey('inv'), crd: fxKey('crd'), dpl: fxKey('dpl'), reforma: fxKey('reforma'), of: ofKey(), gtd: gtDoneKey(), agenda: fxKey('agenda'), cartoes: fxKey('cartoes') };
   let needPush = false;
   Object.keys(keyOf).forEach(n => {
     if (cloud[n] != null) { try { localStorage.setItem(keyOf[n], JSON.stringify(cloud[n])); } catch (e) {} PREFS.data[n] = cloud[n]; }
     else { let l = null; try { l = JSON.parse(localStorage.getItem(keyOf[n]) || 'null'); } catch (e) {}
       if (l != null && !(Array.isArray(l) && !l.length)) { PREFS.data[n] = l; needPush = true; } }
   });
-  FX.loaded = false; fxInit();
+  FX.loaded = false; fxInit(); CARDS.loaded = false;
   if (needPush) prefsFlush();
 }
 const FX = { inv: { has: '', tipos: [], total: 0, aporte: 0, obj: '', prazo: '', reacao: '', run: false },
@@ -5000,7 +5042,7 @@ function dpNetMonthly(meses) {
   return Math.pow(1 + MKT.cdi * (1 - ir) / 100, 1 / 12) - 1;
 }
 function dpDebts() {
-  return visibleList('debts').filter(function(d) { return d.saldo > 0; }).map(function(d) {
+  return debtsExpanded().filter(function(d) { return d.saldo > 0; }).map(function(d) {
     var i = (d.juros || 0) / 100, min = d.mensal > 0 ? d.mensal : d.saldo * i + d.saldo * 0.01;
     return { id: d.id, name: d.name || 'Dívida', saldo: d.saldo, i: i, min: min, estimada: !(d.mensal > 0), semTaxa: !(d.juros > 0), parcelas: d.parcelas || 0, mensal: d.mensal || 0 };
   });
@@ -5042,6 +5084,64 @@ function dpGuias(c) {
   g.push(['Antecipação do saque-aniversário do FGTS', 'Cuidado', 'Libera dinheiro rápido, mas costuma ter taxa alta e trava o saque do FGTS na demissão. Só considere se não houver alternativa mais barata e compare o CET.', ["Dinheiro rápido", "Sem exigir análise de crédito pesada"], ["Taxa alta", "Trava o saque do FGTS na demissão", "Pode custar mais que um consignado"]]);
   g.forEach(function(x) { if (!x[3] && PC[x[0]]) { x[3] = PC[x[0]][0]; x[4] = PC[x[0]][1]; } });
   return g;
+}
+
+// ─── Lista de urgência + plano do cartão (cartão parcelado) ───
+const CARD_ESS_CATS = ['Moradia', 'Alimentação', 'Saúde', 'Transporte', 'Educação', 'Aluguel/Sede', 'Impostos'];
+function cardEssentials() {
+  const d = cardsLoad(); if (d._ess > 0) return { v: d._ess, src: 'informado por você' };
+  let v = 0; try { filterByPeriod(state.transactions.filter(t => t.type === 'expense' && CARD_ESS_CATS.indexOf(t.category) >= 0), 'date').forEach(t => v += t.amount); } catch (e) {}
+  return { v: Math.round(v * 100) / 100, src: v > 0 ? 'média do mês nos seus lançamentos (moradia, comida, saúde, transporte, educação)' : 'não informado' };
+}
+function cardSetNum(key, el) { const d = cardsLoad(), v = parseFloat(el.value); if (v > 0) d[key] = v; else delete d[key]; cardsSave(); renderCurrentTab(); }
+function cardSetOffer(id, el) { const d = cardsLoad(), v = parseFloat(el.value); d[id] = d[id] || { inclui: true, plans: [] }; if (v > 0) d[id].oferta = v; else delete d[id].oferta; cardsSave(); renderCurrentTab(); }
+function renderCardPlans(c) {
+  if (!window.CardPlan) return '';
+  const B = CardPlan.brl, map = cardsMap(), ess = cardEssentials(), renda = (c && c.totalIncome) || state.monthlyIncome || 0, all = visibleList('debts');
+  const cards = all.filter(d => /cart[aã]o/i.test(d.type || '') && d.saldo > 0);
+  return cards.map(d => {
+    const cfg = map[d.id] || {}, others = all.filter(x => x.id !== d.id).reduce((s, x) => s + (x.mensal || 0), 0);
+    const a = CardPlan.analyzeCard({ name: d.name, saldo: d.saldo, juros: d.juros, inclui: cfg.inclui !== false, plans: cfg.plans || [], renda, essenciais: ess.v, outrasParcelas: others, ofertaJuros: cfg.oferta });
+    if (ess.v <= 0) a.asks.push('Quanto você gasta por mês só com o essencial (moradia, comida, transporte, saúde)? Informe abaixo para eu calcular quanto sobra de verdade.');
+    const kind = { cabe: ['#e8f7ee', '#14532d'], nao: ['#e8f7ee', '#14532d'], nao_cabe: ['#fdecec', '#7f1d1d'], dados: ['#fff7e0', '#78350f'] }[a.verdictKind] || ['#eef2f8', '#1e293b'];
+    const kp = (l, v, col) => '<div class="kpi"><div class="kpi-label">' + l + '</div><div class="kpi-value" style="font-size:20px' + (col ? ';color:' + col : '') + '">' + v + '</div></div>';
+    const planRows = a.plans.map(p => '<tr><td style="padding:6px">' + fxEsc(p.label) + '</td><td style="padding:6px;text-align:right">' + p.restantes + 'x</td><td style="padding:6px;text-align:right">' + B(p.nominal) + '</td><td style="padding:6px;text-align:right">' + (p.pvRestante != null ? B(p.pvRestante) : '—') + '</td><td style="padding:6px;text-align:right">' + (p.ratePct != null ? p.ratePct.toString().replace('.', ',') + '% a.m.' : '—') + '</td></tr>').join('');
+    const optRows = a.options.map(o => '<tr' + (a.primeiraQueCabe && a.primeiraQueCabe.n === o.n ? ' style="background:var(--card-alt);font-weight:700"' : '') + '><td style="padding:6px">' + o.n + 'x</td><td style="padding:6px;text-align:right">' + B(o.parcela) + '</td><td style="padding:6px;text-align:right">' + B(o.juros) + '</td><td style="padding:6px;text-align:right">' + (o.pctApos != null ? o.pctApos.toString().replace('.', ',') + '%' : '—') + '</td><td style="padding:6px;text-align:center">' + (o.cabe == null ? '—' : o.cabe ? '✅' : '⚠️') + '</td></tr>').join('');
+    return '<div class="card mb-24 animate-in"><div class="card-title">💳 Plano para o ' + fxEsc(d.name) + '</div>'
+      + '<div class="occ-b-desc" style="margin:6px 0 12px;line-height:1.6">' + fxEsc(a.empathy) + '</div>'
+      + '<div class="kpi-grid" style="margin-bottom:12px">' + kp('Saldo informado', B(a.saldoInformado)) + kp('Em aberto (fora dos parcelados)', B(a.aberto), 'var(--expense)') + kp('Parcelamentos por mês', B(a.plansMonthly)) + kp('Sobra no mês', a.livre == null ? '—' : B(a.livre), a.livre != null && a.livre < 0 ? 'var(--expense)' : 'var(--income)') + '</div>'
+      + (a.warn.map(w => '<div class="occ-b-desc" style="color:var(--expense);margin-bottom:8px">⚠️ ' + fxEsc(w) + '</div>').join(''))
+      + (a.plans.length ? '<div style="overflow-x:auto"><table class="data-table" style="width:100%"><thead><tr><th style="text-align:left">Parcelamento</th><th style="text-align:right">Faltam</th><th style="text-align:right">Falta pagar</th><th style="text-align:right">Quitando hoje (aprox.)</th><th style="text-align:right">Juros real</th></tr></thead><tbody>' + planRows + '</tbody></table></div>' : '<div class="occ-b-desc">Nenhum parcelamento de fatura informado. Se você já parcelou, edite a dívida e conte em “Já parcelou a fatura?”.</div>')
+      + '<div style="display:flex;gap:12px;flex-wrap:wrap;margin:12px 0"><label style="font-size:12px;color:var(--ink-3)">Taxa que o banco oferece para parcelar (% a.m.)<br><input class="form-input" type="number" step="0.01" min="0" style="max-width:160px" value="' + (cfg.oferta || '') + '" placeholder="ex.: 6,5" onchange="cardSetOffer(\'' + d.id + '\', this)"></label>'
+      + '<label style="font-size:12px;color:var(--ink-3)">Gastos essenciais por mês (R$)<br><input class="form-input" type="number" step="0.01" min="0" style="max-width:160px" value="' + (cardsLoad()._ess || '') + '" placeholder="' + (ess.v > 0 ? ess.v : 'ex.: 2500') + '" onchange="cardSetNum(\'_ess\', this)"></label></div>'
+      + (a.options.length ? '<div class="occ-b-desc" style="margin-bottom:6px"><strong>Parcelar o saldo em aberto (' + B(a.aberto) + ')</strong> — calculado com ' + a.rateSrc + ' (' + a.rateRefPct.toString().replace('.', ',') + '% a.m.). A coluna “% da renda” já soma as parcelas atuais.</div><div style="overflow-x:auto"><table class="data-table" style="width:100%"><thead><tr><th style="text-align:left">Prazo</th><th style="text-align:right">Parcela</th><th style="text-align:right">Juros totais</th><th style="text-align:right">% da renda (todas as parcelas)</th><th>Cabe?</th></tr></thead><tbody>' + optRows + '</tbody></table></div>' : '')
+      + '<div style="margin-top:12px;padding:12px 14px;border-radius:12px;background:' + kind[0] + ';color:' + kind[1] + ';line-height:1.6"><strong>Parcelar de novo?</strong> ' + fxEsc(a.verdict) + '</div>'
+      + '<div style="margin-top:10px;padding:12px 14px;border-radius:12px;background:' + (a.stop ? '#fdecec' : '#eef2f8') + ';color:' + (a.stop ? '#7f1d1d' : '#1e293b') + ';line-height:1.6"><strong>' + (a.stop ? '🛑 Hora de parar de usar o cartão.' : 'Uso do cartão.') + '</strong> ' + fxEsc(a.stopAdvice) + '</div>'
+      + '<div style="margin-top:12px"><strong>Passo a passo</strong><ol style="margin:6px 0 0 18px;line-height:1.7">' + a.steps.map(x => '<li>' + fxEsc(x) + '</li>').join('') + '</ol></div>'
+      + (a.asks.length ? '<div class="occ-b-desc" style="margin-top:12px;line-height:1.6"><strong>Para eu calcular melhor:</strong><ul style="margin:4px 0 0 18px">' + a.asks.map(x => '<li>' + fxEsc(x) + '</li>').join('') + '</ul></div>' : '')
+      + '<div style="margin-top:12px"><button class="btn-sm" onclick=\'openDebtModal(' + JSON.stringify(d).replace(/'/g, '&#39;') + ')\'>Editar cartão e parcelamentos</button></div></div>';
+  }).join('');
+}
+function renderUrgency(c) {
+  if (!window.CardPlan) return '';
+  const list = debtsExpanded().filter(d => d.saldo > 0); if (!list.length) return '';
+  const today = window.AG_TODAY || new Date().toISOString().slice(0, 10), over = {};
+  (state.finEvents || []).forEach(e => { if (e.kind === 'payable' && (e.status === 'pending' || e.status === 'awaiting') && e.dueDate < today && e.sourceRef) over[e.sourceRef] = true; });
+  const u = CardPlan.urgency(list.map(d => ({ id: d.id, name: d.name, type: d.type, saldo: d.saldo, juros: d.juros, mensal: d.mensal, parcelas: d.parcelas, synthetic: !!d.synthetic, overdue: !!over[d.id] })), { extra: (FX.dpl && FX.dpl.extra) || 0 });
+  const extraV = (FX.dpl && FX.dpl.extra) || 0, ap = CardPlan.attackPlan(u, extraV), B = CardPlan.brl;
+  const apRows = ap.steps.map((st, i) => '<li><strong>' + fxEsc(st.name) + '</strong>' + (st.clearedMonth ? ': quitada no mês ' + st.clearedMonth + ' (cerca de ' + new Date(new Date(today + 'T12:00:00').setMonth(new Date(today + 'T12:00:00').getMonth() + st.clearedMonth)).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }) + ')' : ': não quita neste ritmo') + '</li>').join('');
+  const apBox = '<div style="border:2px solid var(--teal,#0f766e);border-radius:14px;padding:12px 14px;margin-bottom:14px"><strong>🗺️ Plano de ataque, mês a mês</strong>'
+    + '<div class="occ-b-desc" style="margin:6px 0;line-height:1.6">Regra: pague o mínimo de todas em dia; o valor extra vai inteiro para a 1ª da lista. Quando ela quita, a parcela dela (mais o extra) passa para a próxima, e assim por diante.</div>'
+    + '<label style="font-size:12px;color:var(--ink-3)">Quanto sobra por mês para quitar dívidas, além das parcelas (R$)<br><input class="form-input" type="text" inputmode="decimal" style="max-width:180px" value="' + (extraV ? String(extraV).replace('.', ',') : '') + '" placeholder="ex.: 300" onchange="dpSet(\'extra\', this.value)"></label>'
+    + (extraV > 0 ? '' : '<div class="occ-b-desc" style="margin-top:6px">Sem esse valor, o plano usa só as parcelas atuais. Informe quanto você consegue separar para ver o efeito.</div>')
+    + '<ol style="margin:10px 0 0 18px;line-height:1.7">' + apRows + '</ol>'
+    + '<div class="occ-b-desc" style="margin-top:8px;line-height:1.6">' + (ap.unfinished ? '⚠️ Neste ritmo ainda há dívida que não quita (a parcela não cobre os juros). Aumente o valor extra ou renegocie a primeira da lista.' : 'Tudo quitado em cerca de <strong>' + ap.months + ' meses</strong>, pagando ' + B(ap.interest) + ' de juros.' + (ap.baseUnfinished ? ' Só com as parcelas atuais, alguma dívida não chegaria a quitar.' : (ap.savedInterest > 0 ? ' Isso economiza ' + B(ap.savedInterest) + ' de juros e ' + ap.savedMonths + ' mês(es) em relação a pagar só as parcelas.' : ''))) + '</div></div>';
+  const col = { urgente: ['#fdecec', '#7f1d1d', 'URGENTE'], alta: ['#fff1e0', '#9a3412', 'ALTA'], media: ['#fff7e0', '#78350f', 'MÉDIA'], baixa: ['#e8f7ee', '#14532d', 'BAIXA'] };
+  return '<div class="card mb-24 animate-in"><div class="card-title">🚨 Lista de urgência: o que priorizar e como quitar</div><div class="occ-b-desc" style="margin:6px 0 12px;line-height:1.6">Ordenei suas dívidas pelo que mais pesa: atraso, depois juros altos (cartão e cheque especial), depois as demais. Pague o mínimo de todas em dia e concentre o dinheiro extra na primeira da lista.</div>' + apBox
+    + u.map(x => { const k = col[x.level]; return '<div style="border:1px solid var(--border);border-radius:14px;padding:12px 14px;margin-bottom:10px"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap"><div><strong>' + x.rank + '. ' + fxEsc(x.name) + '</strong> <span class="occ-b-desc">· devendo ' + CardPlan.brl(x.saldo) + (x.mensal ? ' · parcela ' + CardPlan.brl(x.mensal) : '') + (x.jurosPct != null ? ' · ' + x.jurosPct.toString().replace('.', ',') + '% a.m.' : '') + '</span></div><span style="background:' + k[0] + ';color:' + k[1] + ';font-weight:800;font-size:11px;padding:4px 10px;border-radius:999px">' + k[2] + '</span></div>'
+      + (x.why.length ? '<div class="occ-b-desc" style="margin:6px 0">Por quê: ' + fxEsc(x.why.join('; ')) + '.</div>' : '')
+      + '<ul style="margin:4px 0 0 18px;line-height:1.65">' + x.how.map(h => '<li>' + fxEsc(h) + '</li>').join('') + '</ul></div>'; }).join('')
+    + '<div class="occ-b-desc">Valores calculados a partir do que você cadastrou. Conteúdo educativo; confirme condições com o credor antes de contratar.</div></div>';
 }
 function renderResolver(c) { return renderResolver_core(c) + renderNegJourney(); }
 function renderResolver_core(c) {
@@ -5092,7 +5192,7 @@ function renderResolver_core(c) {
     secLump = '<div style="overflow-x:auto"><table class="data-table" style="width:100%;margin-top:6px"><thead><tr><th style="text-align:left">Usar o valor em…</th><th style="text-align:right">Juros economizados</th><th style="text-align:right">Meses a menos</th><th style="text-align:right">Se investisse no CDB</th><th style="text-align:left">Veredito</th></tr></thead><tbody>' + lumpRows + '</tbody></table></div><div class="occ-b-desc" style="margin-top:10px;line-height:1.7"><strong>Melhor uso de ' + simBRL(lump) + ': ' + fxEsc(top.d.name) + '.</strong> ' + (top.eco > top.invest ? 'Os juros que você evita (' + simBRL(top.eco) + ') superam o que o dinheiro renderia investido (' + simBRL(top.invest) + ' líquidos no mesmo prazo).' : 'Neste caso o investimento renderia mais que os juros evitados; mantenha o dinheiro aplicado em liquidez diária.') + ' Regra geral: o que importa é a <em>taxa</em>, não o prazo; uma dívida curta de juros altos deve ser quitada antes de uma longa de juros baixos, exceto se o pagamento tirar sua reserva de emergência.</div>' + dpPC('Pagar a dívida agora', ['Retorno garantido: cada real evitado de juros é ganho certo','Libera parcela mensal no orçamento','Reduz o risco de atraso e de nome sujo'], ['O dinheiro deixa de ficar disponível para emergências','Se a dívida tem juros baixos, o investimento pode render mais','Pode gerar multa ou perda de desconto em alguns contratos']) + dpPC('Investir em vez de pagar', ['Mantém liquidez para emergências','Rende mais quando a dívida tem juros menores que o investimento','Preserva o patrimônio'], ['Rendimento líquido é menor que os juros da maioria das dívidas caras','Risco de gastar o dinheiro e continuar devendo','Imposto de renda reduz o ganho']);
   }
   var secAgora = '<div class="card mb-24 animate-in"><div class="card-title">💡 E se eu pagar agora?</div><div class="occ-b-desc" style="margin:8px 0 12px">Tem um valor disponível (13º, restituição, bônus, economia)? Veja em qual dívida ele rende mais ou se compensa mais investir.</div><div class="occ-grid-3">' + dpIn('lump', 'Valor disponível agora (R$)', '0,00') + '</div>' + secLump + '</div>';
-  return head + kpis + secPlano + secAgora + secTroca + secFin + secGuia + FX_DISCLAIMER;
+  return head + renderUrgency(c) + renderCardPlans(c) + kpis + secPlano + secAgora + secTroca + secFin + secGuia + FX_DISCLAIMER;
 }
 function renderResolverFin(c, renda) {
   var F = FX.dpl.fin, V = F.valor || 0, E = F.entrada || 0, PV = Math.max(0, V - E), out = '';
@@ -5417,6 +5517,7 @@ function renderMetas() {
 function renderDividas(c) {
   const isPJ = state.profile_type === 'PJ';
   return `<div class="section-header animate-in"><div><div class="section-title">Controle de Dívidas</div><div class="section-desc">Gerencie e simule antecipações.</div></div><div style="display:flex;gap:8px">${visibleList('debts').length>0?`<button class="btn-sm btn-danger" onclick="confirmBulkDelete('Excluir tudo?', 'Isso vai excluir TODAS as ${visibleList('debts').length} dívidas visíveis no perfil ${isPJ?'Empresa':'Pessoal'}. Essa ação não pode ser desfeita.', 'deleteAllDebts')">🗑️ Excluir tudo</button>`:''}<button class="btn-add" onclick="openDebtModal()">+ Nova dívida</button></div></div>
+  ${visibleList('debts').length ? `<div class="card mb-24 animate-in occ-banner" style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap"><div><div class="occ-b-title">🚨 Qual dívida atacar primeiro?</div><div class="occ-b-desc">Veja a lista de urgência, o plano do cartão (inclusive parcelado) e como quitar cada dívida.</div></div><button class="btn-save" onclick="switchTab('resolver')">Ver plano</button></div>` : ''}
   <div class="kpi-grid mb-24">${[
     { label: 'Dívida total', value: fmt(c.totalDebt), cls: 'expense' },
     { label: 'Comprometimento mensal', value: fmt(c.totalDebtMonthly), cls: 'expense' },

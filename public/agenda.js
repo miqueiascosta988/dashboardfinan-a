@@ -72,7 +72,7 @@
   function inputs() {
     var s = S(), P = prefs();
     return { today: today(), events: s.finEvents, spend: monthSpend(), monthlyIncome: s.monthlyIncome, avgIncome: avgIncome(), openingBalance: P.opening == null ? null : P.opening, reserveMonthly: P.reserve == null ? null : P.reserve, avgEssential: P.essential || 0,
-      debts: visibleList('debts').filter(function (d) { return d.saldo > 0; }).map(function (d) { return { id: d.id, name: d.name, saldo: d.saldo, juros: d.juros > 0 ? d.juros : null, mensal: d.mensal, parcelas: d.parcelas }; }) };
+      debts: (typeof debtsExpanded === 'function' ? debtsExpanded() : visibleList('debts')).filter(function (d) { return d.saldo > 0; }).map(function (d) { return { id: d.id, name: d.name, saldo: d.saldo, juros: d.juros > 0 ? d.juros : null, mensal: d.mensal, parcelas: d.parcelas }; }) };
   }
   function ctx() { return FP.buildContext(inputs()); }
   window.agInputs = inputs;

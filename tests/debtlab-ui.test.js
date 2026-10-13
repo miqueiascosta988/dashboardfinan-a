@@ -106,3 +106,15 @@ test('card de renda mostra o consignado do holerite, confere com a dívida e avi
   });
   assert.ok(/Descontos em folha/.test(html) && /consignado R\$ 1\.354/.test(html), html); assert.ok(/Confere com a dívida "Consignado Banco X"/.test(html)); assert.ok(/Nenhum extrato ou entrada lançada/.test(html)); assert.ok(!/Nenhum crédito com esse valor/.test(html)); assert.deepEqual(errs, []); await ctx.close();
 });
+test('"Lançar" em contrato lido antes (sem categoria) abre a revisão com categoria e cadastra a dívida; nunca abre despesa avulsa', async () => {
+  const { page, errs, ctx } = await openApp();
+  await page.evaluate(() => {
+    state.debts = []; const d = { id: 'leg', name: 'Empréstimo/financiamento · Parati', category: 'emprestimo', type: 'expense', amount: 1352, date: '13/10', extractedData: { state: 'done', fin: { direction: 'debt', kind: 'emprestimo', counterparty: 'Parati', extra: { saldo: 1352, parcela: 112.58, parcelas: 18, juros: 4.66, tipoOperacao: 'consignado' } } } };
+    state.documents.push(d); switchTab('documentos'); createTransactionFromDoc('leg');
+  });
+  await page.waitForSelector('#fr-cat-debt'); assert.equal(await page.evaluate(() => state.debts.length), 0);
+  assert.equal(await page.inputValue('#fr-cat-debt'), 'Consignado CLT');   // sugestão pré-selecionada, usuário confirma
+  assert.equal(await page.evaluate(() => !!document.getElementById('m-tdesc') || /Nova despesa/i.test(document.body.innerText)), false);
+  await page.evaluate(() => saveFinReview('leg')); await page.waitForFunction(() => state.debts.length === 1);
+  const r = await page.evaluate(() => ({ t: state.debts[0].type, n: state.debts[0].name, tx: state.transactions.length })); assert.equal(r.t, 'Consignado CLT'); assert.equal(r.tx, 0); assert.deepEqual(errs, []); await ctx.close();
+});

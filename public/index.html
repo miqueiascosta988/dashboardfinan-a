@@ -1979,7 +1979,8 @@ function generateNotifications() {
   }
 
   // ── Saúde financeira → direciona para Insights (consultoria) ──
-  if (c.healthTotal < 50) notifs.push({ id: 'health-low', icon: '💊', title: 'Saúde financeira precisa de atenção', desc: 'Score atual: ' + c.healthTotal + '/100. Veja uma análise completa e recomendações personalizadas.', type: 'danger', time: 'Diagnóstico', tab: 'insights' });
+  const _hasData = visibleList('transactions').length > 0 || visibleList('debts').length > 0;   // conta nova, sem dados: não alarma com nota baixa
+  if (c.healthTotal < 50 && _hasData) notifs.push({ id: 'health-low', icon: '💊', title: 'Saúde financeira precisa de atenção', desc: 'Score atual: ' + c.healthTotal + '/100. Veja uma análise completa e recomendações personalizadas.', type: 'danger', time: 'Diagnóstico', tab: 'insights' });
   else if (c.healthTotal >= 85) notifs.push({ id: 'health-great', icon: '🌟', title: 'Saúde financeira excelente!', desc: 'Score atual: ' + c.healthTotal + '/100. Continue assim — veja insights para otimizar ainda mais.', type: 'success', time: 'Diagnóstico', tab: 'insights' });
 
   // ── Contas/dívidas vencendo (despesas recorrentes com dia do mês próximo) ──
@@ -3280,7 +3281,7 @@ document.getElementById('btn-logout').addEventListener('click', async () => {
 });
 
 function showOnboarding() {
-  if (PJ_COMING_SOON) { var _pj = document.querySelector('#onboarding-screen [data-profile=PJ]'); if (_pj && !_pj.querySelector('.soon-badge')) { _pj.style.opacity = '.6'; _pj.querySelector('.opt-label').innerHTML += ' <span class="soon-badge">Em breve</span>'; } } document.getElementById('auth-screen').hidden = true; document.getElementById('onboarding-screen').hidden = false; }
+  if (PJ_COMING_SOON) { var _pj = document.querySelector('#onboarding-screen [data-profile=PJ]'); if (_pj && !_pj.querySelector('.soon-badge')) { _pj.style.opacity = '.6'; _pj.querySelector('.opt-label').innerHTML += ' <span class="soon-badge">Em breve</span>'; } } document.getElementById('auth-screen').hidden = true; document.getElementById('onboarding-screen').hidden = false; try { var _l = document.querySelector('#onboard-step-1 [data-step-label]'); if (_l) _l.textContent = 'Passo 1 de ' + (state.profile_type === 'PJ' ? 7 : 6); } catch (e) {} }
 
 // ═══════════════════════════════════════════════════════
 // PF/PJ TOGGLE
@@ -3664,18 +3665,40 @@ function cardsExtra() {          // parcelamentos de fatura que NÃO estão dent
 }
 function cardRowHtml(p) {
   p = p || {};
-  const f = (cls, ph, v, st) => '<input class="form-input ' + cls + '" type="number" step="0.01" min="0" placeholder="' + ph + '" value="' + (v == null || v === '' ? '' : v) + '" style="min-width:0">';
-  return '<div class="cp-row" style="display:grid;grid-template-columns:repeat(4,1fr) 34px;gap:6px;margin-bottom:6px;align-items:center">' + f('cp-parcela', 'Parcela R$', p.parcela) + f('cp-rest', 'Faltam (x)', p.restantes) + f('cp-total', 'Total (x)', p.total) + f('cp-valor', 'Valor parcelado', p.valor) + '<button type="button" class="btn-cancel" style="padding:4px" title="Remover" onclick="this.parentNode.remove()">✕</button></div>';
+  const f = (cls, lb, v) => '<label style="font-size:11px;color:var(--ink-3);display:block;min-width:0">' + lb + '<input class="form-input ' + cls + '" type="number" step="0.01" min="0" value="' + (v == null || v === '' ? '' : v) + '" style="min-width:0;margin-top:2px"></label>';
+  return '<div class="cp-row" style="display:grid;grid-template-columns:1fr 1fr 34px;gap:6px 8px;margin-bottom:10px;align-items:end;padding-bottom:10px;border-bottom:1px dashed var(--border)">' + f('cp-parcela', 'Valor de cada parcela (R$)', p.parcela) + f('cp-rest', 'Parcelas que faltam pagar', p.restantes) + '<button type="button" class="btn-cancel" style="padding:4px;grid-row:1/3;grid-column:3" title="Remover" onclick="this.parentNode.remove()">✕</button>' + f('cp-total', 'Total de parcelas (opcional)', p.total) + f('cp-valor', 'Valor total parcelado (R$, opcional)', p.valor) + '</div>';
+}
+// Corrige campos trocados (ex.: nº de parcelas no campo do valor) e devolve mensal/parcelas para a dívida
+function cardNormalizeDom() {
+  const box = document.getElementById('m-card-box'); if (!box) return null;
+  const n = (row, cls) => { const el = row.querySelector('.' + cls), v = parseFloat(el && el.value); return { el, v: v > 0 ? v : null }; };
+  let fixed = 0, mensal = 0, maxRest = 0;
+  box.querySelectorAll('.cp-row').forEach(row => {
+    const a = n(row, 'cp-parcela'), r = n(row, 'cp-rest'), t = n(row, 'cp-total'), v = n(row, 'cp-valor');
+    if (a.v && t.v && v.v && Number.isInteger(a.v) && a.v <= 120 && t.v > 120 && Math.abs(v.v * a.v - t.v) / t.v < 0.03) {  // ordem trocada: nº | faltam | valor parcelado | parcela
+      a.el.value = v.v; t.el.value = a.v; v.el.value = t.v; fixed++; a.v = v.v;
+    } else if (a.v && t.v && v.v && Math.abs(a.v * t.v - v.v) / v.v > 0.15 && Math.abs(v.v / t.v - a.v) / a.v > 0.15) { /* sem correção segura */ }
+    const par = parseFloat(a.el.value), rest = parseFloat(r.el.value);
+    if (par > 0 && rest > 0) { mensal += par; maxRest = Math.max(maxRest, rest); }
+  });
+  if (fixed) showToast('Ajustei ' + fixed + ' parcelamento(s): os campos estavam trocados. Confira os valores.', 'info');
+  return { mensal: Math.round(mensal * 100) / 100, maxRest };
 }
 function cardBoxHtml(existing) {
   const c = (existing && cardsMap()[existing.id]) || {}, plans = c.plans || [];
   return '<div id="m-card-box" style="display:none;border:1px dashed var(--border);border-radius:12px;padding:12px;margin:8px 0;background:var(--card-alt)">'
     + '<div style="font-weight:700;margin-bottom:4px">💳 Já parcelou a fatura? Conte aqui</div>'
-    + '<div class="occ-b-desc" style="margin-bottom:8px;line-height:1.5">Parcelou a fatura 2x, 3x? Informe cada parcelamento (parcela e quantas faltam). Os campos <em>Total</em> e <em>Valor parcelado</em> são opcionais e permitem calcular o juros real que você paga.</div>'
+    + '<div class="occ-b-desc" style="margin-bottom:8px;line-height:1.5">Parcelou a fatura 2x, 3x? Informe cada parcelamento: <strong>valor de cada parcela</strong> e <strong>quantas faltam</strong>. Total de parcelas e valor parcelado são opcionais e permitem calcular o juros real que você paga.</div>'
     + '<div style="font-size:12px;margin-bottom:6px;color:var(--ink-3)">O <strong>Saldo devedor</strong> acima já inclui essas parcelas futuras?</div>'
     + '<label style="margin-right:14px"><input type="radio" name="m-cinclui" value="1" ' + (c.inclui === false ? '' : 'checked') + '> Sim, já inclui</label><label><input type="radio" name="m-cinclui" value="0" ' + (c.inclui === false ? 'checked' : '') + '> Não, são dívidas além do saldo</label>'
     + '<div id="m-cplans" style="margin-top:10px">' + plans.map(cardRowHtml).join('') + '</div>'
     + '<button type="button" class="btn-sm" onclick="document.getElementById(\'m-cplans\').insertAdjacentHTML(\'beforeend\', cardRowHtml())">+ Adicionar parcelamento</button></div>';
+}
+function cardPlanSummary(d) {
+  const c = cardsMap()[d.id]; if (!c || !c.plans || !c.plans.length) return '';
+  const ps = c.plans.filter(p => p.parcela > 0 && p.restantes > 0); if (!ps.length) return '';
+  const m = ps.reduce((a, p) => a + p.parcela, 0);
+  return ' · ' + ps.length + ' parcelamento' + (ps.length > 1 ? 's' : '') + ' da fatura: ' + fmt(m) + '/mês (faltam até ' + Math.max.apply(null, ps.map(p => p.restantes)) + 'x)';
 }
 function cardToggleBox() { const t = (document.getElementById('m-dtype') || {}).value || '', b = document.getElementById('m-card-box'); if (b) { b.style.display = /cart[aã]o/i.test(t) ? 'block' : 'none'; if (b.style.display === 'block' && !b.querySelector('.cp-row') && !b.dataset.opened) { b.dataset.opened = '1'; } } }
 function cardSaveFromDom(debtId, type) {
@@ -3701,6 +3724,7 @@ function openDebtModal(existing = null) {
 }
 async function saveDebt(editId) {
   if (!editId && !checkPlanLimit(state.debts.length, PLAN_LIMITS.maxDebts, 'Plano ' + currentPlanLabel() + ' permite registrar até ' + PLAN_LIMITS.maxDebts + ' dívidas. Faça upgrade para o Plus (ilimitado).')) return;
+  try { if (/cart[aã]o/i.test(document.getElementById('m-dtype').value)) cardNormalizeDom(); } catch (e) { console.warn(e); }
   const profile = readProfileField();
   const d = { id: editId || genId(), name: document.getElementById('m-dname').value, type: document.getElementById('m-dtype').value, saldo: parseFloat(document.getElementById('m-dsaldo').value) || 0, juros: parseFloat(document.getElementById('m-djuros').value) || 0, parcelas: parseInt(document.getElementById('m-dparcelas').value) || 0, mensal: parseFloat(document.getElementById('m-dmensal').value) || 0, profile };
   if (editId) { const i = state.debts.findIndex(x => x.id === editId); if (i >= 0) state.debts[i] = d; } else state.debts.push(d);
@@ -5524,7 +5548,7 @@ function renderDividas(c) {
     { label: '% da renda', value: pct(c.debtPct), color: c.debtPct>30?'var(--expense)':'var(--amber)' },
   ].map((k,i) => `<div class="kpi animate-in stagger-${i+1}"><div class="kpi-label">${k.label}</div><div class="kpi-value ${k.cls||''}" ${k.color?`style="color:${k.color}"`:''} >${k.value}</div></div>`).join('')}</div>
   ${visibleList('debts').length===0?`<div class="card animate-in stagger-3"><div class="empty-state"><div class="empty-icon">✅</div><div class="empty-title">Sem dívidas!</div></div></div>`:
-  `<div class="debt-summary-grid">${visibleList('debts').map((d,i)=>`<div class="debt-card-item animate-in stagger-${(i%4)+1}"><div onclick='openDebtModal(${JSON.stringify(d).replace(/'/g,"&#39;")})' style="cursor:pointer"><div class="debt-type">${d.type}</div><div style="font-family:var(--font-display);font-weight:700;font-size:15px;margin:6px 0 2px">${fxEsc(d.name)}</div><div class="debt-amount">${fmt(d.saldo)}</div><div class="debt-detail">${d.juros>0?`Juros: ${d.juros}% a.m.`:'Sem juros'}${d.parcelas>0?` · ${d.parcelas}x de ${fmt(d.mensal)}`:''}</div></div>${isPlusUser()?`<button class="btn-sm" style="margin-top:10px;width:100%" onclick="event.stopPropagation();openNegotiationDebt('${d.id}')">💬 Negociar</button>`:''}</div>`).join('')}</div>
+  `<div class="debt-summary-grid">${visibleList('debts').map((d,i)=>`<div class="debt-card-item animate-in stagger-${(i%4)+1}"><div onclick='openDebtModal(${JSON.stringify(d).replace(/'/g,"&#39;")})' style="cursor:pointer"><div class="debt-type">${d.type}</div><div style="font-family:var(--font-display);font-weight:700;font-size:15px;margin:6px 0 2px">${fxEsc(d.name)}</div><div class="debt-amount">${fmt(d.saldo)}</div><div class="debt-detail">${d.juros>0?`Juros: ${d.juros}% a.m.`:'Sem juros'}${cardPlanSummary(d)||(d.parcelas>0&&d.mensal>0?` · ${d.parcelas}x de ${fmt(d.mensal)}`:'')}</div></div>${isPlusUser()?`<button class="btn-sm" style="margin-top:10px;width:100%" onclick="event.stopPropagation();openNegotiationDebt('${d.id}')">💬 Negociar</button>`:''}</div>`).join('')}</div>
   <div class="card animate-in stagger-5"><div class="card-title" style="margin-bottom:12px">Simulação de antecipação</div>${visibleList('debts').filter(d=>d.juros>0&&d.parcelas>0).map(d=>{const fi=d.saldo*(d.juros/100)*d.parcelas;return`<div style="background:var(--card-alt);border-radius:var(--radius-sm);padding:16px;font-size:13px;color:var(--ink-2);line-height:1.7;margin-bottom:8px"><strong style="color:var(--ink)">${fxEsc(d.name)}</strong> — Saldo: ${fmt(d.saldo)} · ${d.juros}% a.m. · ${d.parcelas}x<br>Economia estimada: <strong style="color:var(--income)">${fmt(fi)}</strong></div>`;}).join('')||'<div style="font-size:13px;color:var(--ink-3)">Nenhuma dívida com juros.</div>'}</div>`}`;
 }
 

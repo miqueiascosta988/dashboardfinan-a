@@ -81,3 +81,18 @@ test('cenário completo (consignado + cartão + financiamento): a lista prioriza
   assert.ok(r.ataque && r.cobre && r.folha); assert.equal(r.meses, 3);
   assert.deepEqual(errs, []); await ctx.close();
 });
+test('campos trocados no parcelamento (nº | faltam | valor parcelado | parcela) são corrigidos, e valor mensal/parcelas da dívida refletem os parcelamentos', async () => {
+  const { page, errs, ctx } = await openApp();
+  await page.evaluate(() => switchTab('dividas')); await page.evaluate(() => openDebtModal());
+  await page.fill('#m-dname', 'Mercado Pago'); await page.selectOption('#m-dtype', 'Cartão'); await page.dispatchEvent('#m-dtype', 'change');
+  await page.fill('#m-dsaldo', '5683'); await page.fill('#m-djuros', '0');
+  await page.click('text=+ Adicionar parcelamento'); await page.click('text=+ Adicionar parcelamento');
+  const rows = await page.$$('#m-cplans .cp-row'), set = async (r, a) => { for (const [c, v] of a) await r.$eval('.' + c, (e, v) => e.value = v, v); };
+  await set(rows[0], [['cp-parcela', '6'], ['cp-rest', '2'], ['cp-total', '1333.14'], ['cp-valor', '222.19']]);
+  await set(rows[1], [['cp-parcela', '9'], ['cp-rest', '9'], ['cp-total', '4429.17'], ['cp-valor', '492.13']]);
+  await page.evaluate(() => saveDebt(null)); await page.waitForFunction(() => state.debts.length === 1);
+  const r = await page.evaluate(() => { const d = state.debts[0], c = cardsMap()[d.id]; return { mensal: d.mensal, parcelas: d.parcelas, plans: c.plans.map(p => [p.parcela, p.restantes, p.total, p.valor]) }; });
+  await page.evaluate(() => switchTab('dividas')); assert.match(await page.textContent('#main'), /2 parcelamentos da fatura: R\$\s?714\/mês \(faltam até 9x\)/);
+  assert.deepEqual(r.plans, [[222.19, 2, 6, 1333.14], [492.13, 9, 9, 4429.17]]);
+  assert.deepEqual(errs, []); await ctx.close();
+});

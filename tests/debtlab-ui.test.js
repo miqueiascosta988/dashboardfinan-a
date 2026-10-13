@@ -118,3 +118,44 @@ test('"Lançar" em contrato lido antes (sem categoria) abre a revisão com categ
   await page.evaluate(() => saveFinReview('leg')); await page.waitForFunction(() => state.debts.length === 1);
   const r = await page.evaluate(() => ({ t: state.debts[0].type, n: state.debts[0].name, tx: state.transactions.length })); assert.equal(r.t, 'Consignado CLT'); assert.equal(r.tx, 0); assert.deepEqual(errs, []); await ctx.close();
 });
+// ───────── separação PF × PJ ─────────
+const mkDoc = (id, extra) => Object.assign({ id, name: 'doc ' + id, category: 'boleto', type: 'expense', amount: 100, date: '10/10', extractedData: { state: 'done', userConfirmed: true } }, extra || {});
+test('PF×PJ: documentos aparecem só no perfil a que pertencem; legado é deduzido (holerite=PF, NF=PJ)', async () => {
+  const { page, errs, ctx } = await openApp();
+  const r = await page.evaluate(() => {
+    state.transactions = []; state.debts = [];
+    state.documents = [{ id: 'a', name: 'A pessoal', category: 'boleto', amount: 10, date: '10/10', extractedData: { profile: 'PF', state: 'done' } }, { id: 'b', name: 'B empresa', category: 'boleto', amount: 20, date: '10/10', extractedData: { profile: 'PJ', state: 'done' } },
+      { id: 'c', name: 'Holerite antigo', category: 'holerite', amount: 30, date: '10/10', extractedData: { payslip: { competencia: '2026-09', totals: { liquido: 30 }, rows: [] }, state: 'done' } }, { id: 'd', name: 'NF antiga', category: 'nf', amount: 40, date: '10/10', extractedData: { fonte: 'xml', state: 'done' } }];
+    const n = docsStampLegacy(); const pf = docsOf('PF').map(d => d.id).sort(), pj = docsOf('PJ').map(d => d.id).sort();
+    state.profile_type = 'PF'; switchTab('documentos'); const tPF = document.body.innerText; state.profile_type = 'PJ'; switchTab('documentos'); const tPJ = document.body.innerText;
+    return { n, pf, pj, pfSees: ['A pessoal', 'B empresa', 'Holerite antigo', 'NF antiga'].filter(x => tPF.includes(x)), pjSees: ['A pessoal', 'B empresa', 'Holerite antigo', 'NF antiga'].filter(x => tPJ.includes(x)) };
+  });
+  assert.equal(r.n, 2); assert.deepEqual(r.pf, ['a', 'c']); assert.deepEqual(r.pj, ['b', 'd']); assert.deepEqual(r.pfSees, ['A pessoal', 'Holerite antigo']); assert.deepEqual(r.pjSees, ['B empresa', 'NF antiga']);
+  assert.deepEqual(errs, []); await ctx.close();
+});
+test('PF×PJ: documento criado no PJ gera lançamento/dívida PJ; a mesma dívida no PF não é vinculada', async () => {
+  const { page, errs, ctx } = await openApp();
+  const r = await page.evaluate(() => {
+    state.transactions = []; state.debts = [{ id: 'dpf', name: 'Empréstimo Banco X', type: 'Empréstimo pessoal', saldo: 8000, juros: 2, parcelas: 20, mensal: 500, profile: 'PF' }];
+    state.profile_type = 'PJ';
+    const dj = { id: 'j1', name: 'ded', category: 'emprestimo', extractedData: { profile: 'PJ', state: 'done', userConfirmed: true, fin: { direction: 'debt', kind: 'emprestimo', counterparty: 'Banco X', extra: { saldo: 8000, parcela: 500, parcelas: 20, juros: 2, categoria: 'Empréstimo PJ', categoriaConf: 0.95 } } } };
+    state.documents.push(dj); syncDocTransactionCore(dj);
+    const bj = { id: 'b1', name: 'boleto', category: 'boleto', extractedData: { profile: 'PJ', state: 'done', userConfirmed: true, fin: { direction: 'out', kind: 'boleto', counterparty: 'Fornecedor', amount: 321, date: '2026-10-20', extra: {} } } };
+    state.documents.push(bj); syncDocTransactionCore(bj);
+    return { debts: state.debts.map(z => [z.id === 'dpf' ? 'pf' : 'novo', z.profile]), tx: state.transactions.map(t => t.profile), pjDebtsVisible: visibleList('debts').length, pjTxVisible: visibleList('transactions').length };
+  });
+  assert.deepEqual(r.debts, [['pf', 'PF'], ['novo', 'PJ']]); assert.deepEqual(r.tx, ['PJ']); assert.equal(r.pjDebtsVisible, 1); assert.equal(r.pjTxVisible, 1); assert.deepEqual(errs, []); await ctx.close();
+});
+test('PF×PJ: agenda e planos isolados por perfil; evento antigo herda perfil da dívida/documento', async () => {
+  const { page, errs, ctx } = await openApp();
+  const r = await page.evaluate(() => {
+    state.debts = [{ id: 'dpf', name: 'D PF', type: 'Empréstimo pessoal', saldo: 1, juros: 1, parcelas: 1, mensal: 1, profile: 'PF' }, { id: 'dpj', name: 'D PJ', type: 'Empréstimo PJ', saldo: 1, juros: 1, parcelas: 1, mensal: 1, profile: 'PJ' }];
+    state.documents = [{ id: 'xj', name: 'x', category: 'boleto', extractedData: { profile: 'PJ' } }];
+    const mk = (id, over) => FinPlan.newEvent(Object.assign({ id, key: 'k' + id, kind: 'payable', title: 'Conta ' + id, amount: 50, dueDate: '2026-10-20' }, over), '2026-10-13T00:00:00Z');
+    state.finEvents = [mk('e1', { profile: 'PF' }), mk('e2', { profile: 'PJ' }), mk('e3', { sourceRef: 'dpj' }), mk('e4', { key: 'doc:xj:0' }), mk('e5', {})];
+    state.finPlans = [{ id: 'p1', status: 'active', data: { profile: 'PJ' } }, { id: 'p2', status: 'active', data: {} }];
+    const ids = () => agInputs().events.map(e => e.id).sort(); state.profile_type = 'PF'; const pf = ids(); state.profile_type = 'PJ'; const pj = ids();
+    return { pf, pj };
+  });
+  assert.deepEqual(r.pf, ['e1', 'e5']); assert.deepEqual(r.pj, ['e2', 'e3', 'e4']); assert.deepEqual(errs, []); await ctx.close();
+});

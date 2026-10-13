@@ -1638,6 +1638,20 @@ function isVisibleInCurrentProfile(item) {
   if (!item || !item.profile || item.profile === 'ambos') return true;
   return item.profile === state.profile_type;
 }
+// ───────── Separação PF × PJ: cada documento, evento e plano pertence a UM perfil (nada vaza entre Pessoal e Empresa) ─────────
+function inferDocProfile(d) {         // documentos antigos (sem carimbo): deduz pelo conteúdo e pelo que o documento gerou
+  const x = (d && d.extractedData) || {};
+  if (x.payslip) return 'PF';
+  if (x.fonte === 'xml' || d.category === 'nf') return 'PJ';
+  const t = x.txId && (state.transactions || []).find(z => z.id === x.txId); if (t && (t.profile === 'PF' || t.profile === 'PJ')) return t.profile;
+  const b = x.debtId && (state.debts || []).find(z => z.id === x.debtId); if (b && (b.profile === 'PF' || b.profile === 'PJ')) return b.profile;
+  return 'PF';
+}
+function docProfile(d) { const p = d && d.extractedData && d.extractedData.profile; return p === 'PF' || p === 'PJ' ? p : inferDocProfile(d); }
+function stampDocNew(d) { if (d) { d.extractedData = d.extractedData || {}; if (!d.extractedData.profile) d.extractedData.profile = state.profile_type; } return d; }
+function docsOf(profile) { return (state.documents || []).filter(d => docProfile(d) === profile); }
+function docsVisible() { return docsOf(state.profile_type); }
+function docsStampLegacy() { let n = 0; (state.documents || []).forEach(d => { const x = d.extractedData = d.extractedData || {}; if (x.profile !== 'PF' && x.profile !== 'PJ') { x.profile = inferDocProfile(d); persistDoc(d); n++; } }); return n; }
 function visibleList(key) {
   return (state[key] || []).filter(isVisibleInCurrentProfile);
 }
@@ -3503,6 +3517,7 @@ async function loadAllData() {
   state.documents = (docs.data || []).map(r => ({ id: r.id, name: r.name, type: r.type, category: r.category, amount: parseFloat(r.amount), date: r.date, status: r.status, fileSize: r.file_size, mimeType: r.mime_type, extractedData: r.extracted_data || {} }));
   await loadRequests();
   await agendaLoad();
+  try { docsStampLegacy(); } catch (e) { console.warn(e); }   // documentos antigos ganham o carimbo PF/PJ (deduzido do conteúdo)
   await prefsLoad();
   try { setTimeout(docsHeal, 800); } catch (e) {}
   consentCheck();
@@ -3739,7 +3754,7 @@ function dedDocsFor(debtId) {
 }
 function dedStatusFor(debtId) { const l = dedDocsFor(debtId); if (!l.length) return null; return DebtLab.staleness(l[l.length - 1].ref, isoStr(new Date())); }
 function dedBannerHtml() {
-  const pend = (state.documents || []).filter(d => d.extractedData && d.extractedData.dedPending);
+  const pend = docsVisible().filter(d => d.extractedData && d.extractedData.dedPending);
   const pendHtml = pend.length ? '<div class="card mb-24 animate-in" style="border-left:3px solid var(--gold)"><div class="card-title" style="margin:0 0 6px">🔗 Falta decidir a qual dívida o documento pertence</div>' + pend.slice(0, 3).map(d => '<div class="occ-b-desc">• ' + fxEsc(d.name || 'Documento') + ' <button class="btn-sm" onclick="openDedLink(\'' + d.id + '\')">Decidir</button></div>').join('') + '</div>' : '';
   const stale = (state.debts || []).map(d => ({ d, st: dedStatusFor(d.id) })).filter(x => x.st && x.st.status === 'desatualizado');
   if (!stale.length) return pendHtml;
@@ -4424,11 +4439,11 @@ const simNum = v => { const n = parseFloat(String(v).replace(/\./g, '').replace(
 const SIM_CATS = { adiantamento: 'Adiantamento salarial (já recebido no mês)', base: 'Salário / fixo', variavel: 'Variável (entra na média)', consig: 'Consignado / empréstimo', outros: 'Outro desconto', inss: 'INSS', irrf: 'IRRF', ignorar: 'Ignorar' };
 function simSyncFromStore() {
   const label = c => c ? c.slice(5) + '/' + c.slice(0, 4) : '—';
-  SIM.holerites = (window.DocIntel ? DocIntel.payslipsForCalc(state.documents) : []).map(d => ({ id: d.id, name: (d.extractedData.files || [d.name])[0], comp: label(d.extractedData.payslip.competencia), rows: d.extractedData.payslip.rows }));
+  SIM.holerites = (window.DocIntel ? DocIntel.payslipsForCalc(docsOf('PF')) : []).map(d => ({ id: d.id, name: (d.extractedData.files || [d.name])[0], comp: label(d.extractedData.payslip.competencia), rows: d.extractedData.payslip.rows }));
 }
 function simApplyHolerites() {
   simSyncFromStore();
-  const inp = window.DocIntel ? DocIntel.calcInputs(state.documents) : null; if (!inp) return;
+  const inp = window.DocIntel ? DocIntel.calcInputs(docsOf('PF')) : null; if (!inp) return;
   SIM.salary = inp.salary || SIM.salary; SIM.variaveis = inp.variaveis; SIM.consig = inp.consig;
 }
 function simSetCat(hid, idx, cat) {
@@ -5865,7 +5880,7 @@ function handleNfXmlFiles(files) {
   Promise.all(reads).then(function(list) {
     var notes = [], cancels = [], bad = 0, seen = {}, known = {}, blocked = 0;
     if (pfLocked() && !nfOwnDoc()) { showToast('Informe seu CPF no cadastro antes de enviar notas fiscais.', 'info'); return; }
-    state.documents.forEach(function(d) { if (d.extractedData && d.extractedData.fonte === 'xml') known[nfDocKey(d.extractedData)] = 1; });
+    state.documents.forEach(function(d) { if (d.extractedData && d.extractedData.fonte === 'xml' && docProfile(d) === state.profile_type) known[nfDocKey(d.extractedData)] = 1; });
     list.forEach(function(it) {
       var n = nfParseXml(it.text);
       if (!n) { bad++; return; }
@@ -5902,7 +5917,7 @@ function confirmNfImport() {
     var chk = document.getElementById('nf-chk-' + i); if (!chk || !chk.checked) return;
     if (p.cancels.indexOf(n.chave) !== -1) n.status = 'cancelada';
     var doc = nfDocFromNote(n, n._file);
-    state.documents.unshift(doc); saved++;
+    state.documents.unshift(stampDocNew(doc)); saved++;
     dbUpsert('documents', { id: doc.id, user_id: currentUser?.id, name: doc.name, type: doc.type, category: doc.category, amount: doc.amount, date: doc.date, status: doc.status, file_size: doc.fileSize, mime_type: doc.mimeType, extracted_data: doc.extractedData });
     if (lancar && n.status !== 'cancelada' && n.dir !== 'indef' && n.valor > 0 && /^\d{4}-\d{2}-\d{2}/.test(n.emissao)) {
       var isInc = n.dir === 'emitida', other = isInc ? n.dest : n.emit, desc = 'NF ' + (n.numero || '') + ' · ' + (other && other.nome || '');
@@ -5981,7 +5996,7 @@ function renderFluxoCaixa(c) {
 // ═══════════════════════════════════════════════════════
 function renderDocumentos(c) {
   const isPJ = state.profile_type === 'PJ';
-  const docs = state.documents;
+  const docs = docsVisible();
   const docTypes = getDocTypes();
   const byType = {};
   docs.forEach(d => { byType[d.category] = (byType[d.category] || 0) + 1; });
@@ -6074,6 +6089,7 @@ function processUploadedFiles(files) {
 let INGEST = null;
 const INGEST_MAX_BYTES = 10 * 1048576;
 function persistDoc(d) {
+  if (d && d.extractedData && !d.extractedData.profile) d.extractedData.profile = docProfile(d);
   dbUpsert('documents', { id: d.id, user_id: currentUser?.id, name: d.name, type: d.type, category: d.category, amount: d.amount, date: d.date, status: d.status, file_size: d.fileSize, mime_type: d.mimeType, extracted_data: d.extractedData });
 }
 // ─── Integração documento → lançamento ───
@@ -6139,10 +6155,10 @@ function syncDocTransactionCore(d) {
     return cur;
   }
   if (x.txId) { if (x.txDeleted) return null; x.txId = null; x.txOwned = undefined; }   // só a exclusão deliberada (marcada em deleteTransaction) impede recriar; lançamento que sumiu sozinho (falha ao salvar, troca de aparelho) é recuperado
-  const same = t => t.type === ev.type && Math.abs(t.amount - ev.amount) < 0.01 && (ev.match === 'month' ? String(t.date).slice(0, 7) === ev.date.slice(0, 7) : String(t.date).slice(0, 10) === ev.date);
+  const prof = docProfile(d), same = t => (t.profile === prof || t.profile === 'ambos' || !t.profile) && t.type === ev.type && Math.abs(t.amount - ev.amount) < 0.01 && (ev.match === 'month' ? String(t.date).slice(0, 7) === ev.date.slice(0, 7) : String(t.date).slice(0, 10) === ev.date);
   const dup = state.transactions.find(same);
   if (dup) { x.txId = dup.id; x.txOwned = false; persistDoc(d); showToast('Já existe um lançamento de ' + fmt(ev.amount) + ' nessa data. Vinculei ao documento, sem duplicar.', 'info'); return dup; }
-  const t = { id: genId(), date: ev.date, desc: ev.desc, cat: ev.cat, amount: ev.amount, type: ev.type, recur: false, profile: state.profile_type };
+  const t = { id: genId(), date: ev.date, desc: ev.desc, cat: ev.cat, amount: ev.amount, type: ev.type, recur: false, profile: prof };
   state.transactions.push(t); docTxPersist(t);
   x.txId = t.id; x.txOwned = true; persistDoc(d);
   showToast((ev.type === 'income' ? '💰 Receita de ' : '💸 Despesa de ') + fmt(ev.amount) + ' lançada (' + ev.label + ') e integrada ao painel' + (txInPeriod(t) ? '.' : '. Atenção: ela está em ' + txMonthLabel(t) + ', fora do período exibido; use "ver nesse mês" no card do documento.'), 'success');
@@ -6150,7 +6166,7 @@ function syncDocTransactionCore(d) {
 }
 function docsHeal() {                 // documentos já enviados que nunca chegaram (ou perderam) o lançamento: distribui de novo, sem duplicar
   let n = 0;
-  state.documents.forEach(d => {
+  docsVisible().forEach(d => {
     const x = d.extractedData; if (!x || !(x.state === 'done' || x.userConfirmed) || x.txDeleted) return;
     const ev = docEvent(d); if (!ev || ev.debt) { try { if (typeof agendaFromDoc === 'function') agendaFromDoc(d); } catch (e) {} return; }
     if (x.txId && state.transactions.some(t => t.id === x.txId)) { try { if (typeof agendaFromDoc === 'function') agendaFromDoc(d); } catch (e) {} return; }
@@ -6164,21 +6180,22 @@ function syncDocDebt(d, ev) {          // empréstimo/financiamento/DED → pág
   const newer = z => !ev.refDate || !z.dedRef || ev.refDate >= z.dedRef;   // DED mais antigo não sobrescreve o mais novo
   if (cur) { if (x.debtOwned !== false || newer(cur)) { if (newer(cur)) { Object.assign(cur, { saldo: ev.saldo, mensal: ev.parcela, parcelas: ev.parcelas, juros: ev.juros || cur.juros }); if (ev.refDate) cur.dedRef = ev.refDate; if (x.debtOwned !== false) cur.name = ev.name; rec(cur); } } return cur; }
   if (x.debtId) return null;
-  const cands = state.debts.map(z => { const h = (state.documents || []).map(q => q.extractedData && q.extractedData.debtId === z.id && q.extractedData.fin && q.extractedData.fin.extra).filter(Boolean)[0] || {}; return { id: z.id, credor: z.name, parcela: z.mensal, tipo: z.type, contratoHash: h.contratoHash || null }; });
+  const prof = docProfile(d), sameP = z => z.profile === prof || z.profile === 'ambos' || !z.profile;
+  const cands = state.debts.filter(sameP).map(z => { const h = (state.documents || []).map(q => q.extractedData && q.extractedData.debtId === z.id && q.extractedData.fin && q.extractedData.fin.extra).filter(Boolean)[0] || {}; return { id: z.id, credor: z.name, parcela: z.mensal, tipo: z.type, contratoHash: h.contratoHash || null }; });
   const m = DebtLab.matchContract({ contratoHash: ev.contratoHash, credor: ev.credor, parcela: ev.parcela, tipo: ev.dtype }, cands);
   const link = (z, why) => { x.debtId = z.id; x.debtOwned = false; persistDoc(d); if (newer(z)) { Object.assign(z, { saldo: ev.saldo, mensal: ev.parcela, parcelas: ev.parcelas || z.parcelas, juros: ev.juros || z.juros }); if (ev.refDate) z.dedRef = ev.refDate; rec(z); } showToast('Vinculei este documento à dívida já cadastrada (' + why + '), sem duplicar. O histórico foi preservado.', 'info'); return z; };
   if (m.action === 'same') { const z = state.debts.find(q => q.id === m.id); if (z) return link(z, m.motivo); }
-  const dup = state.debts.find(z => Math.abs(z.saldo - ev.saldo) < 0.01 && Math.abs(z.mensal - ev.parcela) < 0.01);
+  const dup = state.debts.find(z => sameP(z) && Math.abs(z.saldo - ev.saldo) < 0.01 && Math.abs(z.mensal - ev.parcela) < 0.01);
   if (dup) return link(dup, 'mesmo saldo e parcela');
   if (m.action === 'ask' && !x.dedNoMatch) {   // parece ser de dívida já cadastrada: o usuário decide num modal (sem decidir, o documento espera)
     x.dedPending = m.candidatos || [m.id]; persistDoc(d);
     if (!x.dedAsked) { x.dedAsked = true; persistDoc(d); setTimeout(() => { try { openDedLink(d.id); } catch (e) { console.warn(e); } }, 0); }
     return null;
   }
-  if (!DebtLab.isValidCategory(ev.dtype, state.profile_type)) {   // sem categoria válida não cadastra: pede confirmação na revisão
+  if (!DebtLab.isValidCategory(ev.dtype, prof)) {   // sem categoria válida não cadastra: pede confirmação na revisão
     x.needsCategory = true; persistDoc(d); showToast('Falta a categoria da dívida. Abra "Revisar" e escolha uma para concluir o cadastro.', 'info'); return null;
   }
-  const z = { id: genId(), name: ev.name, type: ev.dtype, saldo: ev.saldo, juros: ev.juros, parcelas: ev.parcelas, mensal: ev.parcela, profile: state.profile_type, dedRef: ev.refDate || null };
+  const z = { id: genId(), name: ev.name, type: ev.dtype, saldo: ev.saldo, juros: ev.juros, parcelas: ev.parcelas, mensal: ev.parcela, profile: prof, dedRef: ev.refDate || null };
   state.debts.push(z); rec(z); x.debtId = z.id; x.debtOwned = true; delete x.needsCategory; persistDoc(d);
   showToast('🏦 Dívida de ' + fmt(ev.saldo) + ' (parcela ' + fmt(ev.parcela) + ') cadastrada em Dívidas.', 'success');
   return z;
@@ -6292,13 +6309,14 @@ function ingestInit() {
         if (!canImportFree() && countThisMonth(state.documents, 'date') >= PLAN_LIMITS.maxDocumentsPerMonth) {
           openModal('🔒 Limite de documentos do plano', '<div class="occ-b-desc">O plano ' + fxEsc(currentPlanLabel()) + ' permite até <b>' + PLAN_LIMITS.maxDocumentsPerMonth + ' documentos por mês</b>. O arquivo "' + fxEsc(e.name) + '" foi lido, mas <b>não foi salvo nem distribuído</b> para Renda, Despesas e Agenda.</div><div class="modal-actions"><button class="btn-cancel" onclick="closeModal()">Fechar</button><button class="btn-save" onclick="closeModal();switchTab(\'plano\')">Ver planos</button></div>'); return;
         }
-        state.documents.unshift(e); persistDoc(e); syncDocTransaction(e);
+        state.documents.unshift(stampDocNew(e)); persistDoc(e); syncDocTransaction(e);
       } else if (ch.op === 'replace') {
         const i = state.documents.findIndex(d => d.id === ch.id);
         if (i >= 0) {
           const old = state.documents[i].extractedData || {};
           state.documents[i] = Object.assign({}, ch.entity, { id: ch.id });
           if (old.txId && state.documents[i].extractedData) { state.documents[i].extractedData.txId = old.txId; state.documents[i].extractedData.txOwned = old.txOwned; }
+          if (state.documents[i].extractedData) state.documents[i].extractedData.profile = old.profile || docProfile(state.documents[i]);
           persistDoc(state.documents[i]); syncDocTransaction(state.documents[i]);
         }
       }
@@ -6335,7 +6353,7 @@ function ingestRefresh() {
 }
 function ingestResolve(id, idx, choice) { if (INGEST) { INGEST.resolve(id, idx, choice); docsChanged(); } }
 function reviewBannerHtml() {
-  const n = window.DocIntel ? DocIntel.pendingReview(state.documents) : 0; if (!n) return '';
+  const n = window.DocIntel ? DocIntel.pendingReview(docsVisible()) : 0; if (!n) return '';
   return '<div class="occ-b-desc" style="margin-top:10px;color:var(--gold)">⚠️ ' + n + ' holerite(s) aguardam sua revisão e <strong>ainda não entram nos cálculos</strong>. <a href="#" onclick="switchTab(\'documentos\');return false">Revisar em Documentos</a></div>';
 }
 
@@ -6460,7 +6478,7 @@ function saveManualDoc() {
     mimeType: 'manual',
     extractedData: {},
   };
-  state.documents.unshift(doc);
+  state.documents.unshift(stampDocNew(doc));
   dbUpsert('documents', { id: doc.id, user_id: currentUser?.id, name: doc.name, type: doc.type, category: doc.category, amount: doc.amount, date: doc.date, status: doc.status, file_size: doc.fileSize, mime_type: doc.mimeType, extracted_data: doc.extractedData });
   closeModal();
   renderCurrentTab();
@@ -6527,7 +6545,7 @@ function filterDocs(btn) {
   const grid = document.getElementById('doc-grid');
   if (!grid) return;
   const activeFilters = [...document.querySelectorAll('.doc-type-btn.selected')].map(b => b.dataset.filter);
-  const filtered = activeFilters.length === 0 ? state.documents : state.documents.filter(d => activeFilters.includes(d.category));
+  const filtered = activeFilters.length === 0 ? docsVisible() : docsVisible().filter(d => activeFilters.includes(d.category));
   grid.innerHTML = filtered.map((d, i) => renderDocCard(d, i)).join('');
   if (filtered.length === 0) grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:32px;color:var(--ink-3);font-size:13px">Nenhum documento neste filtro.</div>';
 }
@@ -6720,7 +6738,7 @@ function saveScannedDoc() {
     mimeType: 'scan',
     extractedData: lastScanParsed ? { kind: lastScanParsed.kind, raw: lastScanParsed.raw } : {},
   };
-  state.documents.unshift(doc);
+  state.documents.unshift(stampDocNew(doc));
   dbUpsert('documents', { id: doc.id, user_id: currentUser?.id, name: doc.name, type: doc.type, category: doc.category, amount: doc.amount, date: doc.date, status: doc.status, file_size: doc.fileSize, mime_type: doc.mimeType, extracted_data: doc.extractedData });
   closeModal();
   renderCurrentTab();
@@ -7731,7 +7749,7 @@ function exportRowsTx() {
 // ───────── PJ: notas fiscais organizadas em planilha (todas as NFs enviadas, em PDF ou XML) ─────────
 function nfSheetRows() {
   const rows = [];
-  (state.documents || []).forEach(d => {
+  docsVisible().forEach(d => {
     const x = d.extractedData || {}; let r = null;
     if (x.fonte === 'xml' && (x.kind === 'nfe' || x.kind === 'nfse')) {
       const emit = x.dir === 'emitida', o = emit ? x.dest : x.emit;
@@ -7753,7 +7771,7 @@ function nfSheetSummary(rows) {
 const PAYCONF = (function () { try { return JSON.parse(localStorage.getItem('sm_payconf') || '{}'); } catch (e) { return {}; } })();
 function payConfirm(id, v) { PAYCONF[id] = v; try { localStorage.setItem('sm_payconf', JSON.stringify(PAYCONF)); } catch (e) {} renderCurrentTab(); }
 function payrollCard() {
-  const slips = (state.documents || []).filter(d => d.extractedData && d.extractedData.payslip && d.extractedData.payslip.competencia && (d.extractedData.state === 'done' || d.extractedData.userConfirmed)).sort((a, b) => b.extractedData.payslip.competencia.localeCompare(a.extractedData.payslip.competencia));
+  const slips = docsVisible().filter(d => d.extractedData && d.extractedData.payslip && d.extractedData.payslip.competencia && (d.extractedData.state === 'done' || d.extractedData.userConfirmed)).sort((a, b) => b.extractedData.payslip.competencia.localeCompare(a.extractedData.payslip.competencia));
   if (!slips.length) return '';
   const d = slips[0], p = d.extractedData.payslip, A = Payroll.analyzePayslip(p); if (!(A.liquidoTotalMes > 0)) return '';
   const owned = {}; (state.documents || []).forEach(q => { if (q.extractedData && q.extractedData.txId) owned[q.extractedData.txId] = 1; });

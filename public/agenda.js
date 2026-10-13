@@ -18,21 +18,35 @@
   var PRIO = { essential: 'Essencial', high: 'Alta', normal: 'Normal', low: 'Baixa' };
   var CATS = ['Moradia', 'Alimentação', 'Saúde', 'Educação', 'Transporte', 'Dívidas', 'Impostos', 'Assinaturas', 'Lazer', 'Salário', 'Outras receitas', 'Outros'];
 
+  // ───────── separação PF × PJ ─────────
+  function evProfile(e) {          // evento sem carimbo (antigo): herda da dívida, do documento ou do lançamento de origem
+    if (e.profile === 'PF' || e.profile === 'PJ') return e.profile;
+    var st = S(), d = e.sourceRef && st.debts.filter(function (z) { return z.id === e.sourceRef; })[0]; if (d && (d.profile === 'PF' || d.profile === 'PJ')) return d.profile;
+    var m = /^doc:([^:]+):/.exec(e.key || ''); if (m) { var doc = (st.documents || []).filter(function (z) { return z.id === m[1]; })[0]; if (doc && typeof docProfile === 'function') return docProfile(doc); }
+    var t = e.txId && st.transactions.filter(function (z) { return z.id === e.txId; })[0]; if (t && (t.profile === 'PF' || t.profile === 'PJ')) return t.profile;
+    return 'PF';
+  }
+  function evs() { var p = state.profile_type; return S().finEvents.filter(function (e) { return evProfile(e) === p; }); }
+  function plans() { var p = state.profile_type; return S().finPlans.filter(function (x) { return ((x.data && x.data.profile) || 'PF') === p; }); }
+  function activePlan() { return plans().filter(function (p) { return p.status === 'active'; })[0]; }
+  window.agendaEvProfile = evProfile;
   // ───────── persistência ─────────
   function toRow(e) {
-    return { id: e.id, user_id: currentUser && currentUser.id, key: e.key, plan_id: e.planId || null, kind: e.kind, title: e.title, category: e.category || null, amount: e.amount, due_date: e.dueDate, status: e.status, paid_at: e.paidAt || null, paid_amount: e.paidAmount, priority: e.priority, origin: ['manual', 'plan', 'document', 'debt', 'recurring'].indexOf(e.origin) >= 0 ? e.origin : 'manual', source_ref: e.sourceRef || null, remind_days: e.remindDays || [1], notes: e.notes || null, movable: !!e.movable, user_edited: !!e.userEdited, tx_id: e.txId || null, version: e.version || 1, history: e.history || [] };
+    return { id: e.id, user_id: currentUser && currentUser.id, key: e.key, profile: e.profile || null, plan_id: e.planId || null, kind: e.kind, title: e.title, category: e.category || null, amount: e.amount, due_date: e.dueDate, status: e.status, paid_at: e.paidAt || null, paid_amount: e.paidAmount, priority: e.priority, origin: ['manual', 'plan', 'document', 'debt', 'recurring'].indexOf(e.origin) >= 0 ? e.origin : 'manual', source_ref: e.sourceRef || null, remind_days: e.remindDays || [1], notes: e.notes || null, movable: !!e.movable, user_edited: !!e.userEdited, tx_id: e.txId || null, version: e.version || 1, history: e.history || [] };
   }
   function fromRow(r) {
-    return { id: r.id, key: r.key, planId: r.plan_id, kind: r.kind, title: r.title, category: r.category, amount: parseFloat(r.amount), dueDate: String(r.due_date).slice(0, 10), status: r.status, paidAt: r.paid_at ? String(r.paid_at).slice(0, 10) : null, paidAmount: r.paid_amount == null ? null : parseFloat(r.paid_amount), priority: r.priority, origin: r.origin, sourceRef: r.source_ref, remindDays: r.remind_days || [1], notes: r.notes, movable: !!r.movable, userEdited: !!r.user_edited, txId: r.tx_id, version: r.version || 1, history: r.history || [] };
+    return { id: r.id, key: r.key, profile: r.profile || null, planId: r.plan_id, kind: r.kind, title: r.title, category: r.category, amount: parseFloat(r.amount), dueDate: String(r.due_date).slice(0, 10), status: r.status, paidAt: r.paid_at ? String(r.paid_at).slice(0, 10) : null, paidAmount: r.paid_amount == null ? null : parseFloat(r.paid_amount), priority: r.priority, origin: r.origin, sourceRef: r.source_ref, remindDays: r.remind_days || [1], notes: r.notes, movable: !!r.movable, userEdited: !!r.user_edited, txId: r.tx_id, version: r.version || 1, history: r.history || [] };
   }
   async function dbSave(table, row) {
     if (!(typeof sb !== 'undefined' && sb && currentUser)) return true;
     try {
       var r = await sb.from(table).upsert(row);
+      if (r && r.error && /profile/i.test(r.error.message || '') && 'profile' in row) { var r2 = Object.assign({}, row); delete r2.profile; r = await sb.from(table).upsert(r2); if (!(r && r.error)) { warnProfile(); return true; } }
       if (r && r.error) { warn(r.error.message); return false; }
     } catch (e) { warn(String(e)); return false; }
     return true;
   }
+  function warnProfile() { if (!AG.warnedP) { AG.warnedP = true; console.warn('agenda: coluna profile ausente (rode a migração 018). O perfil é deduzido da dívida/documento de origem.'); } }
   function warn(msg) { console.warn('agenda: não salvou na nuvem:', msg); if (!AG.warned) { AG.warned = true; showToast('A agenda não foi salva na nuvem (rode a migração 017 no Supabase). Ela continua nesta sessão.', 'warning'); } }
   window.agendaLoad = async function () {
     var s = S(); s.finEvents = []; s.finPlans = [];
@@ -56,12 +70,12 @@
 
   // ───────── contexto ─────────
   function avgIncome() {
-    var by = {}; S().transactions.forEach(function (t) { if (t.type === 'income' && /^\d{4}-\d{2}/.test(String(t.date))) { var m = String(t.date).slice(0, 7); by[m] = (by[m] || 0) + t.amount; } });
+    var by = {}; visibleList('transactions').forEach(function (t) { if (t.type === 'income' && /^\d{4}-\d{2}/.test(String(t.date))) { var m = String(t.date).slice(0, 7); by[m] = (by[m] || 0) + t.amount; } });
     var k = Object.keys(by); return k.length ? k.reduce(function (s, m) { return s + by[m]; }, 0) / k.length : 0;
   }
   function monthSpend() {                       // despesas lançadas no mês atual, sem as que já estão ligadas a eventos do calendário
     var s = S(), t0 = today(), ymN = t0.slice(0, 7), linked = {}, by = {}, total = 0;
-    (s.finEvents || []).forEach(function (e) { if (e.txId) linked[e.txId] = true; });
+    evs().forEach(function (e) { if (e.txId) linked[e.txId] = true; });
     visibleList('transactions').forEach(function (t) {
       if (t.type !== 'expense' || String(t.date).slice(0, 7) !== ymN || linked[t.id]) return;
       var a = Number(t.amount) || 0; if (!(a > 0)) return; total += a; var c = t.category || 'Outros'; by[c] = (by[c] || 0) + a;
@@ -71,7 +85,7 @@
   }
   function inputs() {
     var s = S(), P = prefs();
-    return { today: today(), events: s.finEvents, spend: monthSpend(), monthlyIncome: s.monthlyIncome, avgIncome: avgIncome(), openingBalance: P.opening == null ? null : P.opening, reserveMonthly: P.reserve == null ? null : P.reserve, avgEssential: P.essential || 0,
+    return { today: today(), events: evs(), spend: monthSpend(), monthlyIncome: s.monthlyIncome, avgIncome: avgIncome(), openingBalance: P.opening == null ? null : P.opening, reserveMonthly: P.reserve == null ? null : P.reserve, avgEssential: P.essential || 0,
       debts: (typeof debtsExpanded === 'function' ? debtsExpanded() : visibleList('debts')).filter(function (d) { return d.saldo > 0; }).map(function (d) { return { id: d.id, name: d.name, saldo: d.saldo, juros: d.juros > 0 ? d.juros : null, mensal: d.mensal, parcelas: d.parcelas, folha: (typeof DebtLab !== 'undefined' && DebtLab.descontoFolha(d)) }; }) };
   }
   function ctx() { return FP.buildContext(inputs()); }
@@ -83,7 +97,7 @@
   }
 
   // ───────── helpers de evento ─────────
-  function find(id) { return S().finEvents.filter(function (e) { return e.id === id; })[0]; }
+  function find(id) { return evs().filter(function (e) { return e.id === id; })[0]; }
   function view(e) { return FP.statusView(e, today()); }
   function badge(e) { var v = view(e), s = STATUS[v]; return '<span class="ag-badge ' + s[1] + '">' + s[0] + '</span>'; }
 
@@ -111,7 +125,7 @@
   // ───────── calendário ─────────
   function agCalendar() {
     var s = S(), y = +AG.month.slice(0, 4), m = +AG.month.slice(5, 7), first = new Date(y, m - 1, 1).getDay(), nd = FP.dim(y, m), t = today();
-    var byDay = {}; s.finEvents.forEach(function (e) { if (e.status !== 'cancelled' && FP.ym(e.dueDate) === AG.month) (byDay[e.dueDate] = byDay[e.dueDate] || []).push(e); });
+    var byDay = {}; evs().forEach(function (e) { if (e.status !== 'cancelled' && FP.ym(e.dueDate) === AG.month) (byDay[e.dueDate] = byDay[e.dueDate] || []).push(e); });
     var cells = '', i, risk = agRiskDays();
     ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].forEach(function (d) { cells += '<div class="ag-wd">' + d + '</div>'; });
     for (i = 0; i < first; i++) cells += '<div class="ag-cell ag-empty"></div>';
@@ -121,9 +135,9 @@
         + ev.slice(0, 3).map(function (e) { var v = view(e); return '<div class="ag-chip ' + (e.kind === 'income' ? 'ag-in' : 'ag-' + v) + '" title="' + (e.kind === 'income' ? 'Entra: ' : 'Sai: ') + esc(e.title) + '">' + (e.kind === 'income' ? '＋ ' : '－ ') + esc(e.title) + '</div>'; }).join('') + (ev.length > 3 ? '<div class="ag-more">+' + (ev.length - 3) + '</div>' : '') + '</div>';
     }
     var strip = agStrip();
-    var up = s.finEvents.filter(function (e) { return e.status !== 'cancelled' && e.status !== 'paid' && e.dueDate >= FP.addDays(t, -60); }).sort(function (a, b) { return a.dueDate < b.dueDate ? -1 : 1; }).slice(0, 25);
+    var up = evs().filter(function (e) { return e.status !== 'cancelled' && e.status !== 'paid' && e.dueDate >= FP.addDays(t, -60); }).sort(function (a, b) { return a.dueDate < b.dueDate ? -1 : 1; }).slice(0, 25);
     var ctxx = ctx(), no = '';
-    if (!s.finEvents.length) no = '<div class="ag-empty">Nenhum evento ainda. Use <b>+ Novo evento</b> para cadastrar a data do seu salário, de uma dívida ou de qualquer conta. Você também pode repetir por vários meses.</div>';
+    if (!evs().length) no = '<div class="ag-empty">Nenhum evento ainda. Use <b>+ Novo evento</b> para cadastrar a data do seu salário, de uma dívida ou de qualquer conta. Você também pode repetir por vários meses.</div>';
     var undated = ctxx.undatedDebts.length ? '<div class="ag-note">Dívidas sem data de vencimento no calendário: ' + ctxx.undatedDebts.map(function (d) { return '<a href="#" onclick="agEventModal({debtId:\'' + d.id + '\'});return false">' + esc(d.name) + '</a>'; }).join(', ') + '. Informe o dia para elas entrarem na linha do tempo.</div>' : '';
     return strip + '<div class="card animate-in"><div class="ag-nav"><button class="btn-sm" aria-label="Mês anterior" onclick="agMonth(-1)">‹</button><div class="card-title" style="margin:0">' + MONTHS[m - 1] + ' de ' + y + '</div><button class="btn-sm" aria-label="Próximo mês" onclick="agMonth(1)">›</button><button class="btn-sm" onclick="agMonth(0)">Hoje</button></div>'
       + '<div class="ag-grid">' + cells + '</div><div class="ag-legend"><span class="ag-chip ag-in">＋ Entra</span><span class="ag-chip ag-a_pagar">－ Sai (a pagar)</span><span class="ag-chip ag-proximo">Em breve</span><span class="ag-chip ag-vencido">Vencido</span><span class="ag-chip ag-pago">Pago</span><span class="ag-chip ag-aguardando">Aguardando</span></div></div>'
@@ -149,7 +163,7 @@
   window.agAskDay = function (iso) { closeModal(); AG.view = 'ia'; var p = iso.split('-'); ask('o que vence dia ' + p[2] + '/' + p[1] + '?'); };
   window.agMonth = function (d) { var y = +AG.month.slice(0, 4), m = +AG.month.slice(5, 7); if (d === 0) AG.month = today().slice(0, 7); else { var x = new Date(y, m - 1 + d, 1); AG.month = x.getFullYear() + '-' + pad(x.getMonth() + 1); } renderCurrentTab(); };
   window.agDay = function (iso) {
-    var ev = S().finEvents.filter(function (e) { return e.dueDate === iso && e.status !== 'cancelled'; });
+    var ev = evs().filter(function (e) { return e.dueDate === iso && e.status !== 'cancelled'; });
     openModal('Dia ' + br(iso), (ev.length ? '<div class="ag-list">' + ev.map(agRow).join('') + '</div>' : '<div class="ag-sub">Nada neste dia.</div>') + '<div class="modal-actions"><button class="btn-cancel" onclick="closeModal()">Fechar</button><button class="btn-cancel" onclick="agAskDay(\'' + iso + '\')">Perguntar ao assistente</button><button class="btn-save" onclick="agEventModal({date:\'' + iso + '\'})">+ Adicionar neste dia</button></div>');
   };
 
@@ -183,7 +197,7 @@
       var n = Math.max(1, Math.min(60, parseInt(g('ag-rep').value, 10) || 1)), gid = genId();
       var base = Object.assign({}, f, { origin: n > 1 ? 'recurring' : (f.sourceRef ? 'debt' : 'manual') });
       var list = FP.expandRecurring(base, n, gid), made = [];
-      list.forEach(function (o) { o.id = genId(); var ne = FP.newEvent(o, nowIso()); s.finEvents.push(ne); made.push(ne); });
+      list.forEach(function (o) { o.id = genId(); o.profile = state.profile_type; var ne = FP.newEvent(o, nowIso()); s.finEvents.push(ne); made.push(ne); });
       for (var i = 0; i < made.length; i++) await saveEvent(made[i]);
       showToast(n > 1 ? n + ' eventos criados' : 'Evento criado', 'success');
     }
@@ -313,7 +327,7 @@
       + (ok ? '<div class="ag-btns" style="margin-top:10px">' + (p.strategy === 'distribuir' && !m.moved ? '' : '<button class="btn-save" onclick="agPlanConfirm(\'' + p.id + '\')">' + (isA ? 'Recalcular e reaplicar' : 'Escolher este plano') + '</button>') + '</div>' : '') + '</div>';
   }
   function agPlans() {
-    var s = S(), cx = ctx(), P = prefs(), r = FP.generatePlans(cx, planInputs(cx)), active = s.finPlans.filter(function (p) { return p.status === 'active'; })[0];
+    var s = S(), cx = ctx(), P = prefs(), r = FP.generatePlans(cx, planInputs(cx)), active = activePlan();
     var debts = cx.debts, off = AG.offers;
     var offerForm = '<div class="ag-offer"><b>Tenho uma proposta de renegociação</b><div class="ag-sub">Só informe o que o credor realmente ofereceu. Sem isso a opção C fica desativada.</div>' + (debts.length ? '<div class="ag-ask"><select class="form-select" id="ag-od">' + debts.map(function (d) { return '<option value="' + d.id + '">' + esc(d.name) + '</option>'; }).join('') + '</select><input class="form-input" id="ag-on" type="number" min="2" max="120" placeholder="nº de parcelas"><input class="form-input" id="ag-oj" type="number" step="0.01" min="0" placeholder="juros % a.m."><input class="form-input" id="ag-op" type="number" step="0.01" min="0" placeholder="ou valor da parcela"><button class="btn-sm btn-primary-sm" onclick="agOffer()">Comparar</button></div>' : '<div class="ag-sub">Cadastre uma dívida primeiro.</div>')
       + Object.keys(off).map(function (id) { var d = debts.filter(function (x) { return x.id === id; })[0]; return d ? '<div class="ag-sub">Proposta informada para ' + esc(d.name) + ': ' + off[id].parcelas + 'x' + (off[id].parcela ? ' de ' + brl(off[id].parcela) : ' a ' + off[id].juros + '% a.m.') + ' <a href="#" onclick="agOfferDel(\'' + id + '\');return false">remover</a></div>' : ''; }).join('') + '</div>';
@@ -332,11 +346,11 @@
 
   function planById(id) { var cx = ctx(); return FP.generatePlans(cx, planInputs(cx)).plans.filter(function (p) { return p.id === id; })[0]; }
   function diff(plan, pid, active) {
-    var s = S(), proposed = FP.planToEvents(plan, pid), rec = FP.reconcilePlan(s.finEvents, proposed, active && active.id), moves = plan.payments.filter(function (p) { return p.move; });
+    var s = S(), proposed = FP.planToEvents(plan, pid), rec = FP.reconcilePlan(evs(), proposed, active && active.id), moves = plan.payments.filter(function (p) { return p.move; });
     return { proposed: proposed, rec: rec, moves: moves };
   }
   window.agPlanConfirm = function (id) {
-    var plan = planById(id); if (!plan || !plan.feasible) return; var active = S().finPlans.filter(function (p) { return p.status === 'active'; })[0];
+    var plan = planById(id); if (!plan || !plan.feasible) return; var active = activePlan();
     AG.pendingPlanId = genId(); var d = diff(plan, AG.pendingPlanId, active), r = d.rec;
     var warn = [];
     if (r.keepPaid.length) warn.push(r.keepPaid.length + ' pagamento(s) já feito(s) do plano anterior serão mantidos no histórico.');
@@ -350,23 +364,23 @@
     if (AG.busy) return; var s = S(), pid = AG.pendingPlanId; if (!pid || s.finPlans.some(function (p) { return p.id === pid; })) { closeModal(); return; }   // idempotente: confirmar duas vezes não duplica
     AG.busy = true;
     try {
-      var plan = planById(id), active = s.finPlans.filter(function (p) { return p.status === 'active'; })[0], d = diff(plan, pid, active), r = d.rec, ts = nowIso();
+      var plan = planById(id), active = activePlan(), d = diff(plan, pid, active), r = d.rec, ts = nowIso();
       if (active) { active.status = 'replaced'; active.replacedAt = ts; await savePlan(active); }
-      var np = { id: pid, strategy: plan.strategy, status: 'active', title: 'Opção ' + plan.id + ' · ' + plan.title, confirmedAt: ts, data: { option: plan.id, metrics: plan.metrics, assumptions: plan.assumptions, missing: plan.missing, params: { essential: prefs().essential || null, reserve: prefs().reserve || null, offers: AG.offers } } };
+      var np = { id: pid, strategy: plan.strategy, status: 'active', title: 'Opção ' + plan.id + ' · ' + plan.title, confirmedAt: ts, data: { profile: state.profile_type, option: plan.id, metrics: plan.metrics, assumptions: plan.assumptions, missing: plan.missing, params: { essential: prefs().essential || null, reserve: prefs().reserve || null, offers: AG.offers } } };
       s.finPlans.push(np); await savePlan(np);
       for (var i = 0; i < r.cancel.length; i++) { var c = r.cancel[i]; c.status = 'cancelled'; c.version++; c.history = FP.pushHistory(c, 'cancelado: plano trocado', { to: pid }, ts); await saveEvent(c); }
-      for (var j = 0; j < r.create.length; j++) { var o = r.create[j]; o.id = genId(); o.planId = pid; var ne = FP.newEvent(o, ts); s.finEvents.push(ne); await saveEvent(ne); }
+      for (var j = 0; j < r.create.length; j++) { var o = r.create[j]; o.id = genId(); o.planId = pid; o.profile = state.profile_type; var ne = FP.newEvent(o, ts); s.finEvents.push(ne); await saveEvent(ne); }
       for (var k = 0; k < d.moves.length; k++) { var mv = d.moves[k], ev = find(mv.eventId); if (ev && ev.status !== 'paid') { var old = ev.dueDate; ev.dueDate = mv.date; ev.version++; ev.planId = pid; ev.history = FP.pushHistory(ev, 'data alterada pelo plano', { from: old, to: mv.date }, ts); await saveEvent(ev); } }
       closeModal(); renderCurrentTab(); showToast('Plano confirmado: ' + r.create.length + ' evento(s) criado(s)' + (r.cancel.length ? ', ' + r.cancel.length + ' cancelado(s)' : '') + (r.keepPaid.length ? ', ' + r.keepPaid.length + ' pago(s) mantido(s)' : ''), 'success');
     } finally { AG.busy = false; AG.pendingPlanId = null; }
   };
   window.agPlanCancel = function () {
-    var s = S(), a = s.finPlans.filter(function (p) { return p.status === 'active'; })[0]; if (!a) return;
+    var s = S(), a = activePlan(); if (!a) return;
     var pend = s.finEvents.filter(function (e) { return e.planId === a.id && (e.status === 'pending' || e.status === 'awaiting') && !e.userEdited; }).length, paid = s.finEvents.filter(function (e) { return e.planId === a.id && e.status === 'paid'; }).length;
     openModal('Cancelar o plano ativo?', '<div class="ag-sub">Serão cancelados ' + pend + ' evento(s) pendente(s) ainda não editados por você. ' + paid + ' pagamento(s) já feito(s) continuam no histórico.</div><div class="modal-actions"><button class="btn-cancel" onclick="closeModal()">Voltar</button><button class="btn-danger" onclick="agPlanCancelDo()">Cancelar plano</button></div>');
   };
   window.agPlanCancelDo = async function () {
-    var s = S(), a = s.finPlans.filter(function (p) { return p.status === 'active'; })[0]; if (!a) return closeModal(); var ts = nowIso();
+    var s = S(), a = activePlan(); if (!a) return closeModal(); var ts = nowIso();
     a.status = 'cancelled'; a.replacedAt = ts; await savePlan(a);
     for (var i = 0; i < s.finEvents.length; i++) { var e = s.finEvents[i]; if (e.planId === a.id && (e.status === 'pending' || e.status === 'awaiting') && !e.userEdited) { e.status = 'cancelled'; e.version++; e.history = FP.pushHistory(e, 'cancelado: plano cancelado', null, ts); await saveEvent(e); } }
     closeModal(); renderCurrentTab(); showToast('Plano cancelado; o histórico foi mantido', 'info');
@@ -429,9 +443,9 @@
     specs.forEach(function (sp) {
       var e = byKey[sp.key];
       if (!e) {
-        var dup = s.finEvents.filter(function (z) { return z.key.indexOf('doc:') !== 0 && z.kind === sp.kind && z.status !== 'cancelled' && z.dueDate === sp.dueDate && Math.abs(z.amount - sp.amount) < 0.01; })[0];
+        var dup = evs().filter(function (z) { return z.key.indexOf('doc:') !== 0 && z.kind === sp.kind && z.status !== 'cancelled' && z.dueDate === sp.dueDate && Math.abs(z.amount - sp.amount) < 0.01; })[0];
         if (dup && sp.key.indexOf(':p') < 0) { res.linked++; return; }
-        var o = Object.assign({ id: genId(), origin: 'document', remindDays: [3, 1, 0] }, sp); var ne = FP.newEvent(o, ts); s.finEvents.push(ne); saves.push(ne); res.created++;
+        var o = Object.assign({ id: genId(), origin: 'document', remindDays: [3, 1, 0], profile: (typeof docProfile === 'function' ? docProfile(d) : state.profile_type) }, sp); var ne = FP.newEvent(o, ts); s.finEvents.push(ne); saves.push(ne); res.created++;
         // o documento real substitui a previsão do mesmo mês feita por outro documento
         if (sp.key.indexOf(':p') < 0) s.finEvents.forEach(function (z) { if (z.key.indexOf(prefix) !== 0 && z.key.indexOf(':p') > 0 && z.key.indexOf('doc:') === 0 && z.kind === sp.kind && (z.status === 'pending') && !z.userEdited && FP.ym(z.dueDate) === FP.ym(sp.dueDate) && (z.title === sp.title + ' (previsto)' || (sp.category === 'Salário' && z.category === 'Salário'))) { z.status = 'cancelled'; z.version++; z.history = FP.pushHistory(z, 'cancelado: documento do mês chegou', { doc: d.id }, ts); saves.push(z); res.cancelled++; } });
         return;
@@ -458,14 +472,14 @@
 
   // ───────── painel / lembretes ─────────
   window.agendaCard = function () {
-    var s = S(); if (!s.finEvents.length) return '';
+    var s = S(); if (!evs().length) return '';
     var cx = ctx(), a = FP.analyze(cx), up = cx.overdue.concat(cx.upcoming).slice(0, 4);
     return '<div class="card mb-24 animate-in" id="ag-dash"><div class="ag-ph"><div class="card-title" style="margin:0">📅 Agenda financeira</div><button class="btn-sm" onclick="switchTab(\'agenda\')">Abrir</button></div><div class="ag-mets"><div><span>Renda do mês (' + esc(cx.income.source) + ')</span><b>' + (cx.income.amount > 0 ? brl(cx.income.amount) : '—') + '</b></div><div><span>Recebido / previsto</span><b>' + brl(cx.income.confirmed) + ' / ' + brl(cx.income.expected) + '</b></div><div><span>A pagar no mês</span><b>' + brl(a.pendingMonth) + '</b></div>' + (a.overdue.length ? '<div><span>Vencidos</span><b style="color:var(--expense)">' + a.overdue.length + '</b></div>' : '') + '</div>'
       + (up.length ? '<div class="ag-list" style="margin-top:8px">' + up.map(function (e) { return '<div class="ag-row"><div class="ag-rd"><b>' + br(e.dueDate) + '</b></div><div class="ag-rm">' + esc(e.title) + ' ' + badge(e) + '</div><div class="ag-ra">' + brl(e.amount) + '</div></div>'; }).join('') + '</div>' : '<div class="ag-sub">Nada pendente nos próximos dias.</div>') + '</div>';
   };
   window.agendaNotifs = function () {
     try {
-      return FP.dueReminders(S().finEvents, today(), [1]).map(function (r) {
+      return FP.dueReminders(evs(), today(), [1]).map(function (r) {
         return { id: r.id, icon: r.level === 'danger' ? '🚨' : '🔔', title: r.event.title, desc: (r.daysLeft < 0 ? 'Vencido há ' + (-r.daysLeft) + ' dia(s)' : r.daysLeft === 0 ? 'Vence hoje' : 'Vence em ' + r.daysLeft + ' dia(s)') + ' · ' + br(r.event.dueDate), type: r.level === 'danger' ? 'danger' : 'warning', time: 'Agenda', tab: 'agenda' };
       });
     } catch (e) { return []; }

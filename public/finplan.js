@@ -57,7 +57,7 @@
       id: o.id, key: o.key, planId: o.planId || null, kind: o.kind, title: String(o.title || '').trim().slice(0, 120), category: o.category || null,
       amount: r2(o.amount), dueDate: o.dueDate, status: o.status || 'pending', paidAt: o.paidAt || null, paidAmount: o.paidAmount == null ? null : r2(o.paidAmount),
       priority: o.priority || 'normal', origin: o.origin || 'manual', sourceRef: o.sourceRef || null, remindDays: o.remindDays || [1], notes: o.notes ? String(o.notes).slice(0, 300) : null,
-      movable: !!o.movable, txId: o.txId || null, version: 1, userEdited: !!o.userEdited, history: [{ at: nowIso || null, action: 'criado', info: o.origin || 'manual' }]
+      movable: !!o.movable, txId: o.txId || null, profile: o.profile || null, version: 1, userEdited: !!o.userEdited, history: [{ at: nowIso || null, action: 'criado', info: o.origin || 'manual' }]
     };
   }
   // "Repetir todo mês" (entrada manual): N eventos com chaves determinísticas ⇒ reenviar o formulário não duplica.

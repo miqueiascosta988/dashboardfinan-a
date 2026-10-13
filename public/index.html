@@ -7964,7 +7964,7 @@ var GT_TXT = {
   fluxo: 'O Fluxo de Caixa mostra entradas e saídas dos próximos meses, para você enxergar apertos antes que eles aconteçam.',
   reforma: 'A Reforma Tributária traz um checklist para preparar a empresa para as mudanças de impostos que vêm até 2033.'
 };
-var GT = { on: false, i: 0, steps: [], playing: true, mute: false, rate: 1, timer: null, voice: null, hl: null, back: 'dashboard' };
+var GT = { on: false, i: 0, steps: [], playing: true, mute: true, rate: 1, timer: null, voice: null, hl: null, back: 'dashboard' };
 function gtVoice() {
   try {
     var vs = speechSynthesis.getVoices() || [];
@@ -7988,7 +7988,7 @@ function gtStart() {
   var el = document.getElementById('gt-panel');
   if (!el) { el = document.createElement('div'); el.id = 'gt-panel'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Tutorial guiado'); document.body.appendChild(el); }
   document.body.classList.add('gt-on');
-  try { if ('speechSynthesis' in window) { GT.voice = gtVoice(); speechSynthesis.onvoiceschanged = function() { GT.voice = gtVoice(); }; } else GT.mute = true; } catch (e) { GT.mute = true; }
+  GT.mute = true;  // tutorial sem voz: apenas texto e destaque interativo
   gtGo(0);
 }
 function closeHelpPanelSafe() { try { closeHelpPanel(); } catch (e) {} }
@@ -8023,7 +8023,7 @@ function gtGo(i) {
 function gtRender() {
   var el = document.getElementById('gt-panel'); if (!el) return;
   var st = GT.steps[GT.i], n = GT.steps.length, pct = Math.round((GT.i + 1) / n * 100);
-  var canSpeak = 'speechSynthesis' in window;
+  var canSpeak = false;
   el.innerHTML = '<div class="gt-top"><span class="gt-badge">🎓 TUTORIAL GUIADO</span><span class="gt-count">' + (GT.i + 1) + ' / ' + n + '</span><button type="button" class="gt-x" aria-label="Fechar tutorial" onclick="gtStop(false)">✕</button></div>' +
     '<div class="gt-title">' + fxEsc(st.title) + '</div><div class="gt-txt">' + fxEsc(st.txt) + '</div>' +
     '<div class="gt-bar"><i style="width:' + pct + '%"></i></div>' +
@@ -8031,7 +8031,7 @@ function gtRender() {
     '<button type="button" class="gt-main" onclick="gtToggle()">' + (GT.playing ? '⏸ Pausar' : '▶ Continuar') + '</button>' +
     '<button type="button" onclick="gtGo(GT.i+1)">Avançar ▶</button>' +
     (canSpeak ? '<button type="button" onclick="gtMute()">' + (GT.mute ? '🔇 Voz desligada' : '🔊 Voz ligada') + '</button>' : '') +
-    '<select aria-label="Velocidade da voz" onchange="gtRate(this.value)"><option value="0.85"' + (GT.rate === 0.85 ? ' selected' : '') + '>Lento</option><option value="1"' + (GT.rate === 1 ? ' selected' : '') + '>Normal</option><option value="1.2"' + (GT.rate === 1.2 ? ' selected' : '') + '>Rápido</option></select></div>';
+    '</div>';
 }
 function gtToggle() {
   GT.playing = !GT.playing;

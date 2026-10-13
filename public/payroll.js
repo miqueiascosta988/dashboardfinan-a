@@ -23,6 +23,12 @@
       else if (consistente && Math.abs(descRows - adv - t.desc) < 0.11) { out.modo = 'incluso'; out.liquidoTotalMes = r2(t.liquido); out.saldoFinalPago = r2(t.liquido - adv); out.adiantamentoLiquido = adv; out.avisos.push('O adiantamento aparece só como informativo: o líquido já é o total do mês. Não somamos o adiantamento de novo.'); }
       else { out.modo = 'indeterminado'; out.liquidoTotalMes = r2(t.liquido); out.saldoFinalPago = null; out.adiantamentoLiquido = adv; out.precisaConfirmar = true; out.avisos.push('Não deu para saber se o líquido já considera o adiantamento. Usamos só o líquido; confirme pelo extrato.'); }
     }
+    // descontos em folha que viram obrigação já paga na fonte (consignado) e os demais, para o usuário ver para onde foi o bruto
+    var dc = { inss: 0, irrf: 0, consignado: 0, outros: 0, itensConsignado: [] };
+    rows.forEach(function (r) { if (r.kind !== 'desconto' || r.cat === 'ignorar' || r.cat === 'adiantamento') return; var v = +r.valor || 0; if (r.cat === 'inss') dc.inss += v; else if (r.cat === 'irrf') dc.irrf += v; else if (r.cat === 'consig') { dc.consignado += v; dc.itensConsignado.push({ desc: r.desc, valor: r2(v) }); } else dc.outros += v; });
+    ['inss', 'irrf', 'consignado', 'outros'].forEach(function (k) { dc[k] = r2(dc[k]); });
+    out.descontosFolha = dc;
+    if (dc.consignado > 0) out.avisos.push('Consignado de R$ ' + dc.consignado.toFixed(2).replace('.', ',') + ' é descontado no holerite: já está fora do líquido e não é cobrado de novo na conta.');
     out.rendaRecorrenteLiquida = r2(out.liquidoTotalMes - (out.reembolsos || 0));
     if (out.reembolsos > 0) out.avisos.push('Reembolsos (R$ ' + out.reembolsos.toFixed(2).replace('.', ',') + ') não entram na renda recorrente.');
     return out;
@@ -62,6 +68,16 @@
     var conc = r2(matched.reduce(function (s, mm) { return s + mm.credito.valor; }, 0));
     return { ok: true, esperado: exp, conciliados: matched, faltando: faltando, semOrigem: sem, duplicados: dups, camadas: { rendaContratualBruta: income.bruto || null, liquidaCalculada: income.liquidoTotalMes, identificadaNoExtrato: conc + r2(faltando.reduce(function (s, f) { return s + (f.possivel ? f.possivel.valor : 0); }, 0)), efetivamenteConciliada: conc }, completo: matched.length === exp.length, rendaMensalConciliada: conc };
   }
-  var api = { analyzePayslip: analyzePayslip, reconcile: reconcile };
+  // confere o consignado do holerite com as dívidas cadastradas (parcela igual, tolerância de centavos)
+  function matchConsignado(analysis, debts) {
+    var c = analysis && analysis.descontosFolha && analysis.descontosFolha.consignado; if (!(c > 0)) return null;
+    var list = (debts || []).filter(function (d) { return d && d.mensal > 0; });
+    var exact = list.filter(function (d) { return Math.abs(d.mensal - c) <= 0.5; });
+    if (exact.length) return { status: 'confere', total: c, dividas: exact.map(function (d) { return d.name; }) };
+    var cons = list.filter(function (d) { return /^Consignado/.test(d.type || ''); }), soma = cons.reduce(function (a, d) { return a + d.mensal; }, 0);
+    if (soma > 0 && Math.abs(soma - c) <= 0.5) return { status: 'confere_soma', total: c, dividas: cons.map(function (d) { return d.name; }) };
+    return { status: list.length ? 'diverge' : 'sem_divida', total: c, cadastrado: r2(soma) };
+  }
+  var api = { analyzePayslip: analyzePayslip, reconcile: reconcile, matchConsignado: matchConsignado };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.Payroll = api;
 })(typeof window !== 'undefined' ? window : this);

@@ -97,3 +97,12 @@ test('consignado: card avisa "descontada em folha", KPI separa o valor e a agend
   });
   assert.equal(r.ev, 0); assert.ok(/descontada em folha/.test(r.txt), 'card'); assert.ok(/já descontado em folha/i.test(r.txt), 'kpi: ' + r.txt.slice(0, 600)); assert.deepEqual(errs, []); await ctx.close();
 });
+test('card de renda mostra o consignado do holerite, confere com a dívida e avisa quando não há extrato', async () => {
+  const { page, errs, ctx } = await openApp();
+  const html = await page.evaluate(() => {
+    state.debts = [{ id: 'cg', name: 'Consignado Banco X', type: 'Consignado CLT', saldo: 9000, juros: 2, parcelas: 12, mensal: 1354, profile: 'PF' }];
+    const p = { competencia: '2026-09', tipo: 'mensal', totals: { venc: 4252, desc: 1904, liquido: 2348 }, rows: [{ desc: 'INSS', valor: 390, kind: 'desconto', cat: 'inss' }, { desc: 'IRRF', valor: 160, kind: 'desconto', cat: 'irrf' }, { desc: 'EMPRESTIMO CONSIGNADO', valor: 1354, kind: 'desconto', cat: 'consig' }] };
+    state.documents.push({ id: 'h9', name: 'Holerite', extractedData: { state: 'done', userConfirmed: true, payslip: p } }); return payrollCard().replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+  });
+  assert.ok(/Descontos em folha/.test(html) && /consignado R\$ 1\.354/.test(html), html); assert.ok(/Confere com a dívida "Consignado Banco X"/.test(html)); assert.ok(/Nenhum extrato ou entrada lançada/.test(html)); assert.ok(!/Nenhum crédito com esse valor/.test(html)); assert.deepEqual(errs, []); await ctx.close();
+});

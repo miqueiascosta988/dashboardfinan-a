@@ -118,3 +118,11 @@ test('19) consignado descontado em folha: não entra como saída de caixa nem re
   near(F.surplusMonthly(com) - F.surplusMonthly(sem), 400, 0.01);        // com folha: devolve exatamente a parcela do consignado
   assert.deepEqual(com.undatedDebts.map(d => d.id), ['p']); assert.deepEqual(sem.undatedDebts.map(d => d.id).sort(), ['c', 'p']);
 });
+test('20) consignado no holerite é lido, separado dos demais descontos e conferido com a dívida', () => {
+  const a = P.analyzePayslip(hol({ totals: { venc: 4252, desc: 1904, liquido: 2348 }, rows: [{ desc: 'INSS', valor: 390, kind: 'desconto', cat: 'inss' }, { desc: 'IRRF', valor: 160, kind: 'desconto', cat: 'irrf' }, { desc: 'EMPRESTIMO CONSIGNADO', valor: 1354, kind: 'desconto', cat: 'consig' }] }));
+  assert.equal(a.descontosFolha.consignado, 1354); assert.equal(a.descontosFolha.inss, 390); assert.equal(a.liquidoTotalMes, 2348); assert.ok(a.avisos.some(x => /consignado/i.test(x)));
+  assert.equal(P.matchConsignado(a, [{ name: 'Consignado Banco X', type: 'Consignado CLT', mensal: 1354 }]).status, 'confere');
+  assert.equal(P.matchConsignado(a, [{ name: 'A', type: 'Consignado CLT', mensal: 1000 }, { name: 'B', type: 'Consignado CLT', mensal: 354 }]).status, 'confere_soma');
+  assert.equal(P.matchConsignado(a, [{ name: 'Outro', type: 'Empréstimo pessoal', mensal: 200 }]).status, 'diverge');
+  assert.equal(P.matchConsignado(a, []).status, 'sem_divida'); assert.equal(P.matchConsignado(P.analyzePayslip(hol()), []), null);
+});

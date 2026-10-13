@@ -187,6 +187,8 @@
     if (/irrf|imposto de renda|\bir\b|i\.r\./.test(d)) return { kind: 'desconto', cat: 'irrf' };
     if (/consign|emprestimo|financiamento/.test(d)) return { kind: 'desconto', cat: 'consig' };
     if (/adiantamento\s*(de\s*)?(13|decimo)|1[ªa]?\s*parcela.*13/.test(d)) return { kind: 'desconto', cat: 'ignorar' };
+    if (/reembolso|restitui|ressarcimento/.test(d)) return { kind: 'provento', cat: 'reembolso' };
+    if (/complement|diferenca\s*salarial|pagamento\s*complementar|saldo\s*de\s*salario/.test(d) && !/rescis/.test(d)) return { kind: 'provento', cat: 'complementar' };
     if (/adiantamento\s*(salarial|de\s*sal[aá]rio|quinzenal|mensal)?$|^adiant\.?\s*(salarial|sal)?\b|vale\s*(adiantamento|salarial)|1[ªa]?\s*quinzena/.test(d) && !/13|decimo/.test(d)) return { kind: 'desconto', cat: 'adiantamento' };
     if (/adiantamento|vale|plano|mensalidade|pensao|falta|atraso|co-?participa|seguro|sindic|contribui|odont|medic|refeic|alimenta|transporte/.test(d)) return { kind: 'desconto', cat: 'outros' };
     if (/13[o°º]?\s*(\.|-)?\s*sal|ferias|abono|1\/3|rescis|aviso previo|indeniza|salario familia|licenca|maternidade|ajuda de custo/.test(d)) return { kind: 'provento', cat: 'ignorar' };
@@ -539,7 +541,56 @@
     return rows.length >= 3 ? rows : null;
   }
 
+
+  // ───────── DED / demonstrativo de dívida: campos extras (só o que estiver impresso; nada é presumido) ─────────
+  function parseDed(raw) {
+    var t = strip(raw).toLowerCase().replace(/[ \t]+/g, ' '), M = '[ \\t]*:?[ \\t]*(?:r\\$)?[ \\t]*', MV = '(\\d{1,3}(?:\\.\\d{3})*,\\d{2}|\\d+[.,]\\d{2})';
+    var money = function (re) { var m = new RegExp(re + M + MV).exec(t); return m ? pn(m[1]) : null; };
+    var out = {};
+    out.quitacao = money('(?:valor\\s*(?:total\\s*)?(?:para|de)\\s*(?:quita[cç][aã]o|liquida[cç][aã]o)(?:\\s*antecipada)?|saldo\\s*(?:para|de)\\s*(?:quita[cç][aã]o|liquida[cç][aã]o)(?:\\s*antecipada)?|valor\\s*para\\s*quitar|quita[cç][aã]o\\s*antecipada)');
+    out.saldoDevedor = money('saldo\\s*devedor(?:\\s*atual|\\s*total|\\s*na\\s*data)?');
+    out.valorContratado = money('valor\\s*(?:contratado|original|do\\s*contrato|principal|total\\s*do\\s*contrato)');
+    out.jurosAcumulados = money('juros\\s*(?:acumulados|do\\s*per[ií]odo|vencidos|remunerat[oó]rios\\s*acumulados)');
+    out.multaEncargos = money('(?:multa|encargos|juros\\s*de\\s*mora|mora)');
+    out.desconto = money('(?:desconto|abatimento)(?:\\s*(?:concedido|na\\s*quita[cç][aã]o))?');
+    var pg = /(?:parcelas?\s*pagas?|pagas?)\s*:?\s*(\d{1,3})\b/.exec(t) || /(\d{1,3})\s*parcelas?\s*pagas?/.exec(t); out.pagas = pg ? +pg[1] : null;
+    var rs = /(?:parcelas?\s*(?:restantes?|a\s*vencer|vincendas?|em\s*aberto))\s*:?\s*(\d{1,3})\b/.exec(t) || /(\d{1,3})\s*parcelas?\s*(?:restantes?|a\s*vencer|vincendas?)/.exec(t); out.restantes = rs ? +rs[1] : null;
+    var sa = /\b(sistema\s*de\s*amortiza[cç][aã]o|tabela)\s*:?\s*(price|sacre|sac|francesa)\b/.exec(t) || /\b(tabela\s*price|sistema\s*price|sistema\s*sac|sac\b|price\b)/.exec(t); out.sistema = sa ? (/sacre/.test(sa[0]) ? 'SACRE' : /sac\b/.test(sa[0]) ? 'SAC' : 'Price') : null;
+    var rd = /(?:data\s*(?:de\s*)?(?:refer[eê]ncia|posi[cç][aã]o|c[aá]lculo|emiss[aã]o|base)|posi[cç][aã]o\s*(?:em|at[eé]))\s*:?\s*(\d{2})\/(\d{2})\/(\d{4})/.exec(t); out.refDate = pdate(rd);
+    var vq = /(?:v[aá]lido|validade)[^0-9]{0,30}(\d{2})\/(\d{2})\/(\d{4})/.exec(t); out.validadeQuitacao = pdate(vq);
+    var jm = /taxa\s*(?:de\s*)?juros\s*(?:\(?ao\s*m[eê]s\)?|mensal|a\.?\s*m\.?)\s*:?\s*([\d.,]+)\s*%/.exec(t), ja = /taxa\s*(?:de\s*)?juros\s*(?:\(?ao\s*ano\)?|anual|a\.?\s*a\.?)\s*:?\s*([\d.,]+)\s*%/.exec(t);
+    out.jurosMes = jm ? pn(jm[1]) : null; out.jurosAno = ja ? pn(ja[1]) : null;
+    var cond = /([^.\n]*liquida[cç][aã]o\s*antecipada[^.\n]*\.)/.exec(t); out.condicaoLiquidacao = cond ? cond[1].trim().slice(0, 240) : null;
+    out.temExtraordinaria = /amortiza[cç][aã]o\s*extraordin[aá]ria|amortiza[cç][aã]o\s*parcial|pagamento\s*antecipado\s*parcial/.test(t);
+    return out;
+  }
+  // categoria da dívida a partir do conteúdo (sugestão com grau de confiança; abaixo de 0,85 o usuário confirma)
+  function suggestCategory(raw, c) {
+    var t = strip(raw).toLowerCase(), why = [], cat = null, conf = 0.4;
+    var has = function (re) { return re.test(t); };
+    if (has(/cart[aã]o\s*de\s*cr[eé]dito|fatura/) && !has(/consignado/)) { cat = 'Cartão de crédito'; conf = 0.9; why.push('menciona cartão de crédito/fatura'); }
+    else if (has(/cheque\s*especial/)) { cat = 'Cheque especial'; conf = 0.92; why.push('cheque especial'); }
+    else if (has(/rotativo/)) { cat = 'Crédito rotativo'; conf = 0.9; why.push('crédito rotativo'); }
+    else if (has(/renegocia[cç][aã]o|acordo\s*de\s*pagamento|confiss[aã]o\s*de\s*d[ií]vida|renegociad/)) { cat = 'Dívida renegociada'; conf = 0.8; why.push('renegociação/acordo'); }
+    else if (has(/financiamento\s*(imobili[aá]rio|habitacional)|\bsfh\b|casa\s*pr[oó]pria|im[oó]vel[^.]{0,60}aliena[cç][aã]o\s*fiduci[aá]ria|aliena[cç][aã]o\s*fiduci[aá]ria[^.]{0,60}im[oó]vel/)) { cat = 'Financiamento imobiliário'; conf = 0.92; why.push('financiamento de imóvel'); }
+    else if (has(/financiamento\s*(de\s*)?(ve[ií]culo|autom|moto)|cdc\s*ve[ií]culo|aliena[cç][aã]o\s*fiduci[aá]ria[^.]{0,60}(ve[ií]culo|moto|autom)|(ve[ií]culo|moto|autom)[^.]{0,60}aliena[cç][aã]o\s*fiduci[aá]ria/)) { cat = 'Financiamento de veículo'; conf = 0.92; why.push('financiamento de veículo'); }
+    else if (has(/consignad|cr[eé]dito\s*do\s*trabalhador|desconto\s*em\s*folha/)) {
+      var pub = has(/servidor\s*p[uú]blico|\bsiape\b|estatut[aá]rio|prefeitura|governo\s*do\s*estado|\binss\b|aposentad|pensionista|\bforcas\s*armadas/);
+      var clt = has(/cr[eé]dito\s*do\s*trabalhador|\bclt\b|vinculo\s*empregaticio|empregador|\bfgts\b|esocial/);
+      if (pub && !clt) { cat = 'Consignado público'; conf = 0.88; why.push('consignado com sinais de servidor/INSS'); }
+      else if (clt && !pub) { cat = 'Consignado CLT'; conf = 0.9; why.push('crédito do trabalhador/vínculo empregatício'); }
+      else { cat = 'Consignado CLT'; conf = 0.55; why.push('consignado sem sinal claro de CLT ou público'); }
+    }
+    else if (has(/garantia\s*(de\s*)?(im[oó]vel|ve[ií]culo)|home\s*equity|cr[eé]dito\s*com\s*garantia|aliena[cç][aã]o\s*fiduci[aá]ria/)) { cat = 'Crédito com garantia'; conf = 0.85; why.push('operação com garantia'); }
+    else if (has(/parcelamento\s*(de\s*)?(compra|fatura|d[eé]bito)|credi[aá]rio|carn[eê]/)) { cat = 'Parcelamento de compras'; conf = 0.7; why.push('parcelamento'); }
+    else if (has(/empr[eé]stimo\s*pessoal|cr[eé]dito\s*pessoal|cdc\s*pessoal/)) { cat = 'Empréstimo pessoal'; conf = 0.9; why.push('empréstimo/crédito pessoal'); }
+    else if (has(/empr[eé]stimo|c[eé]dula\s*de\s*cr[eé]dito|\bccb\b|m[uú]tuo/)) { cat = 'Empréstimo pessoal'; conf = 0.6; why.push('empréstimo sem detalhe da modalidade'); }
+    else { cat = 'Outras dívidas'; conf = 0.3; why.push('modalidade não identificada'); }
+    return { cat: cat, conf: conf, why: why, confirmar: conf < 0.85 };
+  }
+
   // ───────── contratos de crédito (empréstimo, consignado, financiamento, CCB) ─────────
+  function monthlyFromAnnualPct(a) { return Math.round((Math.pow(1 + a / 100, 1 / 12) - 1) * 10000) / 100; }
   function pn(x) { if (x == null) return null; x = String(x).replace(/[^\d.,-]/g, ''); if (!x) return null; var v = x.indexOf(',') >= 0 ? Number(x.replace(/\./g, '').replace(',', '.')) : Number(x); return isFinite(v) ? v : null; }
   function pdate(m) { return m && validDate(m[1], m[2], m[3]) ? iso(m[1], m[2], m[3]) : null; }
   function addM(isoD, k, dia) { var y = +isoD.slice(0, 4), mo = +isoD.slice(5, 7) - 1 + k, d = dia || +isoD.slice(8, 10); y += Math.floor(mo / 12); mo = ((mo % 12) + 12) % 12; var dim = new Date(y, mo + 1, 0).getDate(); return iso(Math.min(d, dim), mo + 1, y); }
@@ -618,7 +669,7 @@
       var SCH = parseSchedule(lines), nowS = now ? new Date(now) : new Date(); if (isNaN(nowS)) nowS = new Date(); var todayS = nowS.getFullYear() + '-' + ('0' + (nowS.getMonth() + 1)).slice(-2) + '-' + ('0' + nowS.getDate()).slice(-2);
       if (SCH) {                                              // DED / tabela de amortização: leitura exata (não estimada)
         var fut = SCH.filter(function (r) { return r.due > todayS; }), exs = f.extra;
-        if (fut.length) { exs.parcela = fut[0].parcela; exs.parcelas = fut.length; exs.diaVenc = +fut[0].due.slice(8, 10); exs.fromSchedule = true; exs.schedule = SCH.length;
+        if (fut.length) { exs.parcela = fut[0].parcela; exs.parcelas = fut.length; exs.diaVenc = +fut[0].due.slice(8, 10); exs.fromSchedule = true; exs.schedule = SCH.length; exs.sched = SCH.slice(0, 480).map(function (r) { return [r.due, r.parcela, r.juros, r.amort, r.saldo]; }); exs.pagasTab = SCH.filter(function (r) { return r.due <= todayS; }).length;
           var prevRow = SCH[SCH.indexOf(fut[0]) - 1]; var sd = prevRow && prevRow.saldo != null ? prevRow.saldo : (fut[0].saldo != null && fut[0].amort != null ? r2(fut[0].saldo + fut[0].amort) : null); if (sd != null && exs.saldo == null) exs.saldo = sd;
           exs.jurosRestantes = r2(fut.reduce(function (a, r) { return a + (r.juros || 0); }, 0)); exs.amortRestante = r2(fut.reduce(function (a, r) { return a + (r.amort || 0); }, 0));
           exs.jurosProxima = fut[0].juros; exs.amortProxima = fut[0].amort; f.notes.push('Tabela de evolução da dívida lida: ' + SCH.length + ' parcelas, ' + fut.length + ' ainda a vencer. Juros e amortização vêm do próprio documento.'); }
@@ -626,7 +677,7 @@
       }
       var CT = parseCredit(allDigitsText(lines), now);
       if (CT.parcela > 0 && (CT.n || CT.liberado || CT.total) && (CT.liberado != null || CT.total != null || CT.cet != null || CT.ccb)) {    // contrato novo: não existe "saldo devedor" impresso, calcula-se pelas parcelas restantes
-        var ex = f.extra; ex.contrato = CT.contrato; ex.tipoOperacao = CT.tipo; ex.dataContrato = CT.dataContrato; ex.liberado = CT.liberado; ex.totalEmprestimo = CT.total; ex.financiado = CT.financiado; ex.iof = CT.iof;
+        var ex = f.extra; ex.contratoMask = CT.contrato ? '••••' + CT.contrato.slice(-4) : null; ex.contratoHash = CT.contrato ? hash53('ctr|' + CT.contrato) : null; ex.tipoOperacao = CT.tipo; ex.dataContrato = CT.dataContrato; ex.liberado = CT.liberado; ex.totalEmprestimo = CT.total; ex.financiado = CT.financiado; ex.iof = CT.iof;
         ex.parcelasTotal = CT.n; ex.primeiraParcela = CT.primeira; ex.ultimaParcela = CT.ultima; ex.jurosAno = CT.jurosAno; ex.cet = CT.cet; ex.cetAno = CT.cetAno; ex.fromContract = true;
         ex.parcela = CT.parcela; if (CT.juros != null) ex.juros = CT.juros; if (CT.dia) ex.diaVenc = CT.dia;
         if (CT.restantes != null) ex.parcelas = CT.restantes;
@@ -638,11 +689,22 @@
         if (CT.garantia) f.notes.push('Garantia do contrato: ' + (CT.fgtsPct ? CT.fgtsPct + '% do saldo do FGTS' : 'parte do FGTS') + ' e a multa rescisória ficam comprometidos até quitar. Vale saber antes de pedir demissão.');
         if (CT.mora != null || CT.multa != null) f.notes.push('Em caso de atraso: ' + [CT.mora != null ? 'juros de mora de ' + String(CT.mora).replace('.', ',') + '% ao mês' : '', CT.multa != null ? 'multa de ' + String(CT.multa).replace('.', ',') + '%' : ''].filter(Boolean).join(' e ') + '.');
         if (CT.total != null && CT.parcela > 0 && CT.n) ck(checks, 'total_confere', Math.abs(CT.parcela * CT.n - CT.total) <= Math.max(0.5, CT.total * 0.005), 'Parcela × quantidade (' + r2(CT.parcela * CT.n) + ') não bate com o valor total do empréstimo (' + CT.total + '): confira os números.', 0.35);
-        f.key = 'divida|' + (CT.contrato ? 'ctr' + CT.contrato : norm(f.counterparty || '') + '|' + (CT.liberado != null ? CT.liberado.toFixed(2) : '') + '|' + CT.parcela.toFixed(2));
+        f.key = 'divida|' + (CT.contrato ? 'ctr' + hash53('ctr|' + CT.contrato) : norm(f.counterparty || '') + '|' + (CT.liberado != null ? CT.liberado.toFixed(2) : '') + '|' + CT.parcela.toFixed(2));
         f.amount = ex.saldo;
       }
       if (f.extra.saldo > 0 && f.extra.parcela > 0 && !f.extra.fromSchedule) { var AM = amortize(f.extra.saldo, f.extra.juros, f.extra.parcela, f.extra.parcelas || 0); if (AM) { f.extra.jurosProxima = AM.primeira.juros; f.extra.amortProxima = AM.primeira.amort; f.extra.jurosRestantes = AM.jurosTotal; f.extra.amortRestante = AM.amortTotal; if (AM.naoCobre) f.notes.push('Atenção: a parcela não cobre nem os juros do mês; a dívida cresce.'); } }
-      ck(checks, 'divida_dados', f.extra.saldo != null && f.extra.parcela != null, 'Faltam o saldo devedor e/ou o valor da parcela.', 0.5);
+      var DD = parseDed(allDigitsText(lines)), exd = f.extra;
+      if (DD.saldoDevedor != null) { exd.saldo = DD.saldoDevedor; exd.saldoEstimado = false; f.amount = DD.saldoDevedor; f.notes = f.notes.filter(function (n) { return !/^Saldo devedor ESTIMADO/.test(n); }); }
+      ['quitacao', 'valorContratado', 'jurosAcumulados', 'multaEncargos', 'desconto', 'sistema', 'validadeQuitacao', 'condicaoLiquidacao'].forEach(function (k) { if (DD[k] != null) exd[k] = DD[k]; });
+      if (DD.refDate) exd.refDate = DD.refDate; if (DD.pagas != null) exd.pagas = DD.pagas; if (DD.restantes != null && !exd.fromSchedule) exd.parcelas = DD.restantes;
+      if (exd.juros == null && DD.jurosMes != null) exd.juros = DD.jurosMes; if (exd.juros == null && DD.jurosAno != null) { exd.juros = monthlyFromAnnualPct(DD.jurosAno); exd.jurosDerivado = true; f.notes.push('Só a taxa anual foi informada: a taxa mensal (' + String(exd.juros).replace('.', ',') + '%) foi CALCULADA a partir dela. Confirme com o credor.'); }
+      if (DD.temExtraordinaria) f.notes.push('O documento cita amortização extraordinária/parcial no histórico.');
+      if (exd.quitacao != null) f.notes.push('Valor para quitação antecipada informado pelo credor: ' + exd.quitacao.toFixed(2).replace('.', ',') + (exd.validadeQuitacao ? ' (válido até ' + exd.validadeQuitacao.split('-').reverse().join('/') + ')' : '') + '. Esse valor NÃO é a soma das parcelas nem o saldo devedor: veja a comparação na dívida.');
+      if (exd.pagas != null && exd.parcelasTotal && exd.parcelas != null && exd.pagas + exd.parcelas !== exd.parcelasTotal) f.notes.push('Atenção: parcelas pagas (' + exd.pagas + ') + restantes (' + exd.parcelas + ') não somam o total do contrato (' + exd.parcelasTotal + '). Confira o documento.');
+      if (f.key && exd.refDate && DD.saldoDevedor != null) f.key += '|' + exd.refDate;   // DEDs de datas diferentes do mesmo contrato não são duplicata
+      var SG = suggestCategory(allDigitsText(lines), exd); exd.categoria = SG.cat; exd.categoriaConf = SG.conf; exd.categoriaMotivo = SG.why.join('; ');
+      ck(checks, 'categoria', SG.conf >= 0.85, 'Confirme a categoria da dívida (sugestão: ' + SG.cat + ').', 0.5);
+            ck(checks, 'divida_dados', f.extra.saldo != null && f.extra.parcela != null, 'Faltam o saldo devedor e/ou o valor da parcela.', 0.5);
     } else { f.direction = 'none'; f.notes.push(kind === 'extrato' ? 'Extrato em PDF: para lançar as movimentações use "Importar extrato" (OFX ou CSV).' : 'Documento guardado, sem valor financeiro a lançar.'); f.key = null; }
     // validação comum
     if (f.direction === 'in' || f.direction === 'out' || f.direction === 'unknown') {
@@ -837,6 +899,6 @@
     SCHEMA: SCHEMA, num: num, norm: norm, buildLines: buildLines, allText: allText, classify: classify,
     parsePayslip: parsePayslip, validatePayslip: validatePayslip, identityString: identityString, finSig: finSig,
     compare: compare, decide: decide, mergeSegments: mergeSegments, splitSegments: splitSegments, analyzePages: analyzePages,
-    createIngestor: createIngestor, processDocument: processDocument, resolveOutcome: resolveOutcome, payslipsForCalc: payslipsForCalc, calcInputs: calcInputs, pendingReview: pendingReview, hash53: hash53, existingView: existingView, parseFin: parseFin, classifyRow: classifyRow, amortize: amortize, parseSchedule: parseSchedule, setContext: setContext
+    createIngestor: createIngestor, processDocument: processDocument, resolveOutcome: resolveOutcome, payslipsForCalc: payslipsForCalc, calcInputs: calcInputs, pendingReview: pendingReview, hash53: hash53, existingView: existingView, parseFin: parseFin, classifyRow: classifyRow, parseDed: parseDed, suggestCategory: suggestCategory, amortize: amortize, parseSchedule: parseSchedule, setContext: setContext
   };
 });

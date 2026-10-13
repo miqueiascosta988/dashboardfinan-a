@@ -19,7 +19,7 @@ async function openApp() {
 }
 const fill = async (page) => {
   await page.evaluate(() => switchTab('dividas')); await page.evaluate(() => openDebtModal());
-  await page.fill('#m-dname', 'Cartão Joãozinho'); await page.selectOption('#m-dtype', 'Cartão'); await page.dispatchEvent('#m-dtype', 'change');
+  await page.fill('#m-dname', 'Cartão Joãozinho'); await page.selectOption('#m-dtype', 'Cartão de crédito'); await page.dispatchEvent('#m-dtype', 'change');
   await page.fill('#m-dsaldo', '5682.18'); await page.fill('#m-djuros', '14.5'); await page.fill('#m-dmensal', '0');
   assert.equal(await page.isVisible('#m-card-box'), true);
   await page.click('text=+ Adicionar parcelamento'); await page.click('text=+ Adicionar parcelamento');
@@ -84,7 +84,7 @@ test('cenário completo (consignado + cartão + financiamento): a lista prioriza
 test('campos trocados no parcelamento (nº | faltam | valor parcelado | parcela) são corrigidos, e valor mensal/parcelas da dívida refletem os parcelamentos', async () => {
   const { page, errs, ctx } = await openApp();
   await page.evaluate(() => switchTab('dividas')); await page.evaluate(() => openDebtModal());
-  await page.fill('#m-dname', 'Mercado Pago'); await page.selectOption('#m-dtype', 'Cartão'); await page.dispatchEvent('#m-dtype', 'change');
+  await page.fill('#m-dname', 'Mercado Pago'); await page.selectOption('#m-dtype', 'Cartão de crédito'); await page.dispatchEvent('#m-dtype', 'change');
   await page.fill('#m-dsaldo', '5683'); await page.fill('#m-djuros', '0');
   await page.click('text=+ Adicionar parcelamento'); await page.click('text=+ Adicionar parcelamento');
   const rows = await page.$$('#m-cplans .cp-row'), set = async (r, a) => { for (const [c, v] of a) await r.$eval('.' + c, (e, v) => e.value = v, v); };

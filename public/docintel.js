@@ -75,7 +75,10 @@
     nf: [[/nota\s*fiscal|nf-?e|nfs-?e|danfe/, 3], [/chave\s*de\s*acesso/, 2.5], [/\bicms\b|\biss\b|valor\s*total\s*da\s*nota/, 1.5]],
     imposto: [[/informe\s*de\s*rendimentos|\birpf\b|declara[cç][aã]o\s*de\s*imposto/, 4], [/\bdas\b|simples\s*nacional|documento de arrecada/, 3]],
     contrato: [[/contrato\s*(de|individual)/, 2.5], [/cl[aá]usula|contratante|contratada/, 2.5], [/\bpartes\b/, 1]],
-    emprestimo: [[/empr[eé]stimo|financiamento|consignado/, 2.5], [/\bcet\b|taxa\s*de\s*juros|parcelas?\s*restantes?/, 2], [/saldo\s*devedor/, 2.5]]
+    emprestimo: [[/empr[eé]stimo|financiamento|consignado/, 2.5], [/\bcet\b|taxa\s*de\s*juros|parcelas?\s*restantes?/, 2], [/saldo\s*devedor/, 2.5],
+      [/c[eé]dula\s*de\s*cr[eé]dito\s*banc[aá]rio|\bccb\b/, 4], [/valor\s*liberado|valor\s*(total\s*)?financiado|valor\s*l[ií]quido\s*liberado/, 3], [/custo\s*efetivo\s*total/, 3],
+      [/quantidade\s*de\s*parcelas|n[uú]mero\s*de\s*parcelas|valor\s*(das?|da)\s*(parcelas?|presta[cç][aã]o)/, 2.5], [/contrato\s*de\s*(empr[eé]stimo|financiamento|cr[eé]dito|m[uú]tuo)|cr[eé]dito\s*(consignado|do\s*trabalhador|pessoal)/, 3.5], [/\bcredor\b|\bemitente\b|mutu[aá]rio/, 1],
+      [/demonstrativo\s*(de\s*)?(evolu[cç][aã]o|d[ií]vida|d[eé]bito|saldo)|evolu[cç][aã]o\s*(da\s*)?(d[ií]vida|d[eé]bito)|plano\s*de\s*amortiza[cç][aã]o|tabela\s*(price|sac|de\s*amortiza[cç][aã]o)|\bded\b/, 4], [/amortiza[cç][aã]o/, 1.5]]
   };
   // fileName e hint (aba escolhida) só desempatam: peso pequeno de propósito.
   function classify(text, fileName, hint) {
@@ -95,6 +98,8 @@
     // holerite exige evidência estrutural, não só uma palavra solta
     var titulo = /recibo de pagamento|demonstrativo de pagamento|contra-?cheque|holerite|recibo de salario|folha de pagamento/.test(t);
     if (best === 'holerite' && !(/l[ií]quido/.test(t) && /(vencimentos?|proventos?)/.test(t) && /descontos?/.test(t)) && !(titulo && bs >= 4) && bs < 6) { best = 'outro'; }
+    var credito = /demonstrativo\s*(de\s*)?(evolu[cç][aã]o|d[ií]vida|d[eé]bito)|evolu[cç][aã]o\s*(da\s*)?(d[ií]vida|d[eé]bito)|plano\s*de\s*amortiza|c[eé]dula\s*de\s*cr[eé]dito|\bccb\b|contrato\s*de\s*(empr[eé]stimo|financiamento|cr[eé]dito|m[uú]tuo)|valor\s*liberado|custo\s*efetivo\s*total/.test(t) && scores.emprestimo >= 5;
+    if (credito && (best === 'holerite' || best === 'contrato' || best === 'outro')) { best = 'emprestimo'; bs = scores.emprestimo; second = 0; }   // contrato de crédito vence holerite (FGTS/desconto em folha aparecem nas cláusulas)
     if (bs < 3) best = 'outro';
     var conf = bs <= 0 ? 0 : Math.min(1, (bs - second * 0.5) / (bs + 2));
     return { kind: best, score: r2(bs), confidence: r2(conf), scores: scores, byContent: bs >= 3 };
@@ -182,6 +187,7 @@
     if (/irrf|imposto de renda|\bir\b|i\.r\./.test(d)) return { kind: 'desconto', cat: 'irrf' };
     if (/consign|emprestimo|financiamento/.test(d)) return { kind: 'desconto', cat: 'consig' };
     if (/adiantamento\s*(de\s*)?(13|decimo)|1[ªa]?\s*parcela.*13/.test(d)) return { kind: 'desconto', cat: 'ignorar' };
+    if (/adiantamento\s*(salarial|de\s*sal[aá]rio|quinzenal|mensal)?$|^adiant\.?\s*(salarial|sal)?\b|vale\s*(adiantamento|salarial)|1[ªa]?\s*quinzena/.test(d) && !/13|decimo/.test(d)) return { kind: 'desconto', cat: 'adiantamento' };
     if (/adiantamento|vale|plano|mensalidade|pensao|falta|atraso|co-?participa|seguro|sindic|contribui|odont|medic|refeic|alimenta|transporte/.test(d)) return { kind: 'desconto', cat: 'outros' };
     if (/13[o°º]?\s*(\.|-)?\s*sal|ferias|abono|1\/3|rescis|aviso previo|indeniza|salario familia|licenca|maternidade|ajuda de custo/.test(d)) return { kind: 'provento', cat: 'ignorar' };
     if (/horas?\s*extras?|\bh\.?e\.?\b|adicional|comiss|gratifica|dsr|descanso|periculos|insalubr|bonus|premio|plr|produtividade|noturno|sobreaviso|participacao|gorjeta|quebra de caixa/.test(d)) return { kind: 'provento', cat: 'variavel' };
@@ -495,7 +501,77 @@
   var BANKS = [['nubank', 'Nubank'], ['itau', 'Itaú'], ['bradesco', 'Bradesco'], ['santander', 'Santander'], ['banco inter|\\binter\\b', 'Inter'], ['c6', 'C6 Bank'], ['caixa', 'Caixa'], ['banco do brasil|\\bbb\\b', 'Banco do Brasil'], ['mercado pago', 'Mercado Pago'], ['picpay', 'PicPay'], ['xp\\b', 'XP'], ['btg', 'BTG'], ['porto', 'Porto']];
   function issuer(text) { for (var i = 0; i < BANKS.length; i++) if (new RegExp(BANKS[i][0]).test(text)) return BANKS[i][1]; return null; }
 
-  function parseFin(kind, lines) {
+
+
+  // ───────── amortização: quanto de cada parcela é juros e quanto abate a dívida ─────────
+  function amortize(saldo, jurosPct, parcela, n) {
+    var i = (jurosPct || 0) / 100, bal = saldo, rows = [], jt = 0, at = 0, naoCobre = false, max = n && n > 0 ? n : 600;
+    if (!(saldo > 0) || !(parcela > 0)) return null;
+    for (var k = 1; k <= max && bal > 0.005; k++) {
+      var j = r2(bal * i), a = r2(parcela - j), pay = parcela;
+      if (a <= 0) { naoCobre = true; a = 0; }
+      if (a >= bal - 0.005 || (n && k === n)) { a = r2(bal); pay = r2(j + a); }       // última parcela fecha o saldo
+      bal = r2(bal - a); rows.push({ k: k, juros: j, amort: a, parcela: pay, saldo: Math.max(0, bal) }); jt += j; at += a;
+      if (naoCobre) break;
+    }
+    return { rows: rows, jurosTotal: r2(jt), amortTotal: r2(at), pagoTotal: r2(jt + at), naoCobre: naoCobre, primeira: rows[0] || null, meses: rows.length };
+  }
+  // tabela de evolução/amortização impressa no documento (DED): linhas com data + valores. Lê as colunas pelo cabeçalho.
+  function parseSchedule(lines) {
+    var hi = -1, cols = null;
+    for (var i = 0; i < lines.length; i++) {
+      var h = strip(lines[i].text).toLowerCase();
+      if (/amortiza/.test(h) && /juros/.test(h) || (/saldo/.test(h) && /(parcela|presta)/.test(h) && /vencimento|data/.test(h))) { hi = i; break; }
+    }
+    if (hi < 0) return null;
+    var hc = lines[hi].cells.map(function (c) { return { x: c.x != null ? c.x : 0, t: strip(c.s).toLowerCase() }; });
+    var role = function (t) { return /amortiza/.test(t) ? 'amort' : /juros/.test(t) ? 'juros' : /saldo/.test(t) ? 'saldo' : /(valor.*(parcela|presta)|^(parcela|presta[cç][aã]o)$|^valor$)/.test(t) ? 'parcela' : /venc|data/.test(t) ? 'due' : /^(n|n[ºo°]|parc|#)/.test(t) ? 'n' : null; };
+    var rows = [];
+    for (var r = hi + 1; r < lines.length; r++) {
+      var cells = lines[r].cells, txt = lines[r].text, dm = /(\d{2})\/(\d{2})\/(\d{4})/.exec(txt); if (!dm || !validDate(dm[1], dm[2], dm[3])) continue;
+      var vals = cells.filter(function (c) { return isMoney(c.s); }).map(function (c) { return { x: c.x != null ? c.x : 0, v: pn(c.s) }; }); if (vals.length < 2) continue;
+      var row = { due: iso(dm[1], dm[2], dm[3]), n: null, parcela: null, juros: null, amort: null, saldo: null };
+      var nm = /^\s*(\d{1,3})\b/.exec(txt); if (nm) row.n = +nm[1];
+      vals.forEach(function (v) { var best = null, bd = 1e9; hc.forEach(function (h) { var rl = role(h.t); if (!rl || rl === 'due' || rl === 'n') return; var d = Math.abs(h.x - v.x); if (d < bd) { bd = d; best = rl; } }); if (best && row[best] == null && bd < 140) row[best] = v.v; });
+      if (row.parcela == null && row.juros != null && row.amort != null) row.parcela = r2(row.juros + row.amort);
+      if (row.parcela != null) rows.push(row);
+    }
+    return rows.length >= 3 ? rows : null;
+  }
+
+  // ───────── contratos de crédito (empréstimo, consignado, financiamento, CCB) ─────────
+  function pn(x) { if (x == null) return null; x = String(x).replace(/[^\d.,-]/g, ''); if (!x) return null; var v = x.indexOf(',') >= 0 ? Number(x.replace(/\./g, '').replace(',', '.')) : Number(x); return isFinite(v) ? v : null; }
+  function pdate(m) { return m && validDate(m[1], m[2], m[3]) ? iso(m[1], m[2], m[3]) : null; }
+  function addM(isoD, k, dia) { var y = +isoD.slice(0, 4), mo = +isoD.slice(5, 7) - 1 + k, d = dia || +isoD.slice(8, 10); y += Math.floor(mo / 12); mo = ((mo % 12) + 12) % 12; var dim = new Date(y, mo + 1, 0).getDate(); return iso(Math.min(d, dim), mo + 1, y); }
+  function parseCredit(raw, now) {
+    var t = strip(raw).toLowerCase().replace(/[ \t]+/g, ' '), g = function (re) { var m = re.exec(t); return m ? m[1] : null; }, M = '\\s*:?\\s*(?:r\\$)?\\s*';
+    var money = function (lab) { return pn(g(new RegExp(lab + M + '([\\d.]*\\d+(?:,\\d{1,2})?)'))); };
+    var pct = function (lab) { return pn(g(new RegExp(lab + '\\s*(?:\\([^)]*\\))?\\s*:?\\s*([\\d.]*\\d+(?:[.,]\\d+)?)\\s*%'))); };
+    var dt = function (lab) { return pdate(new RegExp(lab + '\\s*:?\\s*(\\d{2})\\/(\\d{2})\\/(\\d{4})').exec(t)); };
+    var c = { liberado: money('valor\\s*(?:l[ií]quido\\s*)?liberado(?:\\s*ao\\s*cliente)?'), total: money('valor\\s*total\\s*do\\s*empr[eé]stimo'), financiado: money('valor\\s*total\\s*financiado'),
+      iof: money('iof'), parcela: money('valor\\s*(?:das?|da)\\s*(?:parcelas?|presta[cç][aã]o|presta[cç][oõ]es)') || money('valor\\s*da\\s*parcela'), n: pn(g(/(?:quantidade|n[uú]mero)\s*de\s*(?:parcelas|presta[cç][oõ]es)\s*:?\s*(\d{1,3})\b/) || g(/prazo\s*(?:\(?meses\)?)?\s*:?\s*(\d{1,3})\s*(?:meses|parcelas|x)/)),
+      primeira: dt('vencimento\\s*da\\s*primeira\\s*(?:parcela|presta[cç][aã]o)') || dt('primeira\\s*(?:parcela|presta[cç][aã]o)'), ultima: dt('vencimento\\s*da\\s*[uú]ltima\\s*(?:parcela|presta[cç][aã]o)') || dt('[uú]ltima\\s*(?:parcela|presta[cç][aã]o)'),
+      juros: pct('taxa\\s*de\\s*juros\\s*(?:\\(?ao\\s*m[eê]s\\)?|mensal)'), jurosAno: pct('taxa\\s*de\\s*juros\\s*(?:\\(?ao\\s*ano\\)?|anual)'), cet: pct('custo\\s*efetivo\\s*total\\s*(?:\\(?ao\\s*m[eê]s\\)?|mensal)'), cetAno: pct('custo\\s*efetivo\\s*total\\s*(?:\\(?ao\\s*ano\\)?|anual)') };
+    var cm = /contrato\s*(?:n[ºo°.]*)?\s*:?\s*(\d{4,})/.exec(t); c.contrato = cm ? cm[1] : null;
+    var dm = /contrato\s*(?:n[ºo°.]*)?\s*:?\s*\d{4,}\s*data\s*:?\s*(\d{2})\/(\d{2})\/(\d{4})/.exec(t); c.dataContrato = pdate(dm);
+    c.tipo = /cr[eé]dito\s*do\s*trabalhador|consignad|desconto\s*em\s*folha/.test(t) ? 'consignado' : (/financiamento\s*(de\s*)?(ve[ií]culo|im[oó]vel|autom|moto)|aliena[cç][aã]o\s*fiduci[aá]ria\s*(do|de)\s*(ve[ií]culo|im[oó]vel)/.test(t) ? 'financiamento' : 'pessoal');
+    var cr = /1\s*[.)]?\s*credor\s+([^\n]+)/i.exec(raw), name = cr ? cr[1].split(/,\s*sociedade|\bS\.?\s?A\.?\b|,\s*inscrit/i)[0].replace(/\s+(Cr[eé]dito|Financiamento)\b.*$/i, '').replace(/[,\s]+$/, '').trim() : '';
+    c.credor = name && name.length > 1 ? name.slice(0, 40) : null;
+    if (c.n == null && c.primeira && c.ultima) { var dm2 = (+c.ultima.slice(0, 4) - +c.primeira.slice(0, 4)) * 12 + (+c.ultima.slice(5, 7) - +c.primeira.slice(5, 7)); if (dm2 >= 0 && dm2 < 480) c.n = dm2 + 1; }
+    c.garantia = /cess[aã]o\s*fiduci[aá]ria/.test(t) && /fgts/.test(t); var gp = /cess[aã]o\s*fiduci[aá]ria[^]{0,200}?(\d{1,3})\s*%[^]{0,160}?fgts/.exec(t); c.fgtsPct = gp ? +gp[1] : null;
+    var mm = /juros\s*de\s*mora\s*de\s*(?:\d+\s*\([^)]*\)\s*|)(\d+(?:,\d+)?)\s*(?:\([^)]*\))?\s*%/.exec(t); c.mora = mm ? pn(mm[1]) : null; var ml = /multa\s*convencional[^]{0,80}?(\d+(?:,\d+)?)\s*(?:\([^)]*\))?\s*%/.exec(t); c.multa = ml ? pn(ml[1]) : null;
+    // situação hoje: quantas parcelas já venceram e quanto falta (valor presente pelas parcelas restantes na taxa do contrato)
+    var nowD = now ? new Date(now) : new Date(); if (isNaN(nowD)) nowD = new Date(); var today = nowD.getFullYear() + '-' + ('0' + (nowD.getMonth() + 1)).slice(-2) + '-' + ('0' + nowD.getDate()).slice(-2);
+    c.restantes = null; c.saldoEst = null;
+    if (c.n && c.primeira) {
+      var dia = +c.primeira.slice(8, 10), paid = 0; for (var k = 0; k < c.n; k++) if (addM(c.primeira, k, dia) <= today) paid++;
+      c.pagas = paid; c.restantes = c.n - paid; c.dia = dia;
+      if (c.restantes > 0 && c.parcela > 0) { var i = c.juros != null ? c.juros / 100 : 0; c.saldoEst = r2(i > 0 ? c.parcela * (1 - Math.pow(1 + i, -c.restantes)) / i : c.parcela * c.restantes); }
+    }
+    return c;
+  }
+
+  function parseFin(kind, lines, now) {
     var text = strip(allDigitsText(lines)).toLowerCase(), checks = [], f = { kind: kind, direction: 'unknown', amount: null, date: null, counterparty: null, key: null, notes: [], extra: {} };
     if (kind === 'boleto') {
       var bl = boletoLinha(allDigitsText(lines)), printed = moneyAfter(lines, /valor\s*(do\s*documento|cobrado|nominal)|^valor$/);
@@ -539,6 +615,33 @@
       var dvm = /(?:dia\s*(?:de|do)\s*vencimento|vencimento\s*(?:das?\s*parcelas?\s*)?(?:todo\s*)?(?:dia)?)[^0-9]{0,25}(\d{1,2})\b/.exec(text); f.extra.diaVenc = dvm && +dvm[1] >= 1 && +dvm[1] <= 31 ? +dvm[1] : null;
       f.amount = f.extra.saldo; f.date = null; f.counterparty = issuer(text) || textAfter(lines, /(institui[cç][aã]o\s*financeira|credor)\b/);
       f.key = 'divida|' + norm(f.counterparty || '') + '|' + (f.extra.saldo != null ? f.extra.saldo.toFixed(2) : '') + '|' + (f.extra.parcela != null ? f.extra.parcela.toFixed(2) : '');
+      var SCH = parseSchedule(lines), nowS = now ? new Date(now) : new Date(); if (isNaN(nowS)) nowS = new Date(); var todayS = nowS.getFullYear() + '-' + ('0' + (nowS.getMonth() + 1)).slice(-2) + '-' + ('0' + nowS.getDate()).slice(-2);
+      if (SCH) {                                              // DED / tabela de amortização: leitura exata (não estimada)
+        var fut = SCH.filter(function (r) { return r.due > todayS; }), exs = f.extra;
+        if (fut.length) { exs.parcela = fut[0].parcela; exs.parcelas = fut.length; exs.diaVenc = +fut[0].due.slice(8, 10); exs.fromSchedule = true; exs.schedule = SCH.length;
+          var prevRow = SCH[SCH.indexOf(fut[0]) - 1]; var sd = prevRow && prevRow.saldo != null ? prevRow.saldo : (fut[0].saldo != null && fut[0].amort != null ? r2(fut[0].saldo + fut[0].amort) : null); if (sd != null && exs.saldo == null) exs.saldo = sd;
+          exs.jurosRestantes = r2(fut.reduce(function (a, r) { return a + (r.juros || 0); }, 0)); exs.amortRestante = r2(fut.reduce(function (a, r) { return a + (r.amort || 0); }, 0));
+          exs.jurosProxima = fut[0].juros; exs.amortProxima = fut[0].amort; f.notes.push('Tabela de evolução da dívida lida: ' + SCH.length + ' parcelas, ' + fut.length + ' ainda a vencer. Juros e amortização vêm do próprio documento.'); }
+        else f.notes.push('Tabela de evolução lida, mas nenhuma parcela futura: a dívida parece quitada.');
+      }
+      var CT = parseCredit(allDigitsText(lines), now);
+      if (CT.parcela > 0 && (CT.n || CT.liberado || CT.total) && (CT.liberado != null || CT.total != null || CT.cet != null || CT.ccb)) {    // contrato novo: não existe "saldo devedor" impresso, calcula-se pelas parcelas restantes
+        var ex = f.extra; ex.contrato = CT.contrato; ex.tipoOperacao = CT.tipo; ex.dataContrato = CT.dataContrato; ex.liberado = CT.liberado; ex.totalEmprestimo = CT.total; ex.financiado = CT.financiado; ex.iof = CT.iof;
+        ex.parcelasTotal = CT.n; ex.primeiraParcela = CT.primeira; ex.ultimaParcela = CT.ultima; ex.jurosAno = CT.jurosAno; ex.cet = CT.cet; ex.cetAno = CT.cetAno; ex.fromContract = true;
+        ex.parcela = CT.parcela; if (CT.juros != null) ex.juros = CT.juros; if (CT.dia) ex.diaVenc = CT.dia;
+        if (CT.restantes != null) ex.parcelas = CT.restantes;
+        if (ex.saldo == null && CT.saldoEst != null) { ex.saldo = CT.saldoEst; ex.saldoEstimado = true; }
+        if (CT.restantes === 0) f.notes.push('Todas as parcelas deste contrato já venceram pelas datas do documento. Se ainda há saldo, informe-o.');
+        if (CT.credor) f.counterparty = CT.credor;
+        if (ex.saldoEstimado) f.notes.push('Saldo devedor ESTIMADO pelas ' + CT.restantes + ' parcelas restantes na taxa do contrato (' + (CT.juros != null ? String(CT.juros).replace('.', ',') + '% ao mês' : 'sem taxa informada') + '). Para quitar, peça o saldo atualizado ao banco.');
+        if (CT.tipo === 'consignado') f.notes.push('Consignado: a parcela é descontada em folha. Confira se ela aparece no seu holerite.');
+        if (CT.garantia) f.notes.push('Garantia do contrato: ' + (CT.fgtsPct ? CT.fgtsPct + '% do saldo do FGTS' : 'parte do FGTS') + ' e a multa rescisória ficam comprometidos até quitar. Vale saber antes de pedir demissão.');
+        if (CT.mora != null || CT.multa != null) f.notes.push('Em caso de atraso: ' + [CT.mora != null ? 'juros de mora de ' + String(CT.mora).replace('.', ',') + '% ao mês' : '', CT.multa != null ? 'multa de ' + String(CT.multa).replace('.', ',') + '%' : ''].filter(Boolean).join(' e ') + '.');
+        if (CT.total != null && CT.parcela > 0 && CT.n) ck(checks, 'total_confere', Math.abs(CT.parcela * CT.n - CT.total) <= Math.max(0.5, CT.total * 0.005), 'Parcela × quantidade (' + r2(CT.parcela * CT.n) + ') não bate com o valor total do empréstimo (' + CT.total + '): confira os números.', 0.35);
+        f.key = 'divida|' + (CT.contrato ? 'ctr' + CT.contrato : norm(f.counterparty || '') + '|' + (CT.liberado != null ? CT.liberado.toFixed(2) : '') + '|' + CT.parcela.toFixed(2));
+        f.amount = ex.saldo;
+      }
+      if (f.extra.saldo > 0 && f.extra.parcela > 0 && !f.extra.fromSchedule) { var AM = amortize(f.extra.saldo, f.extra.juros, f.extra.parcela, f.extra.parcelas || 0); if (AM) { f.extra.jurosProxima = AM.primeira.juros; f.extra.amortProxima = AM.primeira.amort; f.extra.jurosRestantes = AM.jurosTotal; f.extra.amortRestante = AM.amortTotal; if (AM.naoCobre) f.notes.push('Atenção: a parcela não cobre nem os juros do mês; a dívida cresce.'); } }
       ck(checks, 'divida_dados', f.extra.saldo != null && f.extra.parcela != null, 'Faltam o saldo devedor e/ou o valor da parcela.', 0.5);
     } else { f.direction = 'none'; f.notes.push(kind === 'extrato' ? 'Extrato em PDF: para lançar as movimentações use "Importar extrato" (OFX ou CSV).' : 'Documento guardado, sem valor financeiro a lançar.'); f.key = null; }
     // validação comum
@@ -626,7 +729,7 @@
     if (cls.kind !== 'holerite') {
       var dup = decide(existingView(existingDocs), null, ctx.contentHash);
       if (dup.action === 'duplicate') { result.outcomes.push({ action: 'duplicate', target: dup.target, reason: dup.reason }); return result; }
-      var fin = parseFin(cls.kind, [].concat.apply([], pagesLines)), fkey = fin.key ? hash53(fin.key) : null, vw = existingView(existingDocs);
+      var fin = parseFin(cls.kind, [].concat.apply([], pagesLines), ctx.now), fkey = fin.key ? hash53(fin.key) : null, vw = existingView(existingDocs);
       var isoLabel = function (i) { return i ? i.slice(8, 10) + '/' + i.slice(5, 7) + '/' + i.slice(0, 4) : ''; };
       var KL = { boleto: 'Boleto', fatura: 'Fatura de cartão', nf: 'Nota fiscal', imposto: 'Guia/imposto', emprestimo: 'Empréstimo/financiamento', extrato: 'Extrato', contrato: 'Contrato' };
       var ent = { id: ctx.newId(), name: (KL[cls.kind] || ctx.fileName) + (fin.counterparty ? ' · ' + fin.counterparty : '') + (fin.date ? ' · ' + isoLabel(fin.date) : (KL[cls.kind] ? '' : '')), type: fin.direction === 'in' ? 'income' : 'expense', category: cls.kind, amount: fin.amount != null ? fin.amount : 0,
@@ -679,7 +782,7 @@
     var list = payslipsForCalc(docs).slice(-12); if (!list.length) return null;
     var last = list[list.length - 1].extractedData.payslip;
     var vars = list.map(function (d) { return sumCat(d.extractedData.payslip, 'variavel'); });
-    return { count: list.length, competencias: list.map(function (d) { return d.extractedData.payslip.competencia; }), salary: sumCat(last, 'base'), variaveis: r2(vars.reduce(function (a, b) { return a + b; }, 0) / vars.length), consig: sumCat(last, 'consig'), liquidoUltimo: last.totals.liquido, ultimaCompetencia: last.competencia };
+    return { count: list.length, competencias: list.map(function (d) { return d.extractedData.payslip.competencia; }), salary: sumCat(last, 'base'), variaveis: r2(vars.reduce(function (a, b) { return a + b; }, 0) / vars.length), consig: sumCat(last, 'consig'), adiantamento: sumCat(last, 'adiantamento'), liquidoUltimo: last.totals.liquido, ultimaCompetencia: last.competencia };
   }
   function pendingReview(docs) { return (docs || []).filter(function (d) { return d.extractedData && d.extractedData.state === 'needs_review' && !d.extractedData.userConfirmed && d.extractedData.payslip; }).length; }
 
@@ -734,6 +837,6 @@
     SCHEMA: SCHEMA, num: num, norm: norm, buildLines: buildLines, allText: allText, classify: classify,
     parsePayslip: parsePayslip, validatePayslip: validatePayslip, identityString: identityString, finSig: finSig,
     compare: compare, decide: decide, mergeSegments: mergeSegments, splitSegments: splitSegments, analyzePages: analyzePages,
-    createIngestor: createIngestor, processDocument: processDocument, resolveOutcome: resolveOutcome, payslipsForCalc: payslipsForCalc, calcInputs: calcInputs, pendingReview: pendingReview, hash53: hash53, existingView: existingView, parseFin: parseFin, setContext: setContext
+    createIngestor: createIngestor, processDocument: processDocument, resolveOutcome: resolveOutcome, payslipsForCalc: payslipsForCalc, calcInputs: calcInputs, pendingReview: pendingReview, hash53: hash53, existingView: existingView, parseFin: parseFin, classifyRow: classifyRow, amortize: amortize, parseSchedule: parseSchedule, setContext: setContext
   };
 });

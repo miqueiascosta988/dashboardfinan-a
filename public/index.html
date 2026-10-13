@@ -3694,6 +3694,17 @@ function cardBoxHtml(existing) {
     + '<div id="m-cplans" style="margin-top:10px">' + plans.map(cardRowHtml).join('') + '</div>'
     + '<button type="button" class="btn-sm" onclick="document.getElementById(\'m-cplans\').insertAdjacentHTML(\'beforeend\', cardRowHtml())">+ Adicionar parcelamento</button></div>';
 }
+
+function debtAmort(d) { try { if (!d || /cart[aã]o/i.test(d.type || '') || !(d.saldo > 0) || !(d.mensal > 0) || !window.DocIntel || !DocIntel.amortize) return null; return DocIntel.amortize(d.saldo, d.juros || 0, d.mensal, d.parcelas || 0); } catch (e) { return null; } }
+function debtAmortLine(d) { const a = debtAmort(d); if (!a || !a.primeira) return ''; return '<div class="debt-detail" style="margin-top:4px">Próxima parcela: ' + fmt(a.primeira.juros) + ' de juros + ' + fmt(a.primeira.amort) + ' amortizando' + (a.naoCobre ? ' <b style="color:var(--gold)">(não cobre os juros)</b>' : '') + '</div>'; }
+function openAmortModal(id) {
+  const d = state.debts.find(z => z.id === id); const a = debtAmort(d); if (!a) { showToast('Preencha saldo, juros e parcela para ver a amortização.', 'info'); return; }
+  const rows = a.rows.slice(0, 36);
+  openModal('Amortização · ' + fxEsc(d.name), '<div class="occ-b-desc" style="margin-bottom:10px">Total ainda a pagar: <b>' + fmt(a.pagoTotal) + '</b> = <b>' + fmt(a.amortTotal) + '</b> da dívida + <b>' + fmt(a.jurosTotal) + '</b> de juros (' + a.meses + ' parcelas). Estimativa pela taxa informada.' + (a.naoCobre ? ' <b style="color:var(--gold)">Atenção: a parcela não cobre os juros do mês.</b>' : '') + '</div>' +
+    '<div style="max-height:340px;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="text-align:left;opacity:.7"><th>#</th><th style="text-align:right">Parcela</th><th style="text-align:right">Juros</th><th style="text-align:right">Amortização</th><th style="text-align:right">Saldo</th></tr></thead><tbody>' +
+    rows.map(r => '<tr style="border-top:1px solid var(--border)"><td>' + r.k + '</td><td style="text-align:right">' + fmt(r.parcela) + '</td><td style="text-align:right">' + fmt(r.juros) + '</td><td style="text-align:right">' + fmt(r.amort) + '</td><td style="text-align:right">' + fmt(r.saldo) + '</td></tr>').join('') + '</tbody></table></div>' + (a.rows.length > 36 ? '<div class="occ-b-desc" style="margin-top:6px">Mostrando 36 de ' + a.rows.length + ' parcelas.</div>' : '') +
+    '<div class="modal-actions"><button class="btn-cancel" onclick="closeModal()">Fechar</button></div>');
+}
 function cardPlanSummary(d) {
   const c = cardsMap()[d.id]; if (!c || !c.plans || !c.plans.length) return '';
   const ps = c.plans.filter(p => p.parcela > 0 && p.restantes > 0); if (!ps.length) return '';
@@ -4315,7 +4326,7 @@ const simNum = v => { const n = parseFloat(String(v).replace(/\./g, '').replace(
 
 // ── Holerites no Simulador: NÃO há leitor próprio. Tudo vem do armazenamento central (state.documents),
 //    alimentado pelo ponto único de entrada (ingestFiles). Aqui só se derivam os campos de cálculo.
-const SIM_CATS = { base: 'Salário / fixo', variavel: 'Variável (entra na média)', consig: 'Consignado / empréstimo', outros: 'Outro desconto', inss: 'INSS', irrf: 'IRRF', ignorar: 'Ignorar' };
+const SIM_CATS = { adiantamento: 'Adiantamento salarial (já recebido no mês)', base: 'Salário / fixo', variavel: 'Variável (entra na média)', consig: 'Consignado / empréstimo', outros: 'Outro desconto', inss: 'INSS', irrf: 'IRRF', ignorar: 'Ignorar' };
 function simSyncFromStore() {
   const label = c => c ? c.slice(5) + '/' + c.slice(0, 4) : '—';
   SIM.holerites = (window.DocIntel ? DocIntel.payslipsForCalc(state.documents) : []).map(d => ({ id: d.id, name: (d.extractedData.files || [d.name])[0], comp: label(d.extractedData.payslip.competencia), rows: d.extractedData.payslip.rows }));
@@ -5548,7 +5559,7 @@ function renderDividas(c) {
     { label: '% da renda', value: pct(c.debtPct), color: c.debtPct>30?'var(--expense)':'var(--amber)' },
   ].map((k,i) => `<div class="kpi animate-in stagger-${i+1}"><div class="kpi-label">${k.label}</div><div class="kpi-value ${k.cls||''}" ${k.color?`style="color:${k.color}"`:''} >${k.value}</div></div>`).join('')}</div>
   ${visibleList('debts').length===0?`<div class="card animate-in stagger-3"><div class="empty-state"><div class="empty-icon">✅</div><div class="empty-title">Sem dívidas!</div></div></div>`:
-  `<div class="debt-summary-grid">${visibleList('debts').map((d,i)=>`<div class="debt-card-item animate-in stagger-${(i%4)+1}"><div onclick='openDebtModal(${JSON.stringify(d).replace(/'/g,"&#39;")})' style="cursor:pointer"><div class="debt-type">${d.type}</div><div style="font-family:var(--font-display);font-weight:700;font-size:15px;margin:6px 0 2px">${fxEsc(d.name)}</div><div class="debt-amount">${fmt(d.saldo)}</div><div class="debt-detail">${d.juros>0?`Juros: ${d.juros}% a.m.`:'Sem juros'}${cardPlanSummary(d)||(d.parcelas>0&&d.mensal>0?` · ${d.parcelas}x de ${fmt(d.mensal)}`:'')}</div></div>${isPlusUser()?`<button class="btn-sm" style="margin-top:10px;width:100%" onclick="event.stopPropagation();openNegotiationDebt('${d.id}')">💬 Negociar</button>`:''}</div>`).join('')}</div>
+  `<div class="debt-summary-grid">${visibleList('debts').map((d,i)=>`<div class="debt-card-item animate-in stagger-${(i%4)+1}"><div onclick='openDebtModal(${JSON.stringify(d).replace(/'/g,"&#39;")})' style="cursor:pointer"><div class="debt-type">${d.type}</div><div style="font-family:var(--font-display);font-weight:700;font-size:15px;margin:6px 0 2px">${fxEsc(d.name)}</div><div class="debt-amount">${fmt(d.saldo)}</div><div class="debt-detail">${d.juros>0?`Juros: ${d.juros}% a.m.`:'Sem juros'}${cardPlanSummary(d)||(d.parcelas>0&&d.mensal>0?` · ${d.parcelas}x de ${fmt(d.mensal)}`:'')}</div>${debtAmortLine(d)}</div>${debtAmort(d)?`<button class="btn-sm" style="margin-top:10px;width:100%" onclick="event.stopPropagation();openAmortModal('${d.id}')">📉 Ver juros e amortização</button>`:''}${isPlusUser()?`<button class="btn-sm" style="margin-top:10px;width:100%" onclick="event.stopPropagation();openNegotiationDebt('${d.id}')">💬 Negociar</button>`:''}</div>`).join('')}</div>
   <div class="card animate-in stagger-5"><div class="card-title" style="margin-bottom:12px">Simulação de antecipação</div>${visibleList('debts').filter(d=>d.juros>0&&d.parcelas>0).map(d=>{const fi=d.saldo*(d.juros/100)*d.parcelas;return`<div style="background:var(--card-alt);border-radius:var(--radius-sm);padding:16px;font-size:13px;color:var(--ink-2);line-height:1.7;margin-bottom:8px"><strong style="color:var(--ink)">${fxEsc(d.name)}</strong> — Saldo: ${fmt(d.saldo)} · ${d.juros}% a.m. · ${d.parcelas}x<br>Economia estimada: <strong style="color:var(--income)">${fmt(fi)}</strong></div>`;}).join('')||'<div style="font-size:13px;color:var(--ink-3)">Nenhuma dívida com juros.</div>'}</div>`}`;
 }
 
@@ -5899,6 +5910,7 @@ function renderDocumentos(c) {
     <div class="upload-zone-desc"><strong>Prefira PDF</strong> (o original, com texto): é lido com precisão. Fotos e imagens passam por OCR e podem errar. CSV e XML também são aceitos — máx. 10MB por arquivo. ${isPJ ? 'Notas fiscais em XML (NF-e/NFS-e) são lidas e conferidas automaticamente.' : 'Reconhecemos o tipo pelo conteúdo: envie uma vez e o holerite fica disponível em todas as áreas.'} Ou use o <a href="#" onclick="event.preventDefault();openScanModal()" style="color:var(--teal);font-weight:600">scanner de QR/código de barras</a> para boletos.</div>
   </div>
 
+  ${isPJ ? nfSheetCard() : ''}
   <div style="margin-top:20px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
       <div style="font-family:var(--font-display);font-weight:700;font-size:15px">Documentos recentes</div>
@@ -6011,7 +6023,7 @@ function docEvent(d) {                 // o que o documento significa financeira
     return { type: 'income', date: docTxDate(p.competencia), amount: liq, cat, desc: 'Salário líquido' + tipoTxt + ' · ' + p.competencia.slice(5) + '/' + p.competencia.slice(0, 4), match: 'month', label: p.competencia.slice(5) + '/' + p.competencia.slice(0, 4) };
   }
   const f = x.fin; if (!f) return null;
-  if (f.direction === 'debt') return (f.extra && f.extra.saldo > 0 && f.extra.parcela > 0) ? { debt: true, saldo: f.extra.saldo, parcela: f.extra.parcela, parcelas: f.extra.parcelas || 0, juros: f.extra.juros || 0, name: (f.kind === 'emprestimo' ? 'Empréstimo' : 'Dívida') + (f.counterparty ? ' ' + f.counterparty : '') } : null;
+  if (f.direction === 'debt') return (f.extra && f.extra.saldo > 0 && f.extra.parcela > 0) ? { debt: true, saldo: f.extra.saldo, parcela: f.extra.parcela, parcelas: f.extra.parcelas || 0, juros: f.extra.juros || 0, name: ((f.extra && f.extra.tipoOperacao === 'consignado') ? 'Consignado' : (f.extra && f.extra.tipoOperacao === 'financiamento') ? 'Financiamento' : f.kind === 'emprestimo' ? 'Empréstimo' : 'Dívida') + (f.counterparty ? ' ' + f.counterparty : ''), dtype: (f.extra && f.extra.tipoOperacao === 'financiamento') ? 'Financiamento' : 'Empréstimo' } : null;
   if ((f.direction !== 'in' && f.direction !== 'out') || !(f.amount > 0) || !f.date) return null;
   const k = f.kind, cp = f.counterparty ? ' · ' + f.counterparty : '';
   const desc = k === 'boleto' ? 'Boleto' + cp : k === 'fatura' ? 'Fatura do cartão' + cp : k === 'nf' ? (f.direction === 'in' ? 'NF emitida' : 'NF recebida') + cp + (f.extra && f.extra.numero ? ' nº ' + f.extra.numero : '') : (f.counterparty || 'Guia de imposto') + (f.extra && f.extra.periodo ? ' · ' + f.extra.periodo : '');
@@ -6055,7 +6067,7 @@ function syncDocDebt(d, ev) {          // empréstimo/financiamento → página 
   if (x.debtId) return null;
   const dup = state.debts.find(z => Math.abs(z.saldo - ev.saldo) < 0.01 && Math.abs(z.mensal - ev.parcela) < 0.01);
   if (dup) { x.debtId = dup.id; x.debtOwned = false; persistDoc(d); showToast('Essa dívida já está cadastrada. Vinculei ao documento, sem duplicar.', 'info'); return dup; }
-  const z = { id: genId(), name: ev.name, type: 'Empréstimo', saldo: ev.saldo, juros: ev.juros, parcelas: ev.parcelas, mensal: ev.parcela, profile: state.profile_type };
+  const z = { id: genId(), name: ev.name, type: ev.dtype || 'Empréstimo', saldo: ev.saldo, juros: ev.juros, parcelas: ev.parcelas, mensal: ev.parcela, profile: state.profile_type };
   state.debts.push(z); rec(z); x.debtId = z.id; x.debtOwned = true; persistDoc(d);
   showToast('🏦 Dívida de ' + fmt(ev.saldo) + ' (parcela ' + fmt(ev.parcela) + ') cadastrada em Dívidas.', 'success');
   return z;
@@ -7593,6 +7605,53 @@ function exportRowsTx() {
   const incomeLabel = state.profile_type === 'PJ' ? 'Faturamento' : 'Renda';
   return state.transactions.slice().sort(function(a, b) { return String(b.date).localeCompare(String(a.date)); })
     .map(function(t) { return [t.date, t.type === 'income' ? incomeLabel : 'Despesa', t.desc, t.cat, t.amount, t.recur ? 'Sim' : 'Não']; });
+}
+
+// ───────── PJ: notas fiscais organizadas em planilha (todas as NFs enviadas, em PDF ou XML) ─────────
+function nfSheetRows() {
+  const rows = [];
+  (state.documents || []).forEach(d => {
+    const x = d.extractedData || {}; let r = null;
+    if (x.fonte === 'xml' && (x.kind === 'nfe' || x.kind === 'nfse')) {
+      const emit = x.dir === 'emitida', o = emit ? x.dest : x.emit;
+      r = { dir: emit ? 'Emitida' : 'Recebida', data: x.emissao || '', numero: x.numero || '', serie: x.serie || '', chave: x.chave || '', parte: (o && o.nome) || '', doc: (o && o.doc) || '', valor: +x.valor || 0, natOp: x.natOp || '', modelo: x.kind === 'nfe' ? 'NF-e' : 'NFS-e', origem: 'XML', ok: true };
+    } else if (x.fin && x.fin.kind === 'nf') {
+      const f = x.fin, ex = f.extra || {};
+      r = { dir: f.direction === 'in' ? 'Emitida' : f.direction === 'out' ? 'Recebida' : 'Revisar', data: f.date || '', numero: ex.numero || '', serie: '', chave: ex.chave || '', parte: f.counterparty || '', doc: '', valor: +f.amount || 0, natOp: '', modelo: 'NF', origem: d.extractedData && d.extractedData.ocr ? 'PDF/imagem (OCR)' : 'PDF', ok: x.state === 'done' || !!x.userConfirmed };
+    }
+    if (r) { r.arquivo = d.name || ''; rows.push(r); }
+  });
+  return rows.sort((a, b) => String(b.data).localeCompare(String(a.data)));
+}
+function nfSheetSummary(rows) {
+  const m = {}; rows.forEach(r => { const k = String(r.data).slice(0, 7) || 'sem data'; const o = m[k] = m[k] || { mes: k, emitidas: 0, recebidas: 0, qE: 0, qR: 0 }; if (r.dir === 'Emitida') { o.emitidas += r.valor; o.qE++; } else if (r.dir === 'Recebida') { o.recebidas += r.valor; o.qR++; } });
+  return Object.values(m).sort((a, b) => b.mes.localeCompare(a.mes));
+}
+function nfSheetCard() {
+  const rows = nfSheetRows(); if (!rows.length) return '';
+  const sm = nfSheetSummary(rows), tE = rows.filter(r => r.dir === 'Emitida').reduce((s, r) => s + r.valor, 0), tR = rows.filter(r => r.dir === 'Recebida').reduce((s, r) => s + r.valor, 0), rev = rows.filter(r => !r.ok || r.dir === 'Revisar').length;
+  const brd = iso => /^\d{4}-\d{2}-\d{2}/.test(iso) ? iso.slice(8, 10) + '/' + iso.slice(5, 7) + '/' + iso.slice(0, 4) : '—';
+  return '<div class="card mb-24 animate-in" id="nf-sheet"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><div class="card-title" style="margin:0">📊 Notas fiscais organizadas (' + rows.length + ')</div><div style="display:flex;gap:8px"><button class="btn-add" onclick="exportNfSheet(\'xls\')">Baixar planilha (Excel)</button><button class="btn-sm" onclick="exportNfSheet(\'csv\')">CSV</button></div></div>' +
+    '<div class="occ-b-desc" style="margin:10px 0">Emitidas: <b>' + fmt(tE) + '</b> · Recebidas: <b>' + fmt(tR) + '</b> · Saldo: <b>' + fmt(tE - tR) + '</b>' + (rev ? ' · <span style="color:var(--gold)">' + rev + ' para revisar</span>' : '') + '</div>' +
+    '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="text-align:left;opacity:.7"><th>Data</th><th>Tipo</th><th>Nº</th><th>Cliente / Fornecedor</th><th style="text-align:right">Valor</th></tr></thead><tbody>' +
+    rows.slice(0, 15).map(r => '<tr style="border-top:1px solid var(--border)"><td>' + brd(r.data) + '</td><td>' + r.dir + '</td><td>' + fxEsc(r.numero || '—') + '</td><td>' + fxEsc(r.parte || '—') + '</td><td style="text-align:right">' + fmt(r.valor) + '</td></tr>').join('') + '</tbody></table></div>' +
+    (rows.length > 15 ? '<div class="occ-b-desc" style="margin-top:6px">Mostrando 15 de ' + rows.length + '. A planilha baixada traz todas, com resumo por mês.</div>' : '') +
+    (sm.length ? '<div class="occ-b-desc" style="margin-top:10px"><b>Por mês:</b> ' + sm.slice(0, 4).map(o => o.mes.slice(5) + '/' + o.mes.slice(0, 4) + ' → emitidas ' + fmt(o.emitidas) + ', recebidas ' + fmt(o.recebidas)).join(' · ') + '</div>' : '') + '</div>';
+}
+function exportNfSheet(fmtType) {
+  const rows = nfSheetRows(); if (!rows.length) { showToast('Nenhuma nota fiscal para exportar ainda.', 'info'); return; }
+  const head = ['Data de emissão', 'Tipo', 'Modelo', 'Número', 'Série', 'Cliente / Fornecedor', 'CNPJ/CPF', 'Valor (R$)', 'Natureza da operação', 'Chave de acesso', 'Origem', 'Conferida', 'Arquivo'];
+  const line = r => [r.data, r.dir, r.modelo, r.numero, r.serie, r.parte, r.doc, r.valor, r.natOp, r.chave, r.origem, r.ok ? 'sim' : 'revisar', r.arquivo];
+  const sm = nfSheetSummary(rows);
+  if (fmtType === 'csv') {
+    const csv = [head.map(csvCell).join(';')].concat(rows.map(r => line(r).map((v, i) => csvCell(i === 7 ? String(v.toFixed(2)).replace('.', ',') : v)).join(';'))).join('\r\n');
+    dlBlob('\ufeff' + csv, 'text/csv;charset=utf-8;', 'sm-financial-notas-fiscais.csv'); showToast('Planilha de notas fiscais baixada (CSV).', 'success'); return;
+  }
+  const td = (v, num) => '<td' + (num ? ' x:num' : ' style="mso-number-format:\'\\@\'"') + '>' + fxEsc(num ? v.toFixed(2).replace('.', ',') : v) + '</td>';
+  const html = '<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head><body><h3>Notas fiscais</h3><table border="1"><tr>' + head.map(h => '<th style="background:#10294A;color:#fff">' + h + '</th>').join('') + '</tr>' +
+    rows.map(r => '<tr>' + line(r).map((v, i) => td(v, i === 7)).join('') + '</tr>').join('') + '</table><br><h3>Resumo por mês</h3><table border="1"><tr><th>Mês</th><th>Emitidas (qtd)</th><th>Emitidas (R$)</th><th>Recebidas (qtd)</th><th>Recebidas (R$)</th><th>Saldo (R$)</th></tr>' +
+    sm.map(o => '<tr><td>' + o.mes + '</td><td x:num>' + o.qE + '</td>' + td(o.emitidas, true) + '<td x:num>' + o.qR + '</td>' + td(o.recebidas, true) + td(o.emitidas - o.recebidas, true) + '</tr>').join('') + '</table></body></html>';
+  dlBlob(html, 'application/vnd.ms-excel;charset=utf-8;', 'sm-financial-notas-fiscais.xls'); showToast('Planilha de notas fiscais baixada.', 'success');
 }
 function csvCell(v) {
   var x = String(v == null ? '' : v);

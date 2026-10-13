@@ -391,6 +391,11 @@
       var det = 'ENTRA · salário líquido do holerite ' + lab + (tt.venc > 0 ? ' · bruto ' + brl(tt.venc) : '') + (tt.desc > 0 ? ' · descontos ' + brl(tt.desc) : '') + ' · líquido ' + brl(ev.amount) + '. Data estimada (5º dia do mês seguinte): ajuste se o seu salário cai em outro dia.';
       var main = { key: 'doc:' + id + ':0', kind: 'income', title: 'Salário · ' + lab, category: 'Salário', amount: ev.amount, dueDate: ev.date, priority: 'essential', status: past(ev.date) ? 'awaiting' : 'pending', notes: det + (past(ev.date) ? ' Data já passou: confirme que recebeu.' : '') };
       out.push(main);
+      var adv = (p.rows || []).filter(function (r) { return r.cat === 'adiantamento' && r.valor > 0; }).reduce(function (s0, r) { return s0 + r.valor; }, 0);
+      if (adv > 0 && comp) {          // adiantamento: dinheiro que cai no meio do mês e já foi descontado do líquido do fim do mês
+        var advDate = comp + '-20', advMain = { key: 'doc:' + id + ':adv', kind: 'income', title: 'Adiantamento salarial · ' + lab, category: 'Salário', amount: FP.r2(adv), dueDate: advDate, priority: 'essential', status: past(advDate) ? 'awaiting' : 'pending', notes: 'ENTRA · adiantamento de ' + brl(adv) + ' (descontado no líquido do holerite). Data estimada (dia 20): ajuste ao dia real. Renda total do mês = adiantamento + líquido.' };
+        out.push(advMain); if (p.tipo == null || p.tipo === 'mensal') { var nx = FP.addMonths(advDate, 1, 20); if (nx >= d0 && FP.diffDays(d0, nx) <= 62) out.push(Object.assign({}, advMain, { key: 'doc:' + id + ':advp1', title: advMain.title + ' (previsto)', dueDate: nx, status: 'pending', notes: 'Previsão: mesmo valor e dia do mês anterior.' })); }
+      }
       if (p.tipo == null || p.tipo === 'mensal') { if (FP.diffDays(ev.date, d0) <= 100) proj(main, 2, 'holerite ' + lab); }
       return out;
     }

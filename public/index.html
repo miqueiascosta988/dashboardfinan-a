@@ -3297,13 +3297,13 @@ document.getElementById('btn-logout').addEventListener('click', async () => {
 });
 
 function showOnboarding() {
-  if (PJ_COMING_SOON) { var _pj = document.querySelector('#onboarding-screen [data-profile=PJ]'); if (_pj && !_pj.querySelector('.soon-badge')) { _pj.style.opacity = '.6'; _pj.querySelector('.opt-label').innerHTML += ' <span class="soon-badge">Em breve</span>'; } } document.getElementById('auth-screen').hidden = true; document.getElementById('onboarding-screen').hidden = false; try { var _l = document.querySelector('#onboard-step-1 [data-step-label]'); if (_l) _l.textContent = 'Passo 1 de ' + (state.profile_type === 'PJ' ? 7 : 6); } catch (e) {} }
+  if (pjBloqueado()) { var _pj = document.querySelector('#onboarding-screen [data-profile=PJ]'); if (_pj && !_pj.querySelector('.soon-badge')) { _pj.style.opacity = '.6'; _pj.querySelector('.opt-label').innerHTML += ' <span class="soon-badge">Em breve</span>'; } } document.getElementById('auth-screen').hidden = true; document.getElementById('onboarding-screen').hidden = false; try { var _l = document.querySelector('#onboard-step-1 [data-step-label]'); if (_l) _l.textContent = 'Passo 1 de ' + (state.profile_type === 'PJ' ? 7 : 6); } catch (e) {} }
 
 // ═══════════════════════════════════════════════════════
 // PF/PJ TOGGLE
 // ═══════════════════════════════════════════════════════
 function toggleProfileType(type) {
-  if (PJ_COMING_SOON && type === 'PJ') { showToast('🏢 A área para empresas chega em breve!', 'info'); return; }
+  if (pjBloqueado() && type === 'PJ') { showToast('🏢 A área para empresas chega em breve!', 'info'); return; }
   if (type === state.profile_type) return;
   if (!pjAccess()) {
     showToast('🔒 Alternar entre Pessoal e Empresa é exclusivo do plano Business', 'info');
@@ -3335,12 +3335,12 @@ function updateToggleUI() {
   // Fora do plano Business, o toggle fica travado no perfil escolhido no onboarding —
   // mostra um cadeado no botão inativo em vez de deixar clicar e trocar de perfil.
   const locked = !pjAccess();
-  toggle.classList.toggle('locked', locked || PJ_COMING_SOON);
+  toggle.classList.toggle('locked', locked || pjBloqueado());
   toggle.title = locked ? 'Alternar Pessoal/Empresa é exclusivo do plano Business' : '';
   btns.forEach(b => {
     const isInactive = b.dataset.type !== state.profile_type;
     b.innerHTML = b.dataset.type === 'PF' ? '👤 Pessoal' : '🏢 Empresa';
-    if (PJ_COMING_SOON && b.dataset.type === 'PJ') b.innerHTML += ' <span class="soon-badge">Em breve</span>';
+    if (pjBloqueado() && b.dataset.type === 'PJ') b.innerHTML += ' <span class="soon-badge">Em breve</span>';
     else if (locked && isInactive) b.innerHTML += ' <span class="nav-plus-lock" title="Recurso Business">🔒</span>';
   });
   // Position slider
@@ -3363,7 +3363,7 @@ function updateNavTabs() {
 // ONBOARDING
 // ═══════════════════════════════════════════════════════
 function selectProfile(el) {
-  if (PJ_COMING_SOON && el.dataset.profile === 'PJ') { showToast('🏢 A área para empresas chega em breve!', 'info'); return; }
+  if (pjBloqueado() && el.dataset.profile === 'PJ') { showToast('🏢 A área para empresas chega em breve!', 'info'); return; }
   el.parentElement.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
   el.classList.add('selected'); state.profile_type = el.dataset.profile;
 }
@@ -4049,7 +4049,9 @@ function renderComparativo(c) {
 // ═══════════════════════════════════════════════════════
 const MEI_ANNUAL_LIMIT = 81000;
 const FISCAL_TABLES_YEAR = 2026; // ano de vigência das tabelas (INSS, IRRF, salário mínimo, limite MEI). Atualize todo janeiro; depois dele o app avisa o usuário.
-const PJ_COMING_SOON = false; // true = área Empresa (PJ) trancada com "Em breve"
+const PJ_COMING_SOON = true;  // true = área Empresa (PJ) trancada com "Em breve" para contas NOVAS. Contas com profiles.pj_acesso = true (migração 019) continuam com acesso para testes
+const BUSINESS_A_VENDA = false; // false = card do plano Business fica "Em breve" (sem checkout). Mude para true quando a área Empresa estiver pronta
+function pjBloqueado() { return PJ_COMING_SOON && !(typeof profile !== 'undefined' && profile && profile.pj_acesso === true); }
 const PJ_OPEN_TO_ALL = true;  // true = área Empresa liberada para TODOS os planos (fase de testes). Ao comercializar, mude para false: volta a exigir plano Business
 const STABILITY = {
   fixa:     { label: 'Fixa',     icon: '📌', desc: 'Cai o mesmo valor todo mês' },
@@ -5413,9 +5415,9 @@ var PLUS_ONLY_TABS = {
 // Ordem hierárquica dos planos — usada para comparar "plano mínimo exigido" x "plano do usuário"
 var PLAN_RANK = { free: 0, basic: 1, plus: 2, pro: 3, business: 4 };
 var PLAN_TIER_META = {
-  basic: { label: 'Basic', price: 'R$ 5,00/mês' },
-  plus: { label: 'Plus', price: 'A partir de R$ 19,90/mês' },
-  pro: { label: 'Pro', price: 'A partir de R$ 39,90/mês' },
+  basic: { label: 'Basic', price: 'R$ 5,00/semana no 1º período, depois R$ 8,00/mês' },
+  plus: { label: 'Plus', price: 'A partir de R$ 18,90/mês' },
+  pro: { label: 'Pro', price: 'A partir de R$ 29,90/mês' },
   business: { label: 'Business', price: 'A partir de R$ 79,90/mês' },
 };
 
@@ -7612,7 +7614,7 @@ function renderPlano() {
   const status = profile?.plan_status || 'active';
   const L = PLAN_LIMITS;
   const plans = [
-    { id: 'basic', name: 'Basic', price: 'R$ 5,00', period: '/mês', hotmartUrl: appConfig.hotmartCheckoutBasic, features: [
+    { id: 'basic', name: 'Basic', price: 'R$ 5,00', period: '/semana', priceNote: 'Depois, R$ 8,00/mês. Cancele quando quiser.', hotmartUrl: appConfig.hotmartCheckoutBasic, features: [
       'Até ' + PLAN_LIMITS_BY_PLAN.basic.maxTransactionsPerMonth + ' lançamentos/mês',
       'Até ' + PLAN_LIMITS_BY_PLAN.basic.maxActiveGoals + ' meta ativa',
       'Orçamento em até ' + PLAN_LIMITS_BY_PLAN.basic.maxBudgetCategories + ' categorias',
@@ -7622,7 +7624,7 @@ function renderPlano() {
       'Perfil de Renda, reserva sob medida e MEI/Impostos',
       'Exportar dados (JSON/CSV, últimos 30 dias)',
     ], cta: 'Assinar Basic', priceId: null, tier: 'basic' },
-    { id: 'plus', name: 'Plus', price: 'R$ 19,90', period: '/mês', features: [
+    { id: 'plus', name: 'Plus', price: 'R$ 18,90', period: '/mês', features: [
       'Lançamentos, metas, dívidas e patrimônio ilimitados',
       'Histórico completo (sem limite de meses)',
       'Insights avançados e detecção de anomalias',
@@ -7633,7 +7635,7 @@ function renderPlano() {
       'Exportação sem marca d\'água (CSV/JSON)',
       'Suporte prioritário via WhatsApp',
     ], cta: 'Fazer upgrade', hotmartUrl: appConfig.hotmartCheckoutPlus, priceId: appConfig.stripePricePlus, popular: true },
-    { id: 'pro', name: 'Pro', price: 'R$ 39,90', period: '/mês', features: [
+    { id: 'pro', name: 'Pro', price: 'R$ 29,90', period: '/mês', features: [
       'Tudo do Plus',
       'Estratégia & Consultoria — planos em fases e simulador de decisões',
       'Projeção estendida (até 5 anos)',
@@ -7647,7 +7649,7 @@ function renderPlano() {
       'Painel Fiscal e Fluxo de Caixa completos (PJ)',
       'Dashboard consolidado PF + PJ',
       'Suporte dedicado via WhatsApp',
-    ], cta: 'Fazer upgrade', soon: PJ_COMING_SOON, hotmartUrl: appConfig.hotmartCheckoutBusiness, priceId: appConfig.stripePriceBusiness },
+    ], cta: 'Fazer upgrade', soon: !BUSINESS_A_VENDA, hotmartUrl: appConfig.hotmartCheckoutBusiness, priceId: appConfig.stripePriceBusiness },
   ];
   const manageBtn = profile?.payment_provider === 'hotmart'
     ? `<button class="btn-add" onclick="openHotmartAccount()">Gerenciar compra (Hotmart)</button>`
@@ -7656,7 +7658,7 @@ function renderPlano() {
       : '';
   const paywall = hasActivePlan() ? '' : `<div class="card mb-24 animate-in" style="border-left:3px solid var(--gold)"><div class="card-title">🔒 Escolha um plano para começar</div><div class="occ-b-desc" style="margin-top:6px">O SM Financial é um serviço pago, a partir do Basic. Assim que o pagamento for confirmado, o acesso é liberado. Seus dados continuam seus: você pode <a href="#" onclick="exportJSON();return false">exportar tudo</a> ou <a href="#" onclick="openDeleteAccount();return false">excluir a conta</a> a qualquer momento.</div></div>`;
   return paywall + `<div class="section-header animate-in"><div><div class="section-title">Seu Plano</div><div class="section-desc">Plano atual: <strong>${plans.find(p => p.id === cur)?.name || 'Nenhum'}</strong>${status !== 'active' ? ' — ' + status : ''}</div></div>${manageBtn}</div>
-  ${PJ_OPEN_TO_ALL ? '<div class="card mb-24 animate-in" style="border-left:3px solid var(--teal)"><div class="card-title">🏢 Área Empresa liberada</div><div class="occ-b-desc" style="margin-top:6px">Por tempo limitado, o modo Empresa está liberado para todos os planos.</div></div>' : ''}
+  ${(PJ_OPEN_TO_ALL && !pjBloqueado()) ? '<div class="card mb-24 animate-in" style="border-left:3px solid var(--teal)"><div class="card-title">🏢 Área Empresa em testes</div><div class="occ-b-desc" style="margin-top:6px">Sua conta tem acesso antecipado ao modo Empresa enquanto finalizamos o plano Business.</div></div>' : ''}
   <div class="card mb-24 animate-in"><div class="card-title">🔔 Notificações por WhatsApp e e-mail <span class="soon-badge">Em breve</span></div><div class="occ-b-desc" style="margin-top:6px">Receba avisos de contas a vencer, orçamento estourado e metas direto no celular e na caixa de entrada. Estamos preparando e vamos avisar quando estiver disponível.</div><div style="display:flex;gap:16px;margin-top:10px;flex-wrap:wrap;opacity:.55"><label><input type="checkbox" disabled> WhatsApp</label><label><input type="checkbox" disabled> E-mail</label></div></div>
   <div class="pricing-grid">${plans.map((p, i) => {
     const isCurrent = p.id === cur;
@@ -7677,7 +7679,7 @@ function renderPlano() {
     return `<div class="pricing-card${p.popular ? ' popular' : ''}${isCurrent ? ' current' : ''} animate-in stagger-${i + 1}">
       ${p.popular ? '<div class="pricing-popular">Mais popular</div>' : ''}${p.soon ? '<div class="pricing-popular">Em breve</div>' : ''}
       <div class="pricing-name">${fxEsc(p.name)}</div>
-      <div class="pricing-price">${p.price}<span class="pricing-period">${p.period}</span></div>
+      <div class="pricing-price">${p.price}<span class="pricing-period">${p.period}</span></div>${p.priceNote ? '<div style="font-size:12px;color:var(--ink-3);margin:-6px 0 10px">' + p.priceNote + '</div>' : ''}
       <ul class="pricing-features">${p.features.map(f => `<li>✓ ${f}</li>`).join('')}</ul>
       ${ctaHtml}
     </div>`;
@@ -8106,7 +8108,7 @@ function exportPDF() {
 // SHOW APP
 // ═══════════════════════════════════════════════════════
 async function showApp() {
-  if (PJ_COMING_SOON && state.profile_type === 'PJ') { state.profile_type = 'PF'; try { showToast('A área para empresas está em preparação e chega em breve. Você está no modo Pessoal.', 'info'); } catch (e) {} }
+  if (pjBloqueado() && state.profile_type === 'PJ') { state.profile_type = 'PF'; try { showToast('A área para empresas está em preparação e chega em breve. Você está no modo Pessoal.', 'info'); } catch (e) {} }
   document.getElementById('auth-screen').hidden = true;
   document.getElementById('onboarding-screen').hidden = true;
   document.getElementById('app-screen').hidden = false;

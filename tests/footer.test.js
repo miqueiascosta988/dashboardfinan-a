@@ -14,7 +14,7 @@ test('rodapé: sem dados institucionais configurados mostra só o que existe (Wh
   assert.doesNotMatch(t, /📍|🕘|CNPJ|\[|360/);
   assert.match(t, /smfinancialcorporate@gmail\.com/);
   assert.equal(await p.locator('#site-footer a[href="mailto:smfinancialcorporate@gmail.com"]').count(), 1);
-  assert.equal(await p.locator('#site-footer a[href="https://www.instagram.com/smfinancial.oficial"] svg').count(), 1);
+  assert.equal(await p.locator('#site-footer a[href="https://www.instagram.com/smfinancialcorporate.oficial"] svg').count(), 1);
   assert.equal(await p.locator('#site-footer a[href="https://www.tiktok.com/@smfinancial.oficial"] svg').count(), 1);
   assert.equal(await p.locator('#site-footer a[href="/termos.html"]').count(), 1); assert.equal(await p.locator('#site-footer a[href="/privacidade.html"]').count(), 1);
 });

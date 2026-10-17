@@ -23,14 +23,14 @@ async function run(picks) {
 }
 test('aperto alto: oferece R$ 5/semana primeiro, grátis como alternativa', async () => {
   const r = await run([1, 3, 2, 3, 1]);
-  assert.match(r.tag, /aliviar/); assert.match(r.cta, /R\$ 5,00\/semana/); assert.equal(r.href, 'https://pay.hotmart.com/M1?off=abc&src=triagem');
-  assert.equal(r.alt, '/?src=triagem'); assert.match(r.altTxt, /grátis/);
+  assert.match(r.tag, /aliviar/); assert.equal(r.href, '/apresentacao?src=triagem'); assert.match(r.altTxt, /R\$ 5,00\/semana/);
+  assert.equal(r.alt, 'https://pay.hotmart.com/M1?off=abc&src=triagem');
   assert.ok(!/nivel|obj=|perfil/.test(r.href + r.alt), 'nada sobre a situação financeira na URL');
   await r.page.screenshot({ path: process.env.SHOT_ALTO || '/tmp/triagem_alto.png' }); assert.deepEqual(r.errs, []); await r.page.close();
 });
-test('mês no azul: entra grátis como ação principal', async () => {
+test('mês no azul: também vai para a apresentação; atalho é entrar grátis', async () => {
   const r = await run([3, 0, 0, 1, 0]);
-  assert.match(r.tag, /render/); assert.match(r.cta, /Entrar grátis/); assert.equal(r.href, '/?src=triagem'); assert.match(r.altTxt, /R\$ 5,00\/semana/);
+  assert.match(r.tag, /render/); assert.equal(r.href, '/apresentacao?src=triagem'); assert.equal(r.alt, '/?src=triagem'); assert.match(r.altTxt, /Entrar grátis/);
   assert.deepEqual(r.errs, []); await r.page.close();
 });
 test('voltar mantém a escolha e a primeira pergunta não tem voltar', async () => {

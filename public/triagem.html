@@ -116,9 +116,10 @@ footer a{color:var(--ink3)}
     }[n];
     var app = '/?' + qs();
     var paid = cfg.hotmartCheckoutTrial ? cfg.hotmartCheckoutTrial + (cfg.hotmartCheckoutTrial.indexOf('?') >= 0 ? '&' : '?') + qs() : null;
-    var primary, second;
-    if (n !== 'ok' && paid) { primary = ['Começar por R$ 5,00/semana', paid]; second = ['Ou entrar grátis, com limites', app]; }
-    else { primary = ['Entrar grátis no aplicativo', app]; second = paid ? ['Quer tudo liberado? R$ 5,00/semana', paid] : null; }
+    // Do resultado vamos para a apresentação (/apresentacao); atalhos diretos ficam como alternativa.
+    var pres = '/apresentacao?' + qs(), primary = ['Ver como vamos te ajudar', pres], second;
+    if (n !== 'ok' && paid) second = ['Já quero começar por R$ 5,00/semana', paid];
+    else second = ['Entrar grátis no aplicativo', app];
     h1.textContent = 'Seu diagnóstico está pronto'; sub.textContent = 'Com base nas suas 5 respostas.';
     card.className = 'card res fade';
     card.innerHTML =

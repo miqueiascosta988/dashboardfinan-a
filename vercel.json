@@ -6,7 +6,9 @@
   ],
   "routes": [
     { "src": "/api/(.*)", "dest": "/api/index.js" },
-    { "src": "/(.*\\.(js|css|png|jpg|svg|ico|woff2?))", "dest": "/public/$1" },
+    { "src": "/triagem", "dest": "/public/triagem.html" },
+    { "src": "/apresentacao", "dest": "/public/apresentacao.html" },
+    { "src": "/(.*\\.(js|mjs|css|html|json|webmanifest|png|jpg|jpeg|webp|gif|svg|ico|woff2?|ttf|otf|wasm|map|txt|xml|pdf|mp4|webm|gz|traineddata))", "dest": "/public/$1" },
     { "src": "/(.*)", "dest": "/public/index.html" }
   ]
 }

@@ -58,3 +58,14 @@ test('Esc fecha, setas do teclado navegam e o plano Free pula áreas bloqueadas'
   assert.ok(basic.includes('Central de Alívio'));
   await page.close();
 });
+
+test('balão de vídeo logo no início: aparece no 2º passo, com botão quando há link configurado', async () => {
+  const page = await browser.newPage({ viewport: { width: 1366, height: 800 } });
+  await page.goto(base + '/?demo=clt'); await page.waitForTimeout(1500);
+  await page.evaluate(() => { appConfig.onboardingVideoUrl = 'https://exemplo.com/video'; });
+  await page.click('#gt-btn'); await page.waitForSelector('#ob-root .ob-bub');
+  await page.click('#ob-next'); await page.waitForFunction(() => /vídeo/i.test(document.querySelector('#ob-root .ob-title').textContent));
+  assert.match(await page.textContent('#ob-root .ob-text'), /explica melhor/);
+  assert.equal(await page.getAttribute('#ob-root .ob-vid', 'href'), 'https://exemplo.com/video'); assert.equal(await page.getAttribute('#ob-root .ob-vid', 'rel'), 'noopener noreferrer');
+  await page.close();
+});

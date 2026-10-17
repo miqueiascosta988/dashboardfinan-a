@@ -65,6 +65,7 @@ const siteVar = (k) => { const v = (process.env[k] || '').trim().slice(0, 200); 
 app.get('/api/config', (req, res) => {
   res.json({
     contact: { email: siteVar('SITE_EMAIL'), phone: siteVar('SITE_PHONE'), address: siteVar('SITE_ADDRESS'), hours: siteVar('SITE_HOURS'), legalName: siteVar('SITE_LEGAL_NAME'), cnpj: siteVar('SITE_CNPJ') },
+    onboardingVideoUrl: /^https:\/\//.test(process.env.ONBOARDING_VIDEO_URL || '') ? process.env.ONBOARDING_VIDEO_URL.trim() : null,   // vídeo de onboarding (balão do tutorial)
     supabaseUrl: process.env.SUPABASE_URL,
     supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
     // Hotmart — forma de pagamento principal (Brasil)

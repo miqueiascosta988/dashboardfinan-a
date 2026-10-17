@@ -44,6 +44,7 @@ const isTrialProduct = (productId) => !!process.env.HOTMART_PRODUCT_TRIAL && Str
 // Escapa % _ \ para o e-mail do comprador não virar curinga no ilike.
 const likeEscape = (v) => String(v).replace(/[\\%_]/g, (c) => '\\' + c);
 const crypto = require('crypto');
+const { sendWelcomeEmail } = require('../lib/welcome-email');
 function safeEqual(a, b) {
   const x = Buffer.from(String(a || '')), y = Buffer.from(String(b || ''));
   return x.length === y.length && crypto.timingSafeEqual(x, y);
@@ -51,6 +52,22 @@ function safeEqual(a, b) {
 
 // Eventos da Hotmart: https://developers.hotmart.com/docs/pt-BR/webhooks/
 const UPGRADE_EVENTS = ['PURCHASE_APPROVED', 'PURCHASE_COMPLETE', 'SWITCH_PLAN'];
+
+// E-mail de boas-vindas (link do dashboard + vídeo de onboarding): 1 por comprador, só na compra aprovada.
+// Nunca derruba o webhook: se falhar, libera a trava para a Hotmart poder reenviar o evento e tentar de novo.
+async function welcomeOnce(supabase, email, plan, trial) {
+  if (!process.env.RESEND_API_KEY || !process.env.MAIL_FROM) return;
+  const key = String(email).toLowerCase();
+  try {
+    const { error } = await supabase.from('welcome_emails').insert({ email: key });
+    if (error) { if (error.code !== '23505') console.warn('Boas-vindas: trava indisponível (' + error.message + ') — migração 021 aplicada?'); return; }
+    try {
+      const r = await sendWelcomeEmail({ to: key, plan, trial });
+      if (!r.sent) { await supabase.from('welcome_emails').delete().eq('email', key); console.warn('Boas-vindas não enviado:', r.skipped); }
+      else console.log('Boas-vindas enviado para', key);
+    } catch (e) { await supabase.from('welcome_emails').delete().eq('email', key); console.error('Boas-vindas falhou:', e.message); }
+  } catch (e) { console.error('Boas-vindas erro:', e.message); }
+}
 const DOWNGRADE_EVENTS = ['PURCHASE_REFUNDED', 'PURCHASE_CHARGEBACK', 'PURCHASE_CANCELED', 'PURCHASE_EXPIRED', 'SUBSCRIPTION_CANCELLATION'];
 
 router.post('/webhook', express.json(), async (req, res) => {
@@ -119,6 +136,7 @@ router.post('/webhook', express.json(), async (req, res) => {
       } else {
         console.log('Hotmart: plano', plan, trial ? '(teste de ' + TRIAL_DAYS + ' dias)' : '', 'liberado para', buyerEmail);
       }
+      if (event === 'PURCHASE_APPROVED') await welcomeOnce(supabase, buyerEmail, plan, trial);
     } else if (DOWNGRADE_EVENTS.includes(event)) {
       // Cancelar/estornar o produto de TESTE só encerra um teste: nunca derruba uma assinatura mensal ativa.
       let q = supabase.from('profiles').update({ plan: 'free', plan_status: 'canceled', plan_expires_at: null }).ilike('email', likeEscape(buyerEmail)); // 'free' = sem assinatura (o app bloqueia o acesso)

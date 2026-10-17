@@ -42,6 +42,7 @@
 
     // Boas-vindas e topo
     add(S('intro', null, null, 'Bem-vindo ao SM Financial!', 'Vou te mostrar cada área do aplicativo, campo por campo, com setas e balões. Leva uns minutos. Use os botões, ou as setas ← → do teclado. Pode sair quando quiser (Esc).', { center: true }));
+    add(S('intro', null, null, 'Prefere ver em vídeo?', 'Se alguma explicação deste tutorial não ficar clara, temos um onboarding em vídeo que explica melhor cada funcionalidade do dashboard. Ele também é enviado por e-mail, junto com o link do aplicativo, assim que a compra é confirmada.', { center: true, video: true }));
     add(S('intro', null, '#profile-toggle', pj ? 'Pessoal ou Empresa' : 'Pessoal ou Empresa', 'Alterne entre Pessoa Física e Empresa. As categorias, os relatórios e o vocabulário do app mudam conforme o modo escolhido.'));
     add(S('intro', null, '#period-display', 'Período', 'Clique para abrir o calendário e escolher o mês (ou um intervalo). Todas as telas mostram só o que acontece no período escolhido.'));
     add(S('intro', null, '#notif-btn', 'Sino de avisos', 'Aqui aparecem alertas úteis: orçamento estourando, contas a vencer, metas perto de bater e dicas para o seu caso. O número vermelho mostra quantos avisos importantes existem.'));
@@ -178,6 +179,7 @@
     + '#ob-root .ob-act .l{display:flex;gap:6px;align-items:center}'
     + '#ob-root .ob-btn{font:inherit;font-weight:700;font-size:13.5px;border-radius:10px;padding:9px 16px;cursor:pointer;border:1px solid var(--border,#E3E8EF);background:var(--card-alt,#EAEFF5);color:var(--ink,#101B2D)}'
     + '#ob-root .ob-btn.p{background:var(--teal,#16324F);border-color:var(--teal,#16324F);color:#fff}'
+    + '#ob-root .ob-vid{display:inline-block;margin-top:10px;text-decoration:none}'
     + '#ob-root .ob-btn.g{background:none;border:0;color:var(--ink-3,#8A94A6);font-weight:600;padding:9px 6px}'
     + '#ob-root .ob-btn:focus-visible,#ob-root .ob-x:focus-visible{outline:3px solid ' + BRAND_ACC + ';outline-offset:2px}'
     + '#ob-root .ob-tail{position:absolute;width:0;height:0;border:12px solid transparent;animation:obbob 1s ease-in-out infinite}'
@@ -208,6 +210,11 @@
     return el;
   }
 
+  function videoLink(step) {
+    if (!step.video) return '';
+    var u = ''; try { u = (typeof appConfig !== 'undefined' && appConfig && appConfig.onboardingVideoUrl) || ''; } catch (e) {}
+    return /^https:\/\//.test(u) ? '<a class="ob-btn p ob-vid" href="' + esc(u) + '" target="_blank" rel="noopener noreferrer">▶ Assistir ao vídeo</a>' : '<div class="ob-text" style="margin-top:8px"><b>Confira a caixa de entrada do seu e-mail de compra.</b></div>';
+  }
   function place(step, el, bub, hole, tail) {
     var vw = innerWidth, vh = innerHeight, m = 12, pad = 8, gap = 28;
     var r = el.getBoundingClientRect();
@@ -255,7 +262,7 @@
       var pct = Math.round(((i + 1) / total) * 100), first = i === 0, last = i === total - 1;
       bub.innerHTML = '<div class="ob-tail"></div>'
         + '<div class="ob-top"><span class="ob-tag">' + esc(SECS[step.sec] || '') + ' · ' + (i + 1) + '/' + total + '</span><button class="ob-x" data-a="stop" aria-label="Fechar tour" title="Fechar (Esc)">✕</button></div>'
-        + '<div class="ob-title">' + esc(step.title) + '</div><div class="ob-text">' + esc(step.text) + '</div>'
+        + '<div class="ob-title">' + esc(step.title) + '</div><div class="ob-text">' + esc(step.text) + '</div>' + videoLink(step)
         + '<div class="ob-bar" aria-hidden="true"><i style="width:' + pct + '%"></i></div>'
         + '<div class="ob-act"><div class="l">' + (first ? '<button class="ob-btn g" data-a="stop">Pular tour</button>' : '<button class="ob-btn" data-a="back">← Voltar</button><button class="ob-btn g" data-a="skip" title="Ir para a próxima área">Pular área</button>') + '</div>'
         + '<button class="ob-btn p" data-a="next" id="ob-next">' + (last ? 'Concluir ✓' : first ? 'Começar →' : 'Próximo →') + '</button></div>';

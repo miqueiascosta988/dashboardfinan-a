@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Diagnóstico grátis — SM Financial</title>
+<meta name="description" content="Responda 5 perguntas rápidas e descubra por onde começar a organizar seu dinheiro. Grátis, sem cartão.">
+<meta name="theme-color" content="#16324F">
+<meta property="og:title" content="Descubra por onde começar a organizar seu dinheiro">
+<meta property="og:description" content="5 perguntas rápidas. Grátis, sem cartão. Do aperto ao plano, do plano ao alívio.">
+<link rel="icon" href="/icons/icon-192.png">
+<style>
+:root{--navy:#16324F;--navy2:#1F4E79;--gold:#AD8A2A;--gold-l:#D4AF4F;--ink:#101B2D;--ink2:#4A5668;--ink3:#8A94A6;--line:#E3E8EF;--bg:#F6F8FB;--card:#fff}
+*{box-sizing:border-box;margin:0}
+html{color-scheme:light}
+body{background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;padding:28px 18px calc(28px + env(safe-area-inset-bottom));-webkit-font-smoothing:antialiased}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:22px;color:var(--navy);letter-spacing:.01em}
+.brand i{display:block;width:30px;height:6px;border-radius:3px;background:var(--gold-l)}
+.kicker{margin-top:22px;font-size:12.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--navy2)}
+h1{margin-top:10px;text-align:center;font-size:clamp(26px,7.4vw,34px);line-height:1.15;font-weight:800;letter-spacing:-.02em;max-width:460px}
+.sub{margin-top:12px;text-align:center;color:var(--ink2);font-size:16.5px;line-height:1.5;max-width:420px}
+.card{margin-top:24px;width:100%;max-width:460px;background:var(--card);border:1px solid var(--line);border-radius:22px;box-shadow:0 8px 28px rgba(16,27,45,.07);padding:22px 20px 24px}
+.bar{height:6px;border-radius:3px;background:#EEF1F5;overflow:hidden}
+.bar b{display:block;height:100%;width:20%;border-radius:3px;background:linear-gradient(90deg,var(--navy2),var(--gold-l));transition:width .35s ease}
+.meta{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:13px;color:var(--ink3)}
+.back{background:none;border:0;color:var(--navy2);font:inherit;font-weight:600;cursor:pointer;padding:6px 4px;min-height:36px}
+.back[hidden]{display:block;visibility:hidden}
+h2{margin-top:14px;font-size:23px;line-height:1.22;font-weight:800;letter-spacing:-.01em}
+.opts{display:grid;gap:11px;margin-top:20px}
+.opt{width:100%;text-align:left;font:inherit;font-size:17px;color:var(--ink);background:#fff;border:1.5px solid var(--line);border-radius:16px;padding:17px 18px;min-height:56px;cursor:pointer;transition:border-color .15s,background .15s,transform .1s}
+.opt:hover{border-color:var(--navy2);background:#F3F7FB}
+.opt:active{transform:scale(.99)}
+.opt:focus-visible,.back:focus-visible,.cta:focus-visible,.alt:focus-visible{outline:3px solid var(--gold-l);outline-offset:2px}
+.opt.sel{border-color:var(--navy);background:#E9F0F7}
+.res-tag{display:inline-block;font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;padding:6px 12px;border-radius:20px}
+.t-alto{background:#FCE8E6;color:#9B2C22}.t-medio{background:#FBF1D6;color:#7A5A0E}.t-ok{background:#DDF3E8;color:#0B6B47}
+.res h2{margin-top:14px;font-size:25px}
+.res p{margin-top:12px;color:var(--ink2);font-size:16.5px;line-height:1.55}
+.steps{margin-top:18px;display:grid;gap:10px;list-style:none;padding:0}
+.steps li{display:flex;gap:12px;align-items:flex-start;font-size:16px;line-height:1.45}
+.steps li span{flex:none;width:26px;height:26px;border-radius:50%;background:var(--navy);color:#fff;font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center;margin-top:1px}
+.cta{display:block;width:100%;text-align:center;text-decoration:none;margin-top:22px;background:var(--gold-l);color:#0D1F33;font-weight:800;font-size:18px;padding:18px 20px;border-radius:16px;box-shadow:0 4px 0 #A98B35;transition:transform .1s}
+.cta:active{transform:translateY(2px);box-shadow:0 2px 0 #A98B35}
+.alt{display:block;text-align:center;margin-top:14px;color:var(--navy2);font-weight:700;font-size:16px;text-decoration:none;padding:10px}
+.note{margin-top:14px;text-align:center;font-size:12.5px;color:var(--ink3);line-height:1.5}
+.slogan{margin-top:22px;text-align:center;font-weight:700;color:var(--gold);font-size:15px;max-width:380px;line-height:1.4}
+footer{margin-top:14px;font-size:12px;color:var(--ink3);text-align:center}
+footer a{color:var(--ink3)}
+.fade{animation:in .28s ease both}
+@keyframes in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.fade{animation:none}.bar b,.opt{transition:none}}
+</style>
+</head>
+<body>
+<div class="brand"><i></i>SM Financial</div>
+<div class="kicker">Diagnóstico grátis</div>
+<h1 id="h1">Descubra por onde começar a organizar seu dinheiro</h1>
+<p class="sub" id="sub">5 perguntas rápidas. Sem cadastro e sem cartão.</p>
+
+<main class="card" id="card" aria-live="polite"></main>
+
+<div class="slogan">Do aperto ao plano, do plano ao alívio.</div>
+<footer>@smfinancialcorporate.oficial · <a href="/termos.html">Termos</a> · <a href="/privacidade.html">Privacidade</a></footer>
+
+<script>
+(function () {
+  var Q = [
+    { k: 'obj', t: 'O que você quer resolver primeiro?', o: ['Entender pra onde o dinheiro vai', 'Sair do aperto das dívidas', 'Parar de estourar o cartão', 'Juntar dinheiro todo mês', 'Ter um plano pra tudo'] },
+    { k: 'mes', t: 'Como o seu mês termina hoje?', o: ['Sobra um pouco', 'Fecha raspando', 'Falta dinheiro antes do fim', 'Já estou no vermelho'] },
+    { k: 'div', t: 'Quantas dívidas você tem hoje?', o: ['Nenhuma', '1 ou 2', '3 ou mais', 'Nem sei ao certo'] },
+    { k: 'ctl', t: 'Como você controla o dinheiro hoje?', o: ['Só de cabeça', 'Em planilha', 'Em outro aplicativo', 'Não controlo'] },
+    { k: 'per', t: 'Qual é o seu perfil?', o: ['Trabalho com carteira assinada', 'Sou autônomo(a)', 'Tenho MEI ou empresa', 'Outro'] }
+  ];
+  var i = 0, ans = {}, cfg = {};
+  var card = document.getElementById('card'), h1 = document.getElementById('h1'), sub = document.getElementById('sub');
+  fetch('/api/config').then(function (r) { return r.ok ? r.json() : {}; }).then(function (c) { cfg = c || {}; }).catch(function () {});
+
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+
+  function ask() {
+    var q = Q[i], pct = (i + 1) * 20;
+    card.className = 'card fade';
+    card.innerHTML =
+      '<div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="5" aria-valuenow="' + (i + 1) + '"><b style="width:' + pct + '%"></b></div>' +
+      '<div class="meta"><span>Pergunta ' + (i + 1) + ' de ' + Q.length + '</span><button class="back" id="back"' + (i === 0 ? ' hidden' : '') + '>← Voltar</button></div>' +
+      '<h2>' + esc(q.t) + '</h2><div class="opts">' +
+      q.o.map(function (o, n) { return '<button class="opt' + (ans[q.k] === n ? ' sel' : '') + '" data-n="' + n + '">' + esc(o) + '</button>'; }).join('') + '</div>';
+    card.querySelectorAll('.opt').forEach(function (b) {
+      b.addEventListener('click', function () {
+        ans[q.k] = +b.dataset.n; b.classList.add('sel');
+        setTimeout(function () { if (i < Q.length - 1) { i++; ask(); } else { result(); } }, 160);
+      });
+    });
+    var bk = document.getElementById('back');
+    if (bk) bk.addEventListener('click', function () { if (i > 0) { i--; ask(); } });
+  }
+
+  // Nível de aperto: quanto mais sinais de pressão, mais alto
+  function nivel() {
+    var s = 0;
+    if (ans.mes >= 2) s += 2; else if (ans.mes === 1) s += 1;
+    if (ans.div >= 2) s += 2; else if (ans.div === 1) s += 1;
+    if (ans.obj === 1 || ans.obj === 2) s += 1;
+    if (ans.ctl === 3) s += 1;
+    return s >= 4 ? 'alto' : s >= 2 ? 'medio' : 'ok';
+  }
+
+  // Só a origem vai na URL (para medir quantos vêm da triagem). As respostas nunca saem do aparelho.
+  function qs() { return 'src=triagem'; }
+
+  function result() {
+    var n = nivel(), T = {
+      alto: { tag: 'Prioridade: aliviar o aperto', cls: 't-alto', h: 'Dá pra respirar. Vamos começar pelo que mais pesa.', p: 'Pelo que você respondeu, o mês está apertado e as dívidas pedem atenção. O melhor primeiro passo é enxergar tudo em um lugar só e montar um plano, na ordem certa.', steps: ['Coloque o que você ganha e o que deve em um só lugar.', 'Veja o que dá pra cortar e o que vale negociar primeiro.', 'Siga um plano passo a passo, um mês de cada vez.'] },
+      medio: { tag: 'Prioridade: ganhar controle', cls: 't-medio', h: 'Você está perto de virar o jogo.', p: 'Seu mês fecha no limite. Com os números organizados, fica fácil achar de onde sai a folga e evitar que o aperto vire dívida.', steps: ['Registre seus gastos sem esforço.', 'Descubra para onde vai o dinheiro de verdade.', 'Defina uma meta pequena e acompanhe.'] },
+      ok: { tag: 'Prioridade: fazer o dinheiro render', cls: 't-ok', h: 'Você está bem. Agora é hora de ir além.', p: 'Seu mês fecha no azul. O próximo passo é dar destino a essa sobra e criar metas, para o dinheiro trabalhar a seu favor.', steps: ['Organize tudo para não perder o controle.', 'Crie metas e acompanhe o progresso.', 'Planeje os próximos meses com calma.'] }
+    }[n];
+    var app = '/?' + qs();
+    var paid = cfg.hotmartCheckoutTrial ? cfg.hotmartCheckoutTrial + (cfg.hotmartCheckoutTrial.indexOf('?') >= 0 ? '&' : '?') + qs() : null;
+    var primary, second;
+    if (n !== 'ok' && paid) { primary = ['Começar por R$ 5,00/semana', paid]; second = ['Ou entrar grátis, com limites', app]; }
+    else { primary = ['Entrar grátis no aplicativo', app]; second = paid ? ['Quer tudo liberado? R$ 5,00/semana', paid] : null; }
+    h1.textContent = 'Seu diagnóstico está pronto'; sub.textContent = 'Com base nas suas 5 respostas.';
+    card.className = 'card res fade';
+    card.innerHTML =
+      '<span class="res-tag ' + T.cls + '">' + esc(T.tag) + '</span><h2>' + esc(T.h) + '</h2><p>' + esc(T.p) + '</p>' +
+      '<ul class="steps">' + T.steps.map(function (s, k) { return '<li><span>' + (k + 1) + '</span><div>' + esc(s) + '</div></li>'; }).join('') + '</ul>' +
+      '<a class="cta" id="cta" href="' + esc(primary[1]) + '">' + esc(primary[0]) + '</a>' +
+      (second ? '<a class="alt" id="alt" href="' + esc(second[1]) + '">' + esc(second[0]) + '</a>' : '') +
+      '<div class="note">Suas respostas ficam só neste aparelho. Não pedimos telefone nem e-mail aqui. Cancele quando quiser.</div>';
+    var c = document.getElementById('cta'); if (c) c.focus({ preventScroll: true });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  ask();
+})();
+</script>
+</body>
+</html>

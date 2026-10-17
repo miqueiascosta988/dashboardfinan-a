@@ -94,6 +94,9 @@ app.use('/api', (req, res) => res.status(404).json({ error: 'Não encontrado.' }
 // ─── Static files ───────────────────────────────────
 app.use(express.static(PUBLIC_DIR, { setHeaders: (res, file) => { if (/[\\/]sw\.js$/.test(file)) res.setHeader('Cache-Control', 'no-cache'); else if (/[\\/]ocr[\\/]/.test(file)) res.setHeader('Cache-Control', 'public, max-age=2592000'); } }));
 
+// Página de triagem (link do Instagram): /triagem
+app.get('/triagem', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'triagem.html')));
+
 // SPA fallback
 app.get('*', (req, res) => {
   res.sendFile(path.join(PUBLIC_DIR, 'index.html'));

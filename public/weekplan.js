@@ -43,8 +43,17 @@
     var debts = (o.debts || []).filter(function (d) { return (+d.saldo || 0) > 0; });
     var missions = [];
 
+    // 0) Plano montado no Consultor de estratégia: o valor do mês vira a primeira missão.
+    var st = o.strategy, thisYm = today.slice(0, 7), planRow = st && st.rows && st.rows.filter(function (r) { return r.ym === thisYm && r.pay > 0; })[0];
+    if (planRow) {
+      var mn = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'][+st.deadline.slice(5, 7) - 1];
+      missions.push({ id: 'plan', kind: 'plan', icon: '🧭', auto: false, ref: st.name,
+        title: (st.goal === 'juntar' ? 'Guarde R$ ' : 'Pague R$ ') + Math.round(planRow.pay).toLocaleString('pt-BR') + (st.goal === 'juntar' ? ' para o seu plano' : ' em "' + st.name + '"') + ' este mês',
+        why: 'É a parte deste mês do plano que você montou com o consultor, para chegar a ' + mn + '/' + st.deadline.slice(0, 4) + '.' });
+    }
+
     // 1) Dívida: a mais cara primeiro (juros); sem juros informados, a menor (fôlego rápido).
-    if (debts.length) {
+    if (debts.length && !(planRow && st.goal !== 'juntar')) {
       var withRate = debts.some(function (d) { return (+d.juros || 0) > 0; });
       var pick = debts.slice().sort(withRate ? function (a, b) { return (+b.juros || 0) - (+a.juros || 0) || b.saldo - a.saldo; } : function (a, b) { return a.saldo - b.saldo; })[0];
       missions.push({ id: 'debt', kind: 'debt', icon: '🎯', auto: false, ref: pick.name,

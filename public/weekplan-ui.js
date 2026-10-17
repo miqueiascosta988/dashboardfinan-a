@@ -10,7 +10,8 @@
   function input() {
     var L = function (k) { try { return visibleList(k); } catch (e) { return state[k] || []; } };
     var ev = (state.finEvents || []).filter(function (e) { try { return window.agendaEvProfile ? window.agendaEvProfile(e) === state.profile_type : true; } catch (x) { return true; } });
-    return { today: todayISO(), transactions: L('transactions'), debts: L('debts'), goals: L('goals'), subscriptions: L('subscriptions'), events: ev };
+    var strategy = null; try { strategy = (window.PREFS && PREFS.data && PREFS.data.estr) || JSON.parse(localStorage.getItem(typeof fxKey === 'function' ? fxKey('estr') : 'financa-estr') || 'null'); } catch (e) {}
+    return { strategy: strategy, today: todayISO(), transactions: L('transactions'), debts: L('debts'), goals: L('goals'), subscriptions: L('subscriptions'), events: ev };
   }
   function saved() {
     var s = null;

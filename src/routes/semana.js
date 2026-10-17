@@ -46,18 +46,20 @@ async function runDigest({ supabase, now, send, appUrl, dry, limit, budgetMs }) 
   for (const grp of chunk(todo, 10)) {
     if (out.sent >= limit || Date.now() - t0 > budgetMs) break;
     const ids = grp.map((p) => p.id);
-    const [tx, debts, goals, subs, evs] = await Promise.all([
+    const [tx, debts, goals, subs, evs, prefs] = await Promise.all([
       supabase.from('transactions').select('user_id,type,category,amount,date,profile').in('user_id', ids).gte('date', since),
       supabase.from('debts').select('user_id,name,balance,interest_rate,monthly_payment,profile').in('user_id', ids),
       supabase.from('goals').select('user_id,name,target_amount,current_amount,monthly_contribution,profile').in('user_id', ids),
       supabase.from('subscriptions').select('user_id,name,price,profile').in('user_id', ids),
       supabase.from('fin_events').select('user_id,kind,status,title,amount,due_date,profile').in('user_id', ids).eq('status', 'pending').lte('due_date', wk.end),
+      supabase.from('user_prefs').select('user_id,data').in('user_id', ids),
     ]);
+    const P = {}; (prefs.data || []).forEach((r) => { P[r.user_id] = r.data && r.data.estr; });
     const T = by(tx.data), D = by(debts.data), G = by(goals.data), S = by(subs.data), E = by(evs.data);
     for (const p of grp) {
       if (out.sent >= limit || Date.now() - t0 > budgetMs) break;
       const pt = p.profile_type === 'PJ' ? 'PJ' : 'PF', f = (m) => (m[p.id] || []).filter((r) => visible(r, pt));
-      const plan = WP.build({ today,
+      const plan = WP.build({ today, strategy: P[p.id] || null,
         transactions: f(T).map((r) => ({ date: r.date, cat: r.category, amount: +r.amount, type: r.type })),
         debts: f(D).map((r) => ({ name: r.name, saldo: +r.balance, juros: +r.interest_rate, mensal: +r.monthly_payment })),
         goals: f(G).map((r) => ({ name: r.name, target: +r.target_amount, current: +r.current_amount, monthly: +r.monthly_contribution })),

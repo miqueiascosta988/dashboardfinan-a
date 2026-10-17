@@ -118,6 +118,7 @@
     add(S('planejar', 'metas', field('Já acumulado'), 'Já acumulado', 'Quanto você já tem guardado para essa meta. Pode ser zero.', { modal: true, open: function () { openGoalModal(); } }));
     add(S('planejar', 'metas', field('Aporte mensal'), 'Aporte mensal', 'Quanto pretende guardar por mês. Com isso o app calcula em quantos meses você chega lá.', { modal: true, open: function () { openGoalModal(); } }));
     add(S('planejar', 'projecao', main('.scenario-pill'), 'Projeção', 'Simula o seu patrimônio no futuro em três cenários: conservador, base e otimista.', { when: function () { return !locked('projecao'); } }));
+    add(S('planejar', 'estrategia', main('#cs-card'), 'Consultor de estratégia', 'Converse com o consultor do seu jeito, por exemplo: "quero quitar o cartão até janeiro, recebo o 13º em novembro e dezembro e tenho férias em janeiro". Ele pergunta só o que faltar e monta o plano mês a mês. Salvando o plano, o valor do mês aparece no Plano da semana.', { when: function () { return !locked('estrategia'); } }));
     add(S('planejar', 'estrategia', card(/Simulador de Cenários/), 'Simulador de cenários', 'Mexa nos controles (renda, corte de gastos, valor extra) e veja na hora o efeito no seu resultado.', { when: function () { return !locked('estrategia'); } }));
     add(S('planejar', 'insights', main('.section-title'), 'Insights', 'Análises automáticas dos seus dados: tendências, gastos fora do padrão e sugestões.', { when: function () { return !locked('insights'); } }));
 

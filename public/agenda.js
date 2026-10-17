@@ -428,6 +428,12 @@
     }
     if (!ev) return out;
     var inc = ev.type === 'income', due = ev.date, kind = f.kind;
+    if (kind === 'assinatura') {         // recibo de assinatura: a cobrança já aconteceu (vira lançamento); a agenda recebe só a PRÓXIMA cobrança
+      var ax = f.extra || {};
+      if (ax.tipoCobranca === 'assinatura' && ax.proxima && ax.proxima >= d0 && FP.diffDays(d0, ax.proxima) <= 62)
+        out.push({ key: 'doc:' + id + ':next', kind: 'payable', title: ev.desc + ' (próxima cobrança)', category: ev.cat, amount: ev.amount, dueDate: ax.proxima, priority: 'normal', status: 'pending', notes: 'SAI · próxima cobrança da assinatura em ' + br(ax.proxima) + ' · ' + brl(ev.amount) + (ax.pagamento ? ' · ' + ax.pagamento : '') + ' (lido do documento). Se cancelar a assinatura, marque este evento como cancelado.' });
+      return out;
+    }
     var essential = ['Moradia', 'Saúde', 'Educação', 'Transporte'].indexOf(ev.cat) >= 0 || kind === 'imposto';
     var notes = (inc ? 'ENTRA · ' : 'SAI · ') + ev.desc + ' · ' + (kind === 'nf' ? 'emissão ' : 'vencimento ') + br(due) + ' · ' + brl(ev.amount) + ' (lido do documento)' + (kind === 'fatura' && f.extra && f.extra.minimo ? '. Pagamento mínimo: ' + brl(f.extra.minimo) + ' (pagar só o mínimo gera juros altos)' : '') + '.';
     var m = { key: 'doc:' + id + ':0', kind: inc ? 'income' : 'payable', title: ev.desc, category: ev.cat, amount: ev.amount, dueDate: due, priority: kind === 'fatura' ? 'high' : (essential ? 'essential' : 'normal'), status: (past(due) || kind === 'nf') ? 'awaiting' : 'pending', notes: notes + (kind === 'nf' ? ' Data de emissão: confirme quando ' + (inc ? 'receber.' : 'pagar.') : (past(due) ? ' Data já passou: confirme se foi ' + (inc ? 'recebido.' : 'pago.') : '')) };

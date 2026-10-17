@@ -29,6 +29,7 @@
     return isNaN(n) ? null : n;
   }
   function r2(v) { return Math.round(v * 100) / 100; }
+  function brl(v) { var p = (Math.round(v * 100) / 100).toFixed(2).split('.'); return p[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + p[1]; }
   function strip(s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, ''); }
   function norm(s) { return strip(s).toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim(); }
   function digits(s) { return String(s || '').replace(/\D/g, ''); }
@@ -74,6 +75,7 @@
     boleto: [[/linha\s*digit[aá]vel|c[oó]digo\s*de\s*barras/, 3], [/benefici[aá]rio|cedente|sacado|pagador/, 2], [/boleto/, 2.5], [/\b\d{5}\.\d{5}\s\d{5}\.\d{6}/, 3]],
     nf: [[/nota\s*fiscal|nf-?e|nfs-?e|danfe/, 3], [/chave\s*de\s*acesso/, 2.5], [/\bicms\b|\biss\b|valor\s*total\s*da\s*nota/, 1.5]],
     imposto: [[/informe\s*de\s*rendimentos|\birpf\b|declara[cç][aã]o\s*de\s*imposto/, 4], [/\bdas\b|simples\s*nacional|documento de arrecada/, 3]],
+    assinatura: [[/assinatura|subscription|membership|mensalidade|clube\s*(ifood|uber)?|plano\s*(mensal|anual|semanal|premium|padrao|basico|individual|familia)/, 2], [/pr[oó]xima\s*(cobran[cç]a|renova[cç][aã]o)|renova[cç][aã]o|next\s*(billing|payment)|renova\s*em/, 3], [/recibo|comprovante|receipt|invoice|pedido|corrida|viagem|entrega/, 1], [/(netflix|spotify|disney|globoplay|ifood|rappi|uber|amazon\s*prime|youtube\s*(premium|music)|deezer|apple\s*(music|tv|one)|icloud|google\s*one|paramount|telecine|crunchyroll|hbo\s*max|chatgpt|openai|microsoft\s*365|adobe|canva|duolingo|wellhub|gympass|smart\s*fit|xbox|playstation|99\s*(pay|taxi|app))/, 2.5]],
     contrato: [[/contrato\s*(de|individual)/, 2.5], [/cl[aá]usula|contratante|contratada/, 2.5], [/\bpartes\b/, 1]],
     emprestimo: [[/empr[eé]stimo|financiamento|consignado/, 2.5], [/\bcet\b|taxa\s*de\s*juros|parcelas?\s*restantes?/, 2], [/saldo\s*devedor/, 2.5],
       [/c[eé]dula\s*de\s*cr[eé]dito\s*banc[aá]rio|\bccb\b/, 4], [/valor\s*liberado|valor\s*(total\s*)?financiado|valor\s*l[ií]quido\s*liberado/, 3], [/custo\s*efetivo\s*total/, 3],
@@ -90,7 +92,7 @@
       scores[k] = s; signals[k] = sig;
     });
     var fn = strip(fileName || '').toLowerCase();
-    var fnMap = { holerite: /holerite|contracheque|contra-cheque|folha|salario/, extrato: /extrato/, fatura: /fatura/, boleto: /boleto/, nf: /\bnf|nota|danfe/, imposto: /irpf|informe|\bdas\b/, contrato: /contrato/, emprestimo: /emprestimo|financiamento/ };
+    var fnMap = { holerite: /holerite|contracheque|contra-cheque|folha|salario/, extrato: /extrato/, fatura: /fatura/, boleto: /boleto/, nf: /\bnf|nota|danfe/, imposto: /irpf|informe|\bdas\b/, contrato: /contrato/, emprestimo: /emprestimo|financiamento/, assinatura: /assinatura|netflix|spotify|ifood|uber|disney|prime|youtube|globoplay|deezer|recibo.*servico/ };
     Object.keys(fnMap).forEach(function (k) { if (fnMap[k].test(fn)) scores[k] += 0.75; });
     if (hint && scores[hint] != null) scores[hint] += 0.5;
     var best = 'outro', bs = 0, second = 0;
@@ -100,6 +102,7 @@
     if (best === 'holerite' && !(/l[ií]quido/.test(t) && /(vencimentos?|proventos?)/.test(t) && /descontos?/.test(t)) && !(titulo && bs >= 4) && bs < 6) { best = 'outro'; }
     var credito = /demonstrativo\s*(de\s*)?(evolu[cç][aã]o|d[ií]vida|d[eé]bito)|evolu[cç][aã]o\s*(da\s*)?(d[ií]vida|d[eé]bito)|plano\s*de\s*amortiza|c[eé]dula\s*de\s*cr[eé]dito|\bccb\b|contrato\s*de\s*(empr[eé]stimo|financiamento|cr[eé]dito|m[uú]tuo)|valor\s*liberado|custo\s*efetivo\s*total/.test(t) && scores.emprestimo >= 5;
     if (credito && (best === 'holerite' || best === 'contrato' || best === 'outro')) { best = 'emprestimo'; bs = scores.emprestimo; second = 0; }   // contrato de crédito vence holerite (FGTS/desconto em folha aparecem nas cláusulas)
+    if (best === 'assinatura') { var cue = /assinatura|subscription|membership|mensalidade|clube|plano\s|renova|recibo|comprovante|receipt|invoice|pedido|corrida|viagem|entrega|total\s*pago|valor\s*cobrado/.test(t); if (!cue || (scores.extrato >= 5 && scores.extrato >= scores.assinatura - 1) || (scores.fatura >= 6)) { var alt = 'outro', as = 0; Object.keys(scores).forEach(function (k) { if (k !== 'assinatura' && scores[k] > as) { as = scores[k]; alt = k; } }); best = alt; bs = as; } }
     if (bs < 3) best = 'outro';
     var conf = bs <= 0 ? 0 : Math.min(1, (bs - second * 0.5) / (bs + 2));
     return { kind: best, score: r2(bs), confidence: r2(conf), scores: scores, byContent: bs >= 3 };
@@ -622,6 +625,165 @@
     return c;
   }
 
+  // ───────── 6b. serviços de assinatura / apps (Netflix, Spotify, iFood, Uber…) ─────────
+  // [regex sobre texto sem acento e em minúsculas, nome, categoria do serviço, categoria de gasto sugerida (PF)]
+  var SERVICES = [
+    ['netflix', 'Netflix', 'Streaming de vídeo', 'Lazer'], ['disney\\s*(\\+|plus)', 'Disney+', 'Streaming de vídeo', 'Lazer'], ['hbo\\s*max|\\bmax\\.com|warner\\s*bros\\.?\\s*discovery', 'Max (HBO)', 'Streaming de vídeo', 'Lazer'],
+    ['prime\\s*video|amazon\\s*prime|amzn\\s*prime|amazon\\s*\\*?\\s*prime', 'Amazon Prime', 'Streaming de vídeo / compras', 'Lazer'], ['apple\\s*tv\\s*\\+?|apple\\s*one', 'Apple TV+ / Apple One', 'Streaming de vídeo', 'Lazer'],
+    ['globoplay|globo\\s*play', 'Globoplay', 'Streaming de vídeo', 'Lazer'], ['paramount\\s*(\\+|plus)', 'Paramount+', 'Streaming de vídeo', 'Lazer'], ['star\\s*(\\+|plus)', 'Star+', 'Streaming de vídeo', 'Lazer'],
+    ['telecine', 'Telecine', 'Streaming de vídeo', 'Lazer'], ['crunchyroll', 'Crunchyroll', 'Streaming de vídeo', 'Lazer'], ['youtube\\s*(premium|music)|google\\s*\\*?\\s*youtube', 'YouTube Premium', 'Streaming de vídeo / música', 'Lazer'],
+    ['spotify', 'Spotify', 'Streaming de música', 'Lazer'], ['deezer', 'Deezer', 'Streaming de música', 'Lazer'], ['apple\\s*music', 'Apple Music', 'Streaming de música', 'Lazer'], ['amazon\\s*music', 'Amazon Music', 'Streaming de música', 'Lazer'], ['tidal', 'Tidal', 'Streaming de música', 'Lazer'],
+    ['ifood|i\\s*food', 'iFood', 'Delivery de comida', 'Alimentação'], ['rappi', 'Rappi', 'Delivery / compras', 'Alimentação'], ['ze\\s*delivery', 'Zé Delivery', 'Delivery de bebidas', 'Alimentação'], ['keeta|99\\s*food', '99Food', 'Delivery de comida', 'Alimentação'],
+    ['uber\\s*(one|eats|trip|\\*)|\\buber\\b', 'Uber', 'Transporte por aplicativo', 'Transporte'], ['\\b99\\s*(pay|taxi|app|pop|tecnologia)|99tecnologia|\\b99\\s*(corrida|viagem)', '99', 'Transporte por aplicativo', 'Transporte'], ['indrive|in\\s*drive', 'inDrive', 'Transporte por aplicativo', 'Transporte'],
+    ['sem\\s*parar|conectcar|veloe|move\\s*mais', 'Pedágio / tag', 'Mobilidade', 'Transporte'], ['tembici|bike\\s*itau|bike\\s*sampa', 'Bike compartilhada', 'Mobilidade', 'Transporte'],
+    ['meli\\s*\\+|mercado\\s*livre|mercadolivre', 'Mercado Livre', 'Compras / clube', 'Outros'], ['magalu|magazine\\s*luiza', 'Magalu', 'Compras', 'Outros'], ['shopee', 'Shopee', 'Compras', 'Outros'],
+    ['icloud', 'iCloud', 'Nuvem / armazenamento', 'Outros'], ['google\\s*one|google\\s*storage', 'Google One', 'Nuvem / armazenamento', 'Outros'], ['dropbox', 'Dropbox', 'Nuvem / armazenamento', 'Outros'],
+    ['microsoft\\s*365|office\\s*365|microsoft\\s*\\*?\\s*(365|office|onedrive)', 'Microsoft 365', 'Software', 'Outros'], ['adobe', 'Adobe', 'Software', 'Outros'], ['canva', 'Canva', 'Software', 'Outros'],
+    ['chatgpt|openai', 'ChatGPT (OpenAI)', 'Software / IA', 'Outros'], ['anthropic|claude\\.ai', 'Claude (Anthropic)', 'Software / IA', 'Outros'], ['notion', 'Notion', 'Software', 'Outros'],
+    ['duolingo', 'Duolingo', 'Educação / idiomas', 'Educação'], ['alura|coursera|udemy|domestika|skillshare', 'Cursos online', 'Educação', 'Educação'],
+    ['wellhub|gympass', 'Wellhub (Gympass)', 'Academia / bem-estar', 'Saúde'], ['smart\\s*fit|smartfit', 'Smart Fit', 'Academia', 'Saúde'], ['bluefit|bio\\s*ritmo|selfit', 'Academia', 'Academia', 'Saúde'],
+    ['xbox|game\\s*pass', 'Xbox / Game Pass', 'Jogos', 'Lazer'], ['playstation|\\bpsn\\b|sony\\s*interactive', 'PlayStation', 'Jogos', 'Lazer'], ['nintendo', 'Nintendo', 'Jogos', 'Lazer'], ['\\bsteam\\b|valve', 'Steam', 'Jogos', 'Lazer'],
+    ['kindle\\s*unlimited|audible', 'Kindle / Audible', 'Leitura / audiolivros', 'Lazer'], ['folha\\s*de\\s*s\\.?\\s*paulo|estadao|o\\s*globo|valor\\s*economico|the\\s*news', 'Jornal / notícias', 'Notícias', 'Lazer'],
+    ['claro\\s*(s\\.?a|tv|net|residencial|movel)', 'Claro', 'Telefonia / internet', 'Moradia'], ['vivo\\s*(fibra|s\\.?a|movel)|telefonica\\s*brasil', 'Vivo', 'Telefonia / internet', 'Moradia'], ['tim\\s*(s\\.?a|brasil|live|black)', 'TIM', 'Telefonia / internet', 'Moradia'], ['oi\\s*(fibra|s\\.?a|movel)', 'Oi', 'Telefonia / internet', 'Moradia']
+  ].map(function (r) { return { re: new RegExp(r[0]), name: r[1], cat: r[2], gasto: r[3] }; });
+  function findService(text) {
+    var t = strip(text).toLowerCase(), best = null, bestPos = 1e9;
+    SERVICES.forEach(function (s) { var m = s.re.exec(t); if (m && m.index < bestPos) { best = s; bestPos = m.index; } });
+    return best;
+  }
+  function maskCard(m) { return m ? '••••' + m : null; }
+  function cicloDe(t) {
+    if (/semanal|por\s*semana|\/\s*semana|weekly/.test(t)) return 'semanal';
+    if (/anual|por\s*ano|\/\s*ano|12\s*meses|yearly|annual/.test(t)) return 'anual';
+    if (/semestral|6\s*meses/.test(t)) return 'semestral';
+    if (/trimestral|3\s*meses/.test(t)) return 'trimestral';
+    if (/mensal|por\s*m[eê]s|\/\s*m[eê]s|monthly|todo\s*m[eê]s/.test(t)) return 'mensal';
+    return null;
+  }
+  var CICLO_DIV = { semanal: 7 / 30.4375, mensal: 1, trimestral: 3, semestral: 6, anual: 12 };
+  function planoDe(lines, text) {
+    var lab = textAfter(lines, /^(plano|plan|pacote|tipo\s*de\s*plano|produto|item|descri[cç][aã]o|servi[cç]o)\b\s*[:\-]?/i);
+    if (lab && lab.length <= 60 && !/^\d/.test(lab)) return lab.replace(/\s+/g, ' ').trim();
+    var m = /(premium\s*(individual|duo|family|fam[ií]lia|estudante|student)?|padr[aã]o\s*com\s*an[uú]ncios|padr[aã]o|b[aá]sico\s*com\s*an[uú]ncios|b[aá]sico|essencial|plus|pro\b|standard|family|individual|estudante|combo|clube\s*ifood|uber\s*one|rappi\s*prime|meli\s*\+?\s*(n[ií]vel\s*\d)?|prime|ultimate|supreme)/.exec(text);
+    return m ? m[1].replace(/\s+/g, ' ') : null;
+  }
+  function moneyInLine(lines, re) {                      // 1º valor monetário depois do rótulo, na mesma linha (ou na célula vizinha)
+    for (var i = 0; i < lines.length; i++) {
+      var st = strip(lines[i].text).toLowerCase(), m = re.exec(st); if (!m) continue;
+      var rest = lines[i].text.slice(Math.min(lines[i].text.length, m.index + m[0].length)), mm = /(\d{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2})/.exec(rest.replace(/^[^\d]*?(?=\d)/, function (z) { return /[a-zA-Z]{4,}/.test(z) && !/r\$/i.test(z) ? '\u0001' + z : z; }).replace(/^\u0001.*$/, ''));
+      if (!mm) { mm = /(\d{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2})/.exec(rest.slice(0, 40)); }
+      if (mm) { var v = num(mm[1]); if (v != null && v > 0) return v; }
+    }
+    return null;
+  }
+  function parseServico(lines, now) {
+    var raw = allDigitsText(lines), text = strip(raw).toLowerCase(), svc = findService(raw), ex = {};
+    ex.servico = svc ? svc.name : null; ex.categoriaServico = svc ? svc.cat : null; ex.catGasto = svc ? svc.gasto : null;
+    ex.emissor = textAfter(lines, /(raz[aã]o\s*social|empresa|emitente|prestador|vendedor|fornecedor|estabelecimento|merchant)\b/) || null;
+    if (!svc && ex.emissor) ex.servico = ex.emissor;
+    var pedido = /(pedido|corrida|viagem|entrega|restaurante|loja|itens?\s*do\s*pedido|trip|order\s*(id|n))/.test(text) && !/pr[oó]xima\s*(cobran[cç]a|renova)|renova[cç][aã]o\s*autom/.test(text);
+    ex.tipoCobranca = /clube|assinatura|subscription|membership|mensalidade|plano\s*(mensal|anual|semanal)|renova|uber\s*one|prime|meli\s*\+/.test(text) && !(pedido && !/assinatura|clube|plano\s/.test(text)) ? 'assinatura' : (/(corrida|viagem|trip)/.test(text) ? 'corrida' : (pedido ? 'pedido' : 'compra'));
+    ex.plano = planoDe(lines, text); ex.ciclo = cicloDe(text);
+    var tot = null, TOT = [/(^|[^a-z])total\s*(pago|cobrado|da\s*cobranca|do\s*pedido|da\s*viagem|da\s*corrida|geral|a\s*pagar)/, /valor\s*(cobrado|pago|total|da\s*assinatura|da\s*mensalidade)/, /(^|[^a-z])total\b/, /(^|[^a-z])(preco|mensalidade|amount\s*(paid|due)?|valor)\b/];
+    for (var ti = 0; ti < TOT.length && tot == null; ti++) tot = moneyInLine(lines, TOT[ti]);
+    if (tot == null) tot = moneyAfter(lines, TOT[2]);
+    ex.valor = tot;
+    ex.subtotal = moneyInLine(lines, /\bsubtotal\b/); ex.taxaEntrega = moneyInLine(lines, /taxa\s*(de\s*)?(entrega|servico)/); ex.gorjeta = moneyInLine(lines, /(gorjeta|\btip\b)/);
+    ex.desconto = moneyInLine(lines, /(desconto|cupom|promocao|voucher)/); ex.impostos = moneyInLine(lines, /(^|[^a-z])(iof|impostos?|iss|tributos?)\b/);
+    if (ex.desconto != null) ex.desconto = Math.abs(ex.desconto);
+    ex.proxima = dateAfter(lines, /(pr[oó]xima\s*(cobran[cç]a|renova[cç][aã]o|fatura|data\s*de\s*cobran[cç]a)|renova(r|[cç][aã]o)?\s*em|next\s*(billing|payment)|pr[oó]ximo\s*pagamento|vence\s*em)/);
+    ex.desde = dateAfter(lines, /(membro\s*desde|assinante\s*desde|assinatura\s*(iniciada\s*em|desde)|data\s*de\s*in[ií]cio|cliente\s*desde|member\s*since)/);
+    ex.dataCobranca = dateAfter(lines, /(data\s*(da\s*)?(cobran[cç]a|pagamento|compra|pedido|emiss[aã]o|do\s*pedido|da\s*viagem)|pago\s*em|cobrado\s*em|emitid[ao]\s*em|date\s*(paid|of\s*issue)|emiss[aã]o|data)\b/);
+    var cm = /cart[aã]o[^0-9a-z]{0,30}(?:final|terminad[oa]\s*em|\*+|x+|•+)?\s*(\d{4})\b/.exec(text) || /(?:visa|master(?:card)?|elo|amex|american\s*express|hipercard)[^0-9]{0,25}(\d{4})\b/.exec(text);
+    var bd = /(visa|mastercard|master|elo|amex|american\s*express|hipercard)/.exec(text);
+    ex.pagamento = cm ? (bd ? bd[1].replace(/^master$/, 'mastercard') + ' ' : 'cartão ') + maskCard(cm[1]) : (/\bpix\b/.test(text) ? 'Pix' : /paypal/.test(text) ? 'PayPal' : /boleto/.test(text) ? 'Boleto' : /apple\s*pay|app\s*store|itunes/.test(text) ? 'Apple (App Store)' : /google\s*play/.test(text) ? 'Google Play' : /saldo|carteira|wallet/.test(text) ? 'Saldo/carteira do app' : null);
+    var pmRe = /(?:pedido|order|recibo|receipt|fatura|invoice|transa[cç][aã]o|nota\s*fiscal|nf-?e?|c[oó]digo)\s*(?:n[ºo°.]*|#|number|id|:)?\s*[:\-#]?\s*([A-Za-z0-9][A-Za-z0-9\-]{5,})/gi, pmx; ex.pedido = null;
+    while ((pmx = pmRe.exec(raw))) { if (/\d{3}/.test(pmx[1])) { ex.pedido = pmx[1].slice(0, 40); break; } }
+    var em = /([A-Za-z0-9._%+\-]{1,40})@([A-Za-z0-9.\-]{3,40}\.[a-z]{2,})/.exec(raw);
+    ex.conta = em ? em[1].charAt(0) + '•••@' + em[2] : null;
+    ex.trial = /(per[ií]odo\s*de\s*teste|teste\s*gr[aá]t|free\s*trial|primeiro\s*m[eê]s\s*gr[aá]tis|trial)/.test(text);
+    ex.renovAuto = /(renova[cç][aã]o\s*autom[aá]tica|renova\s*automaticamente|ser[aá]\s*renovad|cobrada?\s*automaticamente|auto-?renew)/.test(text);
+    ex.moedaEstrangeira = /(us\$|usd|eur\b|€|\$\s?\d)/.test(raw) && !/r\$/.test(strip(raw).toLowerCase());
+    ex.estabelecimento = ex.tipoCobranca === 'pedido' ? (textAfter(lines, /(restaurante|loja|estabelecimento|parceiro|vendido\s*por)\b/) || null) : null;
+    if (ex.tipoCobranca === 'corrida') { ex.origem = textAfter(lines, /(partida|origem|embarque|pickup)\b/) || null; ex.destino = textAfter(lines, /(destino|desembarque|dropoff|chegada)\b/) || null; var km = /(\d+[.,]?\d*)\s*km\b/.exec(text); ex.km = km ? num(km[1]) : null; }
+    var itens = [];
+    if (ex.tipoCobranca === 'pedido' || ex.tipoCobranca === 'compra') lines.forEach(function (l) { var m = /^(\d{1,2})\s*x?\s+(.{3,50}?)\s+(\d{1,3}(?:\.\d{3})*,\d{2})$/.exec(l.text.trim()); if (m && !/total|subtotal|taxa|desconto|gorjeta/.test(strip(m[2]).toLowerCase())) itens.push([m[1] + 'x ' + m[2], num(m[3])]); });
+    if (itens.length) ex.itens = itens.slice(0, 15);
+    ex.mensal = ex.valor != null && ex.ciclo && CICLO_DIV[ex.ciclo] ? r2(ex.valor / CICLO_DIV[ex.ciclo]) : (ex.valor != null && ex.tipoCobranca === 'assinatura' ? ex.valor : null);
+    return ex;
+  }
+  // ───────── 6c. extrato bancário em PDF → movimentações ─────────
+  var MESES_ABR = { jan: 1, fev: 2, mar: 3, abr: 4, mai: 5, jun: 6, jul: 7, ago: 8, set: 9, out: 10, nov: 11, dez: 12 };
+  var CELL_MONEY = /^(?:r\$\s*)?([+\-−–]?)\s*(?:r\$\s*)?\(?([+\-−–]?)(\d{1,3}(?:\.\d{3})*|\d+),(\d{2})\)?\s*([cd])?\s*([+\-−–])?$/i;
+  function moneyCell(s) {
+    var m = CELL_MONEY.exec(String(s).trim().replace(/\s+/g, ' ')); if (!m) return null;
+    var v = num(m[3] + ',' + m[4]), neg = /[\-−–]/.test(m[1] + m[2] + (m[6] || '')) || /^\(/.test(String(s).trim()) || (m[5] && m[5].toLowerCase() === 'd'), pos = /\+/.test(m[1] + m[2] + (m[6] || '')) || (m[5] && m[5].toLowerCase() === 'c');
+    return { v: v, sign: neg ? -1 : (pos ? 1 : 0) };
+  }
+  function dateHead(txt, yDefault) {
+    var t = strip(txt).toLowerCase().trim(), m = /^(\d{1,2})[\/.\-](\d{1,2})(?:[\/.\-](\d{2,4}))?(?!\d)/.exec(t), y;
+    if (m) { y = m[3] ? (+m[3] < 100 ? 2000 + +m[3] : +m[3]) : yDefault; return validDate(+m[1], +m[2], y) ? { iso: iso(+m[1], +m[2], y), rest: txt.trim().slice(m[0].length).trim(), full: !!m[3] } : null; }
+    m = /^(\d{1,2})\s*(?:de\s*)?(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[a-z]*\.?(?:\s*(?:de\s*)?(\d{4}))?(?![a-z0-9])/.exec(t);
+    if (m) { y = m[3] ? +m[3] : yDefault; var mo = MESES_ABR[m[2]]; return validDate(+m[1], mo, y) ? { iso: iso(+m[1], mo, y), rest: txt.trim().slice(m[0].length).replace(/^[\s\-–·]+/, '').trim(), full: !!m[3] } : null; }
+    return null;
+  }
+  var STMT_SKIP = /(saldo\s*(anterior|final|do\s*dia|parcial|dispon|em\s*conta|bloqueado|atual|inicial|total)|total\s*(de\s*)?(entradas|saidas|creditos|debitos|dispon)|limite|ouvidoria|sac\b|pagina\s*\d|p[aá]g\.?\s*\d|www\.|cnpj|ag[eê]ncia|extrato\s*(de|conta|banc)|periodo|emitido|gerado)/;
+  function parseStatement(lines, now) {
+    var all = lines, text = strip(allDigitsText(lines)).toLowerCase(), nowD = now ? new Date(now) : new Date(); if (isNaN(nowD)) nowD = new Date();
+    var pm = /per[ií]odo[^0-9]{0,30}(\d{2})\/(\d{2})\/(\d{4})\s*(?:a|at[eé]|ate|-|–|—)\s*(\d{2})\/(\d{2})\/(\d{4})/.exec(text) || /(\d{2})\/(\d{2})\/(\d{4})\s*(?:a|at[eé]|ate|-|–|—)\s*(\d{2})\/(\d{2})\/(\d{4})/.exec(text);
+    var per = pm && validDate(+pm[1], +pm[2], +pm[3]) && validDate(+pm[4], +pm[5], +pm[6]) ? [iso(+pm[1], +pm[2], +pm[3]), iso(+pm[4], +pm[5], +pm[6])] : null;
+    var yDef = per ? +per[1].slice(0, 4) : nowD.getFullYear();
+    var out = { banco: issuer(text), periodo: per, saldoIni: moneyAfter(all, /saldo\s*(anterior|inicial)/), saldoFim: moneyAfter(all, /saldo\s*(final|atual|em\s*conta|disponivel|dispon[ií]vel)(?!\s*do\s*dia)/) };
+    // colunas Crédito/Débito, quando existem
+    var colC = null, colD = null;
+    for (var h = 0; h < Math.min(all.length, 60); h++) { var hs = all[h].cells.map(function (c) { return strip(c.s).toLowerCase(); });
+      var ic = hs.findIndex(function (s) { return /^(cr[eé]ditos?|entradas?|creditos?)\b/.test(s); }), id = hs.findIndex(function (s) { return /^(d[eé]bitos?|sa[ií]das?|debitos?|saidas?)\b/.test(s); });
+      if (ic >= 0 && id >= 0) { colC = all[h].cells[ic].c; colD = all[h].cells[id].c; break; } }
+    var movs = [], curDate = null, prev = null, bal = null;
+    all.forEach(function (ln) {
+      var cells = ln.cells.slice(), txt = ln.text.trim(), tl = strip(txt).toLowerCase();
+      if (!cells.length) return;
+      var dh = dateHead(cells[0].s, yDef) || dateHead(txt, yDef);
+      var mc = []; cells.forEach(function (c, i) { var m = moneyCell(c.s); if (m) mc.push({ i: i, m: m, c: c.c }); });
+      if (dh && !mc.length) { curDate = dh.iso; prev = null; return; }                 // cabeçalho de data (Nubank/Inter): vale para as linhas seguintes
+      if (STMT_SKIP.test(tl) && !(dh && mc.length >= 1 && !/saldo/.test(tl))) { prev = null; return; }
+      if (!mc.length) {                                                                // continuação da descrição na linha seguinte
+        if (prev && !dh && txt.length < 70 && Math.abs(prev.y - ln.y) <= 14 && !/^(data|hist[oó]rico|descri|valor|cr[eé]dito|d[eé]bito|lan[cç]amentos?|movimenta)/.test(tl)) { prev.mv[1] = (prev.mv[1] + ' ' + txt).slice(0, 90); prev.y = ln.y; }
+        return;
+      }
+      var d = dh ? dh.iso : curDate; if (!d) return;
+      var dc0 = dateHead(cells[0].s, yDef), nonMoney = cells.filter(function (c, i) { return !mc.some(function (z) { return z.i === i; }); });
+      var desc = (dc0 ? [dc0.rest].concat(nonMoney.filter(function (c) { return c !== cells[0]; }).map(function (c) { return c.s; })) : nonMoney.map(function (c) { return c.s; })).join(' ').replace(/\s+/g, ' ').trim();
+      desc = desc.replace(/^[\-–·\s]+/, '').replace(/\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/g, function (m2) { return '•••' + m2.slice(-2); }).replace(/\b\d{11,14}\b/g, function (m2) { return '•••' + m2.slice(-2); });
+      if (!desc || /^(saldo|total)/.test(strip(desc).toLowerCase())) return;
+      var val = null, saldoApos = null, sign = 0;
+      if (colC != null && colD != null) {                                              // duas colunas: crédito / débito
+        mc.forEach(function (z) { var dc = Math.abs(z.c - colC), dd = Math.abs(z.c - colD); if (Math.min(dc, dd) < 45) { if (val == null) { val = z.m.v; sign = dc < dd ? 1 : -1; } } else if (saldoApos == null) saldoApos = z.m.v * (z.m.sign < 0 ? -1 : 1); });
+      } else if (mc.length >= 2) { var a = mc[mc.length - 2].m, b = mc[mc.length - 1].m; val = a.v; sign = a.sign; saldoApos = b.v * (b.sign < 0 ? -1 : 1); }
+      else { val = mc[0].m.v; sign = mc[0].m.sign; }
+      if (val == null || val === 0) return;
+      var mv = [d, desc.slice(0, 90), val, sign, saldoApos]; var rec = { mv: mv, y: ln.y }; movs.push(rec); prev = rec;
+    });
+    // sinal: pela diferença de saldo quando há coluna de saldo; senão pelo texto
+    var rows = movs.map(function (r) { return r.mv; }), withBal = rows.filter(function (m) { return m[4] != null; }).length;
+    var IN_RX = /(recebid|dep[oó]sito|cr[eé]dito|sal[aá]rio|estorno|rendimento|reembolso|devolu|cashback|resgate|transfer[eê]ncia\s*recebida|pix\s*recebido|ted\s*recebida|proventos?|remunera)/, OUT_RX = /(pagamento|compra|d[eé]bito|tarifa|saque|enviad|boleto|fatura|iof|juros|anuidade|pix\s*enviado|transfer[eê]ncia\s*enviada|ted\s*enviada|presta[cç][aã]o|seguro)/;
+    var base = out.saldoIni != null ? out.saldoIni : null, incertos = 0;
+    rows.forEach(function (m, i) {
+      var pb = i === 0 ? base : rows[i - 1][4];
+      if (m[3] === 0 && withBal >= rows.length * 0.6 && m[4] != null && pb != null) { var dlt = r2(m[4] - pb); if (Math.abs(dlt - m[2]) < 0.015) m[3] = 1; else if (Math.abs(dlt + m[2]) < 0.015) m[3] = -1; }
+      if (m[3] === 0) { var tl2 = strip(m[1]).toLowerCase(); if (IN_RX.test(tl2) && !OUT_RX.test(tl2)) m[3] = 1; else if (OUT_RX.test(tl2) && !IN_RX.test(tl2)) m[3] = -1; }
+      if (m[3] === 0) { m[3] = -1; m.push(1); incertos++; }                           // sinal incerto: assume saída e avisa
+    });
+    var ent = r2(rows.filter(function (m) { return m[3] > 0; }).reduce(function (s, m) { return s + m[2]; }, 0)), sai = r2(rows.filter(function (m) { return m[3] < 0; }).reduce(function (s, m) { return s + m[2]; }, 0));
+    out.movs = rows.slice(0, 1500).map(function (m) { return [m[0], m[1], m[2], m[3] > 0 ? 1 : 0, m.length > 5 ? 1 : 0]; });   // [data, descrição, valor, entrada?, sinalIncerto?]
+    out.qtd = rows.length; out.entradas = ent; out.saidas = sai; out.incertos = incertos; out.truncado = rows.length > 1500;
+    if (out.saldoIni != null && out.saldoFim != null && rows.length) { out.fecha = Math.abs(r2(out.saldoIni + ent - sai) - out.saldoFim) <= 0.02; out.diferenca = r2(out.saldoIni + ent - sai - out.saldoFim); }
+    var byS = {};
+    rows.forEach(function (m) { if (m[3] < 0) { var sv = findService(m[1]); if (sv) { var o = byS[sv.name] || (byS[sv.name] = { servico: sv.name, categoria: sv.cat, gasto: sv.gasto, qtd: 0, total: 0, ultimo: null }); o.qtd++; o.total = r2(o.total + m[2]); o.ultimo = m[0]; o.media = r2(o.total / o.qtd); } } });
+    out.servicos = Object.keys(byS).map(function (k) { return byS[k]; }).sort(function (a, b) { return b.total - a.total; });
+    return out;
+  }
+
   function parseFin(kind, lines, now) {
     var text = strip(allDigitsText(lines)).toLowerCase(), checks = [], f = { kind: kind, direction: 'unknown', amount: null, date: null, counterparty: null, key: null, notes: [], extra: {} };
     if (kind === 'boleto') {
@@ -705,7 +867,26 @@
       var SG = suggestCategory(allDigitsText(lines), exd); exd.categoria = SG.cat; exd.categoriaConf = SG.conf; exd.categoriaMotivo = SG.why.join('; ');
       ck(checks, 'categoria', SG.conf >= 0.85, 'Confirme a categoria da dívida (sugestão: ' + SG.cat + ').', 0.5);
             ck(checks, 'divida_dados', f.extra.saldo != null && f.extra.parcela != null, 'Faltam o saldo devedor e/ou o valor da parcela.', 0.5);
-    } else { f.direction = 'none'; f.notes.push(kind === 'extrato' ? 'Extrato em PDF: para lançar as movimentações use "Importar extrato" (OFX ou CSV).' : 'Documento guardado, sem valor financeiro a lançar.'); f.key = null; }
+    } else if (kind === 'assinatura') {
+      var sv = parseServico(lines, now), exs2 = f.extra = sv;
+      f.direction = 'out'; f.amount = sv.valor; f.counterparty = sv.servico || null; f.date = sv.dataCobranca || (sv.tipoCobranca === 'assinatura' ? null : null) || sv.proxima || null; f.catSugerida = sv.catGasto || null;
+      if (sv.tipoCobranca === 'assinatura' && !sv.dataCobranca && sv.proxima) f.notes.push('Só a data da próxima cobrança foi encontrada (' + sv.proxima.split('-').reverse().join('/') + '). Ela foi usada como data do lançamento: ajuste se já cobrou.');
+      if (sv.tipoCobranca === 'assinatura') f.notes.push('Assinatura' + (sv.servico ? ': ' + sv.servico : '') + (sv.plano ? ', plano ' + sv.plano : '') + (sv.ciclo ? ', cobrança ' + sv.ciclo : '') + (sv.mensal != null && sv.ciclo && sv.ciclo !== 'mensal' ? ' (equivale a R$ ' + sv.mensal.toFixed(2).replace('.', ',') + ' por mês)' : '') + '.');
+      if (sv.trial) f.notes.push('O documento cita período de teste: confira quando a cobrança cheia começa.');
+      if (sv.desconto != null && sv.desconto > 0) f.notes.push('Há desconto/promoção de R$ ' + sv.desconto.toFixed(2).replace('.', ',') + ': o preço pode subir quando a promoção acabar.');
+      if (sv.moedaEstrangeira) f.notes.push('Valores em moeda estrangeira: informe o valor em reais cobrado no cartão.');
+      if (!sv.servico) f.notes.push('Não identifiquei o serviço. Informe o nome para monitorar a assinatura.');
+      f.key = sv.pedido ? 'assin|' + norm(sv.servico || '') + '|' + sv.pedido : 'assin|' + norm(sv.servico || '') + '|' + (f.date || '') + '|' + (f.amount != null ? f.amount.toFixed(2) : '');
+    } else if (kind === 'extrato') {
+      var ST = parseStatement(lines, now); f.direction = 'none'; f.extra = ST; f.key = null; f.counterparty = ST.banco || null;
+      if (ST.qtd) {
+        f.notes.push(ST.qtd + ' movimentações lidas' + (ST.banco ? ' (' + ST.banco + ')' : '') + (ST.periodo ? ' de ' + ST.periodo[0].split('-').reverse().join('/') + ' a ' + ST.periodo[1].split('-').reverse().join('/') : '') + ': entradas R$ ' + brl(ST.entradas) + ' e saídas R$ ' + brl(ST.saidas) + '. Use "Importar movimentações" para lançá-las.');
+        if (ST.fecha === false) f.notes.push('Atenção: saldo anterior + entradas − saídas não fecha com o saldo final (diferença de R$ ' + brl(Math.abs(ST.diferenca)) + '). Confira as linhas na prévia antes de importar.');
+        if (ST.incertos) f.notes.push(ST.incertos + ' linha(s) sem sinal claro foram marcadas como saída: confira na prévia.');
+        if (ST.truncado) f.notes.push('Extrato muito longo: só as primeiras 1.500 movimentações foram lidas.');
+        if (ST.servicos.length) f.notes.push('Serviços/apps identificados nas saídas: ' + ST.servicos.slice(0, 8).map(function (z) { return z.servico + ' (' + z.qtd + 'x, R$ ' + brl(z.total) + ')'; }).join('; ') + '.');
+      } else f.notes.push('Extrato em PDF reconhecido, mas não consegui ler as linhas de movimentação (layout diferente). Use "Importar extrato" com o arquivo OFX ou CSV do seu banco.');
+    } else { f.direction = 'none'; f.notes.push('Documento guardado, sem valor financeiro a lançar.'); f.key = null; }
     // validação comum
     if (f.direction === 'in' || f.direction === 'out' || f.direction === 'unknown') {
       ck(checks, 'valor', f.amount != null && f.amount > 0, 'Valor não encontrado.', 0.35);
@@ -793,8 +974,8 @@
       if (dup.action === 'duplicate') { result.outcomes.push({ action: 'duplicate', target: dup.target, reason: dup.reason }); return result; }
       var fin = parseFin(cls.kind, [].concat.apply([], pagesLines), ctx.now), fkey = fin.key ? hash53(fin.key) : null, vw = existingView(existingDocs);
       var isoLabel = function (i) { return i ? i.slice(8, 10) + '/' + i.slice(5, 7) + '/' + i.slice(0, 4) : ''; };
-      var KL = { boleto: 'Boleto', fatura: 'Fatura de cartão', nf: 'Nota fiscal', imposto: 'Guia/imposto', emprestimo: 'Empréstimo/financiamento', extrato: 'Extrato', contrato: 'Contrato' };
-      var ent = { id: ctx.newId(), name: (KL[cls.kind] || ctx.fileName) + (fin.counterparty ? ' · ' + fin.counterparty : '') + (fin.date ? ' · ' + isoLabel(fin.date) : (KL[cls.kind] ? '' : '')), type: fin.direction === 'in' ? 'income' : 'expense', category: cls.kind, amount: fin.amount != null ? fin.amount : 0,
+      var KL = { boleto: 'Boleto', fatura: 'Fatura de cartão', nf: 'Nota fiscal', imposto: 'Guia/imposto', emprestimo: 'Empréstimo/financiamento', extrato: 'Extrato', assinatura: 'Assinatura', contrato: 'Contrato' };
+      var ent = { id: ctx.newId(), name: (KL[cls.kind] || ctx.fileName) + (fin.counterparty ? ' · ' + fin.counterparty : '') + (cls.kind === 'assinatura' && fin.extra && fin.extra.plano && fin.extra.tipoCobranca === 'assinatura' ? ' · ' + fin.extra.plano : '') + (fin.date ? ' · ' + isoLabel(fin.date) : (KL[cls.kind] ? '' : '')), type: fin.direction === 'in' ? 'income' : 'expense', category: cls.kind, amount: fin.amount != null ? fin.amount : 0,
         date: fin.date ? fin.date.slice(8, 10) + '/' + fin.date.slice(5, 7) : (ctx.dateLabel || ''), status: (cls.byContent && fin.status === 'done') ? 'processado' : 'revisar', fileSize: ctx.fileSize || 0, mimeType: ctx.mimeType || '',
         extractedData: { schema: SCHEMA, kind: cls.kind, contentHash: ctx.contentHash || null, finKey: fkey, fin: fin, classification: { kind: cls.kind, confidence: cls.confidence, byContent: cls.byContent }, hint: ctx.hint || null, confidence: Math.min(cls.confidence || 0, fin.confidence), state: (cls.byContent && fin.status === 'done') ? 'done' : 'needs_review', files: [ctx.fileName], processedAt: ctx.now || null, userConfirmed: false } };
       if (fkey) for (var vi = 0; vi < vw.length; vi++) if (vw[vi].finKey === fkey) {
@@ -896,7 +1077,7 @@
   }
 
   return {
-    SCHEMA: SCHEMA, num: num, norm: norm, buildLines: buildLines, allText: allText, classify: classify,
+    SCHEMA: SCHEMA, parseStatement: parseStatement, parseServico: parseServico, findService: findService, num: num, norm: norm, buildLines: buildLines, allText: allText, classify: classify,
     parsePayslip: parsePayslip, validatePayslip: validatePayslip, identityString: identityString, finSig: finSig,
     compare: compare, decide: decide, mergeSegments: mergeSegments, splitSegments: splitSegments, analyzePages: analyzePages,
     createIngestor: createIngestor, processDocument: processDocument, resolveOutcome: resolveOutcome, payslipsForCalc: payslipsForCalc, calcInputs: calcInputs, pendingReview: pendingReview, hash53: hash53, existingView: existingView, parseFin: parseFin, classifyRow: classifyRow, parseDed: parseDed, suggestCategory: suggestCategory, amortize: amortize, parseSchedule: parseSchedule, setContext: setContext

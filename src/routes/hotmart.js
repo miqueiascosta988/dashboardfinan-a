@@ -21,6 +21,10 @@ function resolvePlanFromProduct(productId) {
   return null;
 }
 
+// Produto de TESTE (Basic por R$ 5, acesso de 7 dias). Configure HOTMART_PRODUCT_TRIAL com o Product ID desse produto.
+const TRIAL_DAYS = 7;
+const isTrialProduct = (productId) => !!process.env.HOTMART_PRODUCT_TRIAL && String(productId || '') === String(process.env.HOTMART_PRODUCT_TRIAL);
+
 // Escapa % _ \ para o e-mail do comprador não virar curinga no ilike.
 const likeEscape = (v) => String(v).replace(/[\\%_]/g, (c) => '\\' + c);
 const crypto = require('crypto');
@@ -65,42 +69,44 @@ router.post('/webhook', express.json(), async (req, res) => {
 
   try {
     if (UPGRADE_EVENTS.includes(event)) {
-      const plan = resolvePlanFromProduct(productId);
+      const trial = isTrialProduct(productId);
+      const plan = trial ? 'basic' : resolvePlanFromProduct(productId);
       if (!plan) {
         console.warn('Hotmart: produto não mapeado (' + productId + ') — nenhum plano liberado. Configure HOTMART_PRODUCT_*.');
         return res.json({ received: true, skipped: 'unknown_product' });
       }
-      const { data: updated, error } = await supabase
-        .from('profiles')
-        .update({
-          plan,
-          plan_status: 'active',
-          payment_provider: 'hotmart',
-          hotmart_subscriber_code: subscriberCode || null,
-          hotmart_transaction_id: transactionId || null,
-        })
-        .ilike('email', likeEscape(buyerEmail))
-        .select('id');
+      const fields = trial
+        ? { plan, plan_status: 'trialing', plan_expires_at: new Date(Date.now() + TRIAL_DAYS * 86400000).toISOString(), payment_provider: 'hotmart', hotmart_transaction_id: transactionId || null }
+        : { plan, plan_status: 'active', plan_expires_at: null, payment_provider: 'hotmart', hotmart_subscriber_code: subscriberCode || null, hotmart_transaction_id: transactionId || null };
+      let q = supabase.from('profiles').update(fields).ilike('email', likeEscape(buyerEmail));
+      // O teste nunca rebaixa nem substitui quem já tem plano pago ativo (só vale para conta sem plano, cancelada ou já em teste).
+      if (trial) q = q.or('plan.is.null,plan.eq.free,plan_status.in.(trialing,canceled,cancelled,unpaid,incomplete_expired)');
+      const { data: updated, error } = await q.select('id');
       if (error) throw error;
       if (!updated || updated.length === 0) {
+        if (trial) {
+          const { data: ex } = await supabase.from('profiles').select('id').ilike('email', likeEscape(buyerEmail)).limit(1);
+          if (ex && ex.length) { console.log('Hotmart: teste ignorado, conta já tem plano pago:', buyerEmail); return res.json({ received: true, skipped: 'already_paid' }); }
+        }
         // Comprador ainda não tem conta no Finança com esse e-mail — comum quando a
         // compra acontece antes do cadastro. Guardamos como "compra pendente" para
         // ativar automaticamente assim que essa pessoa criar a conta com o mesmo e-mail.
         await supabase.from('pending_purchases').upsert({
           email: buyerEmail.toLowerCase(),
           plan,
+          trial_days: trial ? TRIAL_DAYS : null,
           hotmart_subscriber_code: subscriberCode || null,
           hotmart_transaction_id: transactionId || null,
         }, { onConflict: 'email' });
         console.log('Hotmart: compra aprovada para e-mail sem conta ainda:', buyerEmail);
       } else {
-        console.log('Hotmart: plano', plan, 'liberado para', buyerEmail);
+        console.log('Hotmart: plano', plan, trial ? '(teste de ' + TRIAL_DAYS + ' dias)' : '', 'liberado para', buyerEmail);
       }
     } else if (DOWNGRADE_EVENTS.includes(event)) {
-      await supabase
-        .from('profiles')
-        .update({ plan: 'free', plan_status: 'canceled' }) // 'free' = sem assinatura (o app bloqueia o acesso)
-        .ilike('email', likeEscape(buyerEmail));
+      // Cancelar/estornar o produto de TESTE só encerra um teste: nunca derruba uma assinatura mensal ativa.
+      let q = supabase.from('profiles').update({ plan: 'free', plan_status: 'canceled', plan_expires_at: null }).ilike('email', likeEscape(buyerEmail)); // 'free' = sem assinatura (o app bloqueia o acesso)
+      if (isTrialProduct(productId)) q = q.eq('plan_status', 'trialing');
+      await q;
       await supabase.from('pending_purchases').delete().ilike('email', likeEscape(buyerEmail));
       console.log('Hotmart: assinatura encerrada —', buyerEmail, '(' + event + ')');
     } else {

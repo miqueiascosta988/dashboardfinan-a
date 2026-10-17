@@ -54,6 +54,7 @@
     // Início
     add(S('inicio', 'dashboard', nav('dashboard'), 'Início', 'É a sua central de comando: tudo o que importa do mês, em um relance. Vamos olhar cada parte.'));
     add(S('inicio', 'dashboard', main('.hero-card'), pj ? 'Patrimônio da empresa' : 'Saldo patrimonial', 'O que você tem (dinheiro, bens, investimentos) menos o que deve. É o número que mostra se a sua vida financeira está crescendo ou encolhendo.'));
+    add(S('inicio', 'dashboard', main('#wk-card'), 'Plano da semana', 'Toda semana o app escolhe de 1 a 3 missões com base nos seus números: pagar a dívida mais cara, segurar um gasto, rever uma assinatura. Marque as que você fizer e veja quantos meses faltam para quitar tudo. A mesma lista chega no seu e-mail às segundas.'));
     add(S('inicio', 'dashboard', main('.kpi-grid .kpi:nth-child(1)'), pj ? 'Faturamento' : 'Renda', 'Tudo o que entrou no período: salário, extras, rendimentos.'));
     add(S('inicio', 'dashboard', main('.kpi-grid .kpi:nth-child(2)'), 'Despesas', 'Tudo o que saiu no período. Compare com a renda para ver se está gastando mais do que ganha.'));
     add(S('inicio', 'dashboard', main('.kpi-grid .kpi:nth-child(3)'), 'Resultado', 'Renda menos despesas. Verde significa que sobrou dinheiro; vermelho, que faltou.'));

@@ -52,6 +52,7 @@ app.use('/api/stripe', stripeRoutes);
 // ─── Hotmart webhook (usa JSON normal, token "hottok" no corpo) ──
 const hotmartRoutes = require('./routes/hotmart');
 app.use('/api/hotmart', hotmartRoutes);
+app.use('/api', require('./routes/semana'));   // /api/cron/semana (Vercel Cron) e /api/semana/sair
 
 app.use(express.json({ limit: '100kb' }));
 

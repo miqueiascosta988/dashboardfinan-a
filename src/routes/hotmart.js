@@ -13,6 +13,22 @@ function getSupabaseAdmin() {
 // Mapeia o ID do produto cadastrado na Hotmart para o plano interno.
 // Configure HOTMART_PRODUCT_BASIC, _PLUS, _PRO e _BUSINESS com o "Product ID" de cada produto
 // (Hotmart > Produtos > seu produto > Detalhes). Produto desconhecido NÃO libera plano nenhum.
+// Os 4 planos (e o semanal) são do MESMO produto na Hotmart, então o plano é identificado pelo NOME do plano
+// que a Hotmart envia (data.subscription.plan.name). O Product ID só serve de reserva quando o nome não vem.
+// 'semanal' = Basic de entrada (R$ 5/semana): vira acesso Basic de 7 dias renovado a cada pagamento semanal.
+function resolvePlanFromName(name) {
+  const n = String(name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  if (!n) return null;
+  const weekly = /semanal/.test(n);
+  for (const p of ['business', 'pro', 'plus', 'basic']) if (new RegExp('\\b' + p + '\\b').test(n)) return { plan: p, weekly: p === 'basic' && weekly };
+  return null;
+}
+function planNameOf(data) {
+  const d = data || {};
+  // SWITCH_PLAN traz a lista de planos; o novo é o que está marcado como atual.
+  const cur = Array.isArray(d.plans) ? d.plans.find((x) => x && x.current === true) : null;
+  return (cur && (cur.name || (cur.plan && cur.plan.name))) || d.subscription?.plan?.name || d.plan?.name || d.purchase?.subscription?.plan?.name || null;
+}
 function resolvePlanFromProduct(productId) {
   const id = String(productId || '');
   const map = [['business', process.env.HOTMART_PRODUCT_BUSINESS], ['pro', process.env.HOTMART_PRODUCT_PRO],
@@ -34,7 +50,7 @@ function safeEqual(a, b) {
 }
 
 // Eventos da Hotmart: https://developers.hotmart.com/docs/pt-BR/webhooks/
-const UPGRADE_EVENTS = ['PURCHASE_APPROVED', 'PURCHASE_COMPLETE'];
+const UPGRADE_EVENTS = ['PURCHASE_APPROVED', 'PURCHASE_COMPLETE', 'SWITCH_PLAN'];
 const DOWNGRADE_EVENTS = ['PURCHASE_REFUNDED', 'PURCHASE_CHARGEBACK', 'PURCHASE_CANCELED', 'PURCHASE_EXPIRED', 'SUBSCRIPTION_CANCELLATION'];
 
 router.post('/webhook', express.json(), async (req, res) => {
@@ -69,10 +85,11 @@ router.post('/webhook', express.json(), async (req, res) => {
 
   try {
     if (UPGRADE_EVENTS.includes(event)) {
-      const trial = isTrialProduct(productId);
-      const plan = trial ? 'basic' : resolvePlanFromProduct(productId);
+      const byName = resolvePlanFromName(planNameOf(data));
+      const trial = byName ? byName.weekly : isTrialProduct(productId);
+      const plan = byName ? byName.plan : (trial ? 'basic' : resolvePlanFromProduct(productId));
       if (!plan) {
-        console.warn('Hotmart: produto não mapeado (' + productId + ') — nenhum plano liberado. Configure HOTMART_PRODUCT_*.');
+        console.warn('Hotmart: plano/produto não mapeado (' + (planNameOf(data) || productId) + ') — nenhum plano liberado.');
         return res.json({ received: true, skipped: 'unknown_product' });
       }
       const fields = trial
@@ -105,7 +122,8 @@ router.post('/webhook', express.json(), async (req, res) => {
     } else if (DOWNGRADE_EVENTS.includes(event)) {
       // Cancelar/estornar o produto de TESTE só encerra um teste: nunca derruba uma assinatura mensal ativa.
       let q = supabase.from('profiles').update({ plan: 'free', plan_status: 'canceled', plan_expires_at: null }).ilike('email', likeEscape(buyerEmail)); // 'free' = sem assinatura (o app bloqueia o acesso)
-      if (isTrialProduct(productId)) q = q.eq('plan_status', 'trialing');
+      const dn = resolvePlanFromName(planNameOf(data));
+      if (dn ? dn.weekly : isTrialProduct(productId)) q = q.eq('plan_status', 'trialing');
       await q;
       await supabase.from('pending_purchases').delete().ilike('email', likeEscape(buyerEmail));
       console.log('Hotmart: assinatura encerrada —', buyerEmail, '(' + event + ')');

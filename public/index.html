@@ -3879,7 +3879,7 @@ function openAssetModal(listKey, existing = null) {
     <div class="modal-actions">${isEdit ? `<button class="btn-danger" onclick="deleteAsset('${listKey}','${existing.id}')">Excluir</button>` : ''}<button class="btn-cancel" onclick="closeModal()">Cancelar</button><button class="btn-save" onclick="saveAsset('${listKey}',${isEdit ? `'${existing.id}'` : 'null'})">Salvar</button></div>`);
 }
 async function saveAsset(listKey, editId) {
-  if (!editId && listKey === 'assets' && !checkPlanLimit(state.assets.length, PLAN_LIMITS.maxPatrimonioItems, 'Plano ' + currentPlanLabel() + ' permite até ' + PLAN_LIMITS.maxPatrimonioItems + ' itens em Patrimônio. Faça upgrade para itens ilimitados.')) return;
+  if (!editId && listKey === 'assets' && !checkPlanLimit(state.assets.length, PLAN_LIMITS.maxPatrimonioItems, (PLAN_LIMITS.maxPatrimonioItems === 0 ? 'Patrimônio não faz parte do plano Free. Assine o Basic para liberar.' : 'Plano ' + currentPlanLabel() + ' permite até ' + PLAN_LIMITS.maxPatrimonioItems + ' itens em Patrimônio. Faça upgrade para itens ilimitados.'))) return;
   const profile = readProfileField();
   const a = { id: editId || genId(), name: document.getElementById('m-aname').value, value: parseFloat(document.getElementById('m-aval').value) || 0, profile };
   if (editId) { const i = state[listKey].findIndex(x => x.id === editId); if (i >= 0) state[listKey][i] = a; } else state[listKey].push(a);
@@ -4720,21 +4720,26 @@ function subnavHtml() {
 // PLANOS — FREE vs PLUS: limites e bloqueios (fonte única da verdade)
 // ═══════════════════════════════════════════════════════
 var PLAN_LIMITS_BY_PLAN = {
-  // Basic: plano de entrada (R$ 5/mês). Não existe plano gratuito.
+  // Free: porta de entrada sem prazo e sem cartão (bem menor que o Basic, para o upgrade fazer sentido).
+  free: { maxTransactionsPerMonth: 15, maxActiveGoals: 1, maxBudgetCategories: 2, maxPatrimonioItems: 0, maxSubscriptions: 1, maxDocumentsPerMonth: 1, maxDebts: 1 },
+  // Basic: plano de entrada pago (R$ 5/semana nos primeiros 7 dias, depois R$ 8/mês).
   basic: { maxTransactionsPerMonth: 20, maxActiveGoals: 1, maxBudgetCategories: 2, maxPatrimonioItems: 2, maxSubscriptions: 2, maxDocumentsPerMonth: 3, maxDebts: 3 },
 };
+// Plano em vigor: o pago, se estiver ativo; senão (sem plano, teste vencido, cancelado) o Free.
+function planoEfetivo() {
+  return hasActivePlan() ? ((typeof profile !== 'undefined' && profile && profile.plan) || 'free') : 'free';
+}
 // PLAN_LIMITS lê sempre os limites do plano atual (free ou basic); Plus+ nunca passa por checkPlanLimit.
 var PLAN_LIMITS = {};
 Object.keys(PLAN_LIMITS_BY_PLAN.basic).forEach(function(k) {
   Object.defineProperty(PLAN_LIMITS, k, { enumerable: true, get: function() {
-    return PLAN_LIMITS_BY_PLAN.basic[k];
+    return PLAN_LIMITS_BY_PLAN[planoEfetivo() === 'free' ? 'free' : 'basic'][k];
   } });
 });
 function currentPlanLabel() {
-  var p = (typeof profile !== 'undefined' && profile && profile.plan) || '';
-  return { basic: 'Basic', plus: 'Plus', pro: 'Pro', business: 'Business' }[p] || 'Sem plano';
+  return { free: 'Free', basic: 'Basic', plus: 'Plus', pro: 'Pro', business: 'Business' }[planoEfetivo()] || 'Free';
 }
-// Não há plano gratuito: sem assinatura ativa, só a aba Plano (e os direitos do titular) ficam acessíveis.
+// true = plano PAGO ativo (ou teste de 7 dias dentro do prazo). Quem não tem usa o plano Free (ver planoEfetivo).
 function hasActivePlan() {
   if (typeof DEMO !== 'undefined' && DEMO.on) return true;
   if (window.Trial) return Trial.temAcesso(profile);   // plano pago ativo OU teste de 7 dias ainda dentro do prazo
@@ -5438,7 +5443,7 @@ var PLAN_TIER_META = {
 };
 
 function currentPlanRank() {
-  return PLAN_RANK[(profile && profile.plan) || 'free'] || 0;
+  return PLAN_RANK[planoEfetivo()] || 0;
 }
 
 function isPlusUser() {
@@ -5510,7 +5515,6 @@ let currentTab = 'dashboard';
 let searchQuery = '';
 
 function renderCurrentTab() {
-  if (!hasActivePlan() && currentTab !== 'plano') { currentTab = 'plano'; document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', (b.dataset.tabs || b.dataset.tab).split(' ').indexOf('plano') >= 0)); }
   const c = compute();
   const main = document.getElementById('main');
   const renderers = {
@@ -7694,11 +7698,19 @@ function bindConverter() {
 // PLANO & STRIPE
 // ═══════════════════════════════════════════════════════
 function renderPlano() {
-  const cur = hasActivePlan() ? (profile?.plan || '') : '';
+  const cur = planoEfetivo();
   const status = profile?.plan_status || 'active';
   const L = PLAN_LIMITS;
   const plans = [
-    { id: 'basic', name: 'Basic', price: 'R$ 5,00', period: ' pelos 7 dias', priceNote: 'Depois, R$ 8,00/mês. Cancele quando quiser.', hotmartUrl: appConfig.hotmartCheckoutTrial || appConfig.hotmartCheckoutBasic, directUrl: appConfig.hotmartCheckoutTrial ? appConfig.hotmartCheckoutBasic : null, features: [
+    { id: 'free', name: 'Free', price: 'R$ 0', period: '', priceNote: 'Para conhecer o app. Sem prazo, sem cartão.', free: true, features: [
+      'Até ' + PLAN_LIMITS_BY_PLAN.free.maxTransactionsPerMonth + ' lançamentos/mês',
+      'Até ' + PLAN_LIMITS_BY_PLAN.free.maxActiveGoals + ' meta ativa',
+      'Até ' + PLAN_LIMITS_BY_PLAN.free.maxDebts + ' dívida e ' + PLAN_LIMITS_BY_PLAN.free.maxSubscriptions + ' assinatura',
+      'Orçamento em até ' + PLAN_LIMITS_BY_PLAN.free.maxBudgetCategories + ' categorias',
+      'Nota de saúde financeira (0 a 100)',
+      PLAN_LIMITS_BY_PLAN.free.maxDocumentsPerMonth + ' documento/mês',
+    ], cta: 'Plano gratuito', tier: 'free' },
+    { id: 'basic', name: 'Basic', price: 'R$ 5,00', period: '/semana', priceNote: 'Depois de 7 dias, troque para R$ 8,00/mês. Cancele quando quiser.', hotmartUrl: appConfig.hotmartCheckoutTrial || appConfig.hotmartCheckoutBasic, directUrl: appConfig.hotmartCheckoutTrial ? appConfig.hotmartCheckoutBasic : null, features: [
       'Até ' + PLAN_LIMITS_BY_PLAN.basic.maxTransactionsPerMonth + ' lançamentos/mês',
       'Até ' + PLAN_LIMITS_BY_PLAN.basic.maxActiveGoals + ' meta ativa',
       'Orçamento em até ' + PLAN_LIMITS_BY_PLAN.basic.maxBudgetCategories + ' categorias',
@@ -7740,8 +7752,8 @@ function renderPlano() {
     : profile?.stripe_customer_id
       ? `<button class="btn-add" onclick="openBillingPortal()">Gerenciar assinatura</button>`
       : '';
-  const paywall = hasActivePlan() ? '' : `<div class="card mb-24 animate-in" style="border-left:3px solid var(--gold)"><div class="card-title">🔒 Escolha um plano para começar</div><div class="occ-b-desc" style="margin-top:6px">O SM Financial é um serviço pago, a partir do Basic. Assim que o pagamento for confirmado, o acesso é liberado. Seus dados continuam seus: você pode <a href="#" onclick="exportJSON();return false">exportar tudo</a> ou <a href="#" onclick="openDeleteAccount();return false">excluir a conta</a> a qualquer momento.</div></div>`;
-  return trialBannerHtml() + paywall + `<div class="section-header animate-in"><div><div class="section-title">Seu Plano</div><div class="section-desc">Plano atual: <strong>${plans.find(p => p.id === cur)?.name || 'Nenhum'}</strong>${status === 'trialing' ? ' — em teste' : status !== 'active' ? ' — ' + status : ''}</div></div>${manageBtn}</div>
+  const paywall = hasActivePlan() ? '' : `<div class="card mb-24 animate-in" style="border-left:3px solid var(--gold)"><div class="card-title">Você está no plano Free</div><div class="occ-b-desc" style="margin-top:6px">Você usa o SM Financial de graça, com limites. Para liberar a Central de Alívio, mais lançamentos e o resto das ferramentas, comece o Basic por R$ 5,00/semana. Seus dados continuam seus: você pode <a href="#" onclick="exportJSON();return false">exportar tudo</a> ou <a href="#" onclick="openDeleteAccount();return false">excluir a conta</a> a qualquer momento.</div></div>`;
+  return trialBannerHtml() + paywall + `<div class="section-header animate-in"><div><div class="section-title">Seu Plano</div><div class="section-desc">Plano atual: <strong>${plans.find(p => p.id === cur)?.name || 'Nenhum'}</strong>${!hasActivePlan() ? '' : status === 'trialing' ? ' — em teste' : status !== 'active' ? ' — ' + status : ''}</div></div>${manageBtn}</div>
   ${(PJ_OPEN_TO_ALL && !pjBloqueado()) ? '<div class="card mb-24 animate-in" style="border-left:3px solid var(--teal)"><div class="card-title">🏢 Área Empresa em testes</div><div class="occ-b-desc" style="margin-top:6px">Sua conta tem acesso antecipado ao modo Empresa enquanto finalizamos o plano Business.</div></div>' : ''}
   <div class="card mb-24 animate-in"><div class="card-title">🔔 Notificações por WhatsApp e e-mail <span class="soon-badge">Em breve</span></div><div class="occ-b-desc" style="margin-top:6px">Receba avisos de contas a vencer, orçamento estourado e metas direto no celular e na caixa de entrada. Estamos preparando e vamos avisar quando estiver disponível.</div><div style="display:flex;gap:16px;margin-top:10px;flex-wrap:wrap;opacity:.55"><label><input type="checkbox" disabled> WhatsApp</label><label><input type="checkbox" disabled> E-mail</label></div></div>
   <div class="pricing-grid">${plans.map((p, i) => {
@@ -7751,11 +7763,13 @@ function renderPlano() {
       ctaHtml = `<a class="btn-pricing" style="display:block;text-align:center;text-decoration:none;box-sizing:border-box" href="${appConfig.hotmartCheckoutBasic}${currentUser?.email ? '?email=' + encodeURIComponent(currentUser.email) : ''}" target="_blank" rel="noopener noreferrer">Continuar por R$ 8,00/mês</a>`;
     } else if (isCurrent) {
       ctaHtml = `<button class="btn-pricing current" disabled>Plano atual</button>`;
+    } else if (p.free) {
+      ctaHtml = `<button class="btn-pricing" disabled>Plano gratuito</button>`;
     } else if (p.soon) {
       ctaHtml = `<button class="btn-pricing" disabled>Em breve</button>`;
     } else if (p.hotmartUrl) {
       const email = currentUser?.email ? encodeURIComponent(currentUser.email) : '';
-      ctaHtml = `<a class="btn-pricing" style="display:block;text-align:center;text-decoration:none;box-sizing:border-box" href="${p.hotmartUrl}${email ? '?email=' + email : ''}" target="_blank" rel="noopener noreferrer">${p.directUrl ? 'Testar 7 dias por R$ 5' : 'Comprar na Hotmart'}</a>` +
+      ctaHtml = `<a class="btn-pricing" style="display:block;text-align:center;text-decoration:none;box-sizing:border-box" href="${p.hotmartUrl}${email ? '?email=' + email : ''}" target="_blank" rel="noopener noreferrer">${p.directUrl ? 'Começar por R$ 5,00/semana' : 'Comprar na Hotmart'}</a>` +
         (p.directUrl ? `<a class="btn-sm" style="display:block;text-align:center;margin-top:8px;text-decoration:none" href="${p.directUrl}${email ? '?email=' + email : ''}" target="_blank" rel="noopener noreferrer">ou assinar direto por R$ 8,00/mês</a>` : '') +
         (p.priceId ? `<button class="btn-sm" style="width:100%;margin-top:8px" onclick="startCheckout('${p.priceId}')">ou cartão internacional (Stripe)</button>` : '');
     } else if (p.priceId) {
@@ -8200,10 +8214,10 @@ async function showApp() {
   document.getElementById('onboarding-screen').hidden = true;
   document.getElementById('app-screen').hidden = false;
   renderFooter();
-  const planNames = { basic: 'Basic', plus: 'Plus', pro: 'Pro', business: 'Business' };
-  const planKey = hasActivePlan() ? (profile?.plan || 'basic') : 'free';
+  const planNames = { free: 'Free', basic: 'Basic', plus: 'Plus', pro: 'Pro', business: 'Business' };
+  const planKey = hasActivePlan() ? (profile?.plan || 'basic') : 'free';  // 'free' = sem plano pago
   const planBadgeEl = document.getElementById('plan-badge');
-  planBadgeEl.textContent = planNames[planKey] || 'Sem plano';
+  planBadgeEl.textContent = planNames[planKey] || 'Free';
   planBadgeEl.className = 'sidebar-plan plan-badge-' + (planNames[planKey] ? planKey : 'free');
   updatePeriodDisplay();
   updateThemeIcon();

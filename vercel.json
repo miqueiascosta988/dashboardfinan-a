@@ -16,6 +16,21 @@
       "dest": "/api/index.js"
     },
     {
+      "src": "/interno/?",
+      "headers": {
+        "X-Robots-Tag": "noindex, nofollow",
+        "Cache-Control": "no-store"
+      },
+      "dest": "/public/interno/index.html"
+    },
+    {
+      "src": "/crm/?",
+      "status": 302,
+      "headers": {
+        "Location": "/interno/?crm=1"
+      }
+    },
+    {
       "src": "/triagem",
       "dest": "/public/triagem.html"
     },

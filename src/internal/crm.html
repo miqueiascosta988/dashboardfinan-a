@@ -34,7 +34,7 @@ var esc=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){r
 var brl=function(v){return v==null?'—':'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})};
 var pct=function(v){return v==null?'—':Number(v).toLocaleString('pt-BR')+'%'};
 var n0=function(v){return Number(v||0).toLocaleString('pt-BR')};
-function relogin(){try{sessionStorage.removeItem('sm_int_token')}catch(e){}location.href='/interno/?relogin=1'}
+function relogin(){try{sessionStorage.removeItem('sm_int_token')}catch(e){}location.href='/interno/?relogin=1&crm=1'}
 function say(t,bad){var m=$('msg');m.textContent=t||'';m.className='muted'+(bad?' bad':'')}
 function api(p,o){o=o||{};o.headers=Object.assign({Authorization:'Bearer '+TOKEN},o.headers||{});if(o.body&&typeof o.body!=='string'){o.body=JSON.stringify(o.body);o.headers['Content-Type']='application/json'}
  return fetch('/api/'+p,o).then(function(r){if(r.status===401||r.status===403){relogin();throw new Error('auth')}return r.json().catch(function(){return{}}).then(function(j){if(!r.ok)throw new Error(j.error||'Erro');return j})})}

@@ -128,11 +128,13 @@ footer a{color:var(--ink3)}
       '<a class="cta" id="cta" href="' + esc(primary[1]) + '">' + esc(primary[0]) + '</a>' +
       (second ? '<a class="alt" id="alt" href="' + esc(second[1]) + '">' + esc(second[0]) + '</a>' : '') +
       '<div class="note">Suas respostas ficam só neste aparelho. Não pedimos telefone nem e-mail aqui. Cancele quando quiser.</div>';
+    try { if (window.smFunil) smFunil.track('triagem_fim'); } catch (e) {}
     var c = document.getElementById('cta'); if (c) c.focus({ preventScroll: true });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
   ask();
 })();
 </script>
+<script src="/funil.js"></script>
 </body>
 </html>

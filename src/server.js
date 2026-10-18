@@ -89,6 +89,8 @@ app.use('/api/calc', require('./routes/calc'));
 
 // Área INTERNA da equipe (Auditoria Fiscal): só entra quem está na tabela `staff`
 app.use('/api/interno', require('./routes/interno'));
+// CRM, funil de vendas e painel de tráfego pago (equipe) + coleta anônima de eventos do funil
+app.use('/api', require('./routes/crm'));
 // A página de entrada da área interna não deve ser indexada nem guardada em cache
 app.use('/interno', (req, res, next) => { res.set({ 'X-Robots-Tag': 'noindex, nofollow', 'Cache-Control': 'no-store' }); next(); });
 

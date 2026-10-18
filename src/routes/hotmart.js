@@ -45,6 +45,16 @@ const isTrialProduct = (productId) => !!process.env.HOTMART_PRODUCT_TRIAL && Str
 const likeEscape = (v) => String(v).replace(/[\\%_]/g, (c) => '\\' + c);
 const crypto = require('crypto');
 const { sendWelcomeEmail } = require('../lib/welcome-email');
+const { cleanStr } = require('../lib/crm');
+// CRM: registra o comprador (e a campanha de origem, se o link trouxe src/sck). Nunca derruba o webhook.
+async function crmRegistrarCompra(supabase, data, buyerEmail, plan, transactionId) {
+  try {
+    const origin = (data.purchase && data.purchase.origin) || {};
+    const price = data.purchase && data.purchase.price && parseFloat(data.purchase.price.value);
+    await supabase.from('crm_leads').upsert({ nome: cleanStr(data.buyer && data.buyer.name, 120), email: cleanStr(buyerEmail, 160), origem: 'hotmart', campanha: cleanStr(origin.src, 100), etapa: 'cliente', valor: isFinite(price) ? price : null, plano: plan, hotmart_tx: transactionId ? String(transactionId) : null, updated_at: new Date().toISOString() }, { onConflict: 'hotmart_tx' });
+    if (origin.sck && /^[a-zA-Z0-9-]{8,40}$/.test(String(origin.sck))) await supabase.from('crm_events').insert({ visitor: String(origin.sck), etapa: 'compra', campanha: cleanStr(origin.src, 100), src: 'hotmart' });
+  } catch (e) { console.warn('CRM: compra não registrada:', e.message); }
+}
 function safeEqual(a, b) {
   const x = Buffer.from(String(a || '')), y = Buffer.from(String(b || ''));
   return x.length === y.length && crypto.timingSafeEqual(x, y);
@@ -136,7 +146,7 @@ router.post('/webhook', express.json(), async (req, res) => {
       } else {
         console.log('Hotmart: plano', plan, trial ? '(teste de ' + TRIAL_DAYS + ' dias)' : '', 'liberado para', buyerEmail);
       }
-      if (event === 'PURCHASE_APPROVED') await welcomeOnce(supabase, buyerEmail, plan, trial);
+      if (event === 'PURCHASE_APPROVED') { await welcomeOnce(supabase, buyerEmail, plan, trial); if (transactionId) await crmRegistrarCompra(supabase, data, buyerEmail, plan, transactionId); }
     } else if (DOWNGRADE_EVENTS.includes(event)) {
       // Cancelar/estornar o produto de TESTE só encerra um teste: nunca derruba uma assinatura mensal ativa.
       let q = supabase.from('profiles').update({ plan: 'free', plan_status: 'canceled', plan_expires_at: null }).ilike('email', likeEscape(buyerEmail)); // 'free' = sem assinatura (o app bloqueia o acesso)
@@ -144,6 +154,7 @@ router.post('/webhook', express.json(), async (req, res) => {
       if (dn ? dn.weekly : isTrialProduct(productId)) q = q.eq('plan_status', 'trialing');
       await q;
       await supabase.from('pending_purchases').delete().ilike('email', likeEscape(buyerEmail));
+      if (transactionId && (event === 'PURCHASE_REFUNDED' || event === 'PURCHASE_CHARGEBACK')) { try { await supabase.from('crm_leads').update({ etapa: 'perdido', updated_at: new Date().toISOString() }).eq('hotmart_tx', String(transactionId)); } catch (e) {} }
       console.log('Hotmart: assinatura encerrada —', buyerEmail, '(' + event + ')');
     } else {
       console.log('Hotmart: evento não tratado:', event);

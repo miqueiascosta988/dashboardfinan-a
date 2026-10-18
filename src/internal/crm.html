@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow">
+<title>CRM e Funil</title>
+<style>
+:root{--bg:#f4f6fa;--card:#fff;--ink:#17202e;--ink2:#46526a;--ink3:#7a869c;--line:#e3e8f0;--teal:#0f766e;--red:#b42318;--gold:#a3791a;--green:#0f7a4a;--navy:#17324f}
+@media (prefers-color-scheme:dark){:root{--bg:#10151d;--card:#18202b;--ink:#e8edf5;--ink2:#b5c0d2;--ink3:#8593a8;--line:#27313f;--teal:#2dd4bf;--red:#f97066;--gold:#e0b34a;--green:#4ade80;--navy:#0b1a2c}}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+header{display:flex;align-items:center;gap:12px;padding:12px 20px;background:var(--navy);color:#fff;flex-wrap:wrap}header h1{font-size:16px;margin:0;flex:1}
+button,select{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:7px 12px}
+button.pri{background:var(--teal);color:#fff;border-color:var(--teal)}header button,header select{background:transparent;color:#fff;border-color:rgba(255,255,255,.4)}header option{color:#000}
+nav{display:flex;gap:6px;padding:12px 20px 0;max-width:1300px;margin:0 auto;flex-wrap:wrap}nav button.on{background:var(--teal);color:#fff;border-color:var(--teal)}
+main{max-width:1300px;margin:0 auto;padding:14px 20px 40px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px}.kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px}.kpi small{display:block;color:var(--ink3);font-size:11px;text-transform:uppercase;letter-spacing:.04em}.kpi b{font-size:21px}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 6px;border-top:1px solid var(--line);text-align:left;white-space:nowrap}th{color:var(--ink3);font-size:11px;text-transform:uppercase}.sc{overflow:auto}
+input,textarea{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);width:100%}
+.fb{display:flex;align-items:center;gap:10px;margin:8px 0}.fb span{width:190px;font-size:13px;flex:none}.fb i{display:block;height:22px;border-radius:6px;background:var(--teal);min-width:2px}.fb em{font-style:normal;font-size:12.5px;color:var(--ink2);white-space:nowrap}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}.muted{color:var(--ink3);font-size:12.5px;line-height:1.6}
+.lead{border:1px solid var(--line);border-radius:10px;padding:10px;margin-top:8px;background:var(--card)}.lead.due{border-color:var(--gold)}.lead b{font-size:14px}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}.cols h3{margin:0 0 4px;font-size:13px;text-transform:uppercase;color:var(--ink3)}
+.bad{color:var(--red)}.ok{color:var(--green)}
+</style></head><body>
+<header><h1>📈 CRM e Funil de vendas <small style="opacity:.75">· uso exclusivo da equipe</small></h1>
+<select id="dias" aria-label="Período"><option value="7">7 dias</option><option value="30" selected>30 dias</option><option value="90">90 dias</option></select>
+<button id="goAud">Auditoria</button><button id="out">Sair</button></header>
+<nav id="tabs"><button data-t="painel" class="on">Painel</button><button data-t="leads">Contatos</button><button data-t="ads">Anúncios</button><button data-t="links">Links e guia</button></nav>
+<main><div id="msg" class="muted"></div><section id="v"></section></main>
+<script>
+(function(){
+var TOKEN=null;try{TOKEN=sessionStorage.getItem('sm_int_token')}catch(e){}
+var tab='painel',P=null,L=[];
+var $=function(i){return document.getElementById(i)};
+var esc=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})};
+var brl=function(v){return v==null?'—':'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})};
+var pct=function(v){return v==null?'—':Number(v).toLocaleString('pt-BR')+'%'};
+var n0=function(v){return Number(v||0).toLocaleString('pt-BR')};
+function relogin(){try{sessionStorage.removeItem('sm_int_token')}catch(e){}location.href='/interno/?relogin=1'}
+function say(t,bad){var m=$('msg');m.textContent=t||'';m.className='muted'+(bad?' bad':'')}
+function api(p,o){o=o||{};o.headers=Object.assign({Authorization:'Bearer '+TOKEN},o.headers||{});if(o.body&&typeof o.body!=='string'){o.body=JSON.stringify(o.body);o.headers['Content-Type']='application/json'}
+ return fetch('/api/'+p,o).then(function(r){if(r.status===401||r.status===403){relogin();throw new Error('auth')}return r.json().catch(function(){return{}}).then(function(j){if(!r.ok)throw new Error(j.error||'Erro');return j})})}
+if(!TOKEN){relogin()}
+$('out').onclick=function(){try{sessionStorage.removeItem('sm_int_token')}catch(e){}location.href='/interno/?logout=1'};
+$('goAud').onclick=function(){fetch('/api/interno/ui',{headers:{Authorization:'Bearer '+TOKEN}}).then(function(r){return r.ok?r.text():Promise.reject()}).then(function(h){document.open();document.write(h);document.close()}).catch(function(){say('Não foi possível abrir a Auditoria.',1)})};
+$('dias').onchange=function(){load()};
+$('tabs').onclick=function(e){var b=e.target.closest('button');if(!b)return;tab=b.dataset.t;[].forEach.call($('tabs').children,function(x){x.className=x===b?'on':''});draw()};
+var NOMES={triagem_visita:'Visitou a triagem',triagem_fim:'Concluiu a triagem',apresentacao_visita:'Viu a apresentação',checkout_clique:'Clicou no checkout',compra:'Comprou'};
+var ETAPAS=['novo','conversando','cliente','perdido'];var ENOME={novo:'Novo',conversando:'Em conversa',trial:'Teste',cliente:'Cliente',perdido:'Perdido'};
+function load(){say('Carregando...');return Promise.all([api('crm/painel?dias='+$('dias').value),api('crm/leads')]).then(function(r){P=r[0];L=r[1].leads||[];say('');draw()}).catch(function(e){if(e.message!=='auth')say(e.message,1)})}
+function painelV(){
+ if(!P)return'';var T=P.total,max=Math.max(1,P.funil[0].n);
+ var k=[['Investido',brl(T.invest)],['Cliques',n0(T.cliques)],['CTR',pct(T.ctr)],['Visitas na triagem',n0(T.triagem_visita)],['Checkouts',n0(T.checkout_clique)],['Compras',n0(T.compras)],['Custo por compra',brl(T.cpa)],['Receita',brl(T.receita)],['ROAS',T.roas==null?'—':String(T.roas).replace('.',',')+'x']];
+ var h='<div class="kpis">'+k.map(function(x){return'<div class="kpi"><small>'+x[0]+'</small><b>'+x[1]+'</b></div>'}).join('')+'</div>';
+ h+='<div class="card"><b>Funil (visitantes únicos)</b>'+P.funil.map(function(f){return'<div class="fb"><span>'+NOMES[f.etapa]+'</span><i style="width:'+Math.max(1,f.n/max*55)+'%"></i><em>'+n0(f.n)+(f.deAnterior!=null?' · '+pct(f.deAnterior)+' da etapa anterior':'')+'</em></div>'}).join('')+'<div class="muted">Compras vêm da Hotmart (webhook) e só contam como "da campanha" quando o link de compra levou a campanha junto.</div></div>';
+ h+='<div class="card sc"><b>Por campanha</b><table><tr><th>Campanha</th><th>Invest.</th><th>Cliques</th><th>CTR</th><th>CPC</th><th>Visitas</th><th>Custo/visita</th><th>Apres.</th><th>Checkout</th><th>Custo/checkout</th><th>Compras</th><th>CPA</th><th>Receita</th><th>ROAS</th></tr>'
+ +(P.rows.length?P.rows.map(function(r){return'<tr><td>'+esc(r.campanha)+'</td><td>'+brl(r.invest)+'</td><td>'+n0(r.cliques)+'</td><td>'+pct(r.ctr)+'</td><td>'+brl(r.cpc)+'</td><td>'+n0(r.triagem_visita)+'</td><td>'+brl(r.custoVisita)+'</td><td>'+n0(r.apresentacao_visita)+'</td><td>'+n0(r.checkout_clique)+'</td><td>'+brl(r.custoCheckout)+'</td><td>'+n0(r.compras)+'</td><td>'+brl(r.cpa)+'</td><td>'+brl(r.receita)+'</td><td>'+(r.roas==null?'—':String(r.roas).replace('.',',')+'x')+'</td></tr>'}).join(''):'<tr><td colspan="14" class="muted">Sem dados no período. Importe os anúncios e use os links da aba "Links e guia".</td></tr>')+'</table></div>';
+ return h}
+function leadsV(){
+ var today=new Date().toISOString().slice(0,10);
+ var h='<div class="card"><b>Novo contato</b><div class="grid" style="margin-top:8px"><input id="ln" placeholder="Nome"><input id="lc" placeholder="WhatsApp / @instagram"><input id="le" placeholder="E-mail (opcional)"><input id="lo" placeholder="Origem (ex.: instagram)"><input id="lk" placeholder="Campanha (opcional)"><input id="lp" type="date" title="Próximo contato"></div><div style="margin-top:8px"><button class="pri" id="ladd">Adicionar</button></div></div>';
+ var due=L.filter(function(l){return l.proximo_contato&&l.proximo_contato<=today&&l.etapa!=='cliente'&&l.etapa!=='perdido'});
+ if(due.length)h+='<div class="card" style="border-color:var(--gold)"><b>Para falar hoje ('+due.length+')</b> '+due.map(function(l){return'<span class="muted"> · '+esc(l.nome||l.contato||l.email)+'</span>'}).join('')+'</div>';
+ h+='<div class="cols">'+ETAPAS.map(function(e){var arr=L.filter(function(l){return e==='cliente'?(l.etapa==='cliente'||l.etapa==='trial'):l.etapa===e});
+  return'<div><h3>'+ENOME[e]+' ('+arr.length+')</h3>'+arr.map(function(l){return'<div class="lead'+(l.proximo_contato&&l.proximo_contato<=today&&e!=='cliente'&&e!=='perdido'?' due':'')+'" data-id="'+esc(l.id)+'"><b>'+esc(l.nome||l.contato||l.email||'(sem nome)')+'</b><div class="muted">'+esc([l.contato,l.email,l.origem,l.campanha,l.plano,l.valor!=null?brl(l.valor):''].filter(Boolean).join(' · '))+'</div>'
+   +'<select data-f="etapa">'+['novo','conversando','trial','cliente','perdido'].map(function(x){return'<option value="'+x+'"'+(x===l.etapa?' selected':'')+'>'+ENOME[x]+'</option>'}).join('')+'</select> <input data-f="proximo_contato" type="date" value="'+esc(l.proximo_contato||'')+'" style="width:auto"> <textarea data-f="notas" rows="2" placeholder="Notas">'+esc(l.notas||'')+'</textarea> <button data-del="1">Excluir</button></div>'}).join('')+'</div>'}).join('')+'</div>';
+ return h}
+function adsV(){
+ return'<div class="card"><b>Meta Ads (automático)</b><div class="muted">Puxa investimento, impressões e cliques por campanha e por dia dos últimos 30 dias. Precisa de META_ACCESS_TOKEN e META_AD_ACCOUNT_ID no servidor'+(P&&!P.metaConfigurada?' <span class="bad">(ainda não configurados)</span>':' <span class="ok">(configurados)</span>')+'.</div><div style="margin-top:8px"><button class="pri" id="meta">Sincronizar com a Meta</button></div></div>'
+ +'<div class="card"><b>Importar relatório (CSV)</b><div class="muted">No Gerenciador de Anúncios, exporte o relatório por Dia com as colunas: Dia, Nome da campanha, Valor usado, Impressões e Cliques no link.</div><div style="margin-top:8px"><input type="file" id="csvf" accept=".csv,text/csv"></div></div>'
+ +'<div class="card"><b>Lançar manualmente</b><div class="grid" style="margin-top:8px"><input id="ad" type="date"><input id="ac" placeholder="Campanha (mesmo nome do link)"><input id="av" placeholder="Valor gasto (R$)"><input id="ai" placeholder="Impressões"><input id="ak" placeholder="Cliques no link"></div><div style="margin-top:8px"><button class="pri" id="aadd">Salvar</button></div></div>'}
+function linksV(){
+ var host=location.origin;
+ return'<div class="card"><b>Gerador de link rastreável</b><div class="grid" style="margin-top:8px"><input id="gc" placeholder="Nome da campanha (igual ao do anúncio)"><input id="gs" placeholder="Origem" value="instagram"><input id="gm" placeholder="Mídia" value="cpc"><input id="gt" placeholder="Criativo (opcional)"></div><div style="margin-top:8px"><input id="gout" readonly placeholder="O link aparece aqui"></div><div style="margin-top:8px"><button class="pri" id="gcopy">Copiar link</button></div><div class="muted" style="margin-top:8px">Use o mesmo nome de campanha no Gerenciador de Anúncios e aqui: é assim que o investimento e as visitas se encontram no painel.</div></div>'
+ +'<div class="card muted"><b>Como o funil funciona</b><ol><li>O anúncio leva para <code>'+esc(host)+'/triagem</code> (link com a campanha).</li><li>A pessoa responde a triagem, vê a apresentação e clica no checkout. Cada passo é contado uma vez por visitante, sem dados pessoais.</li><li>A compra volta pela Hotmart e aparece em Contatos como cliente, ligada à campanha.</li><li>Em Anúncios você traz o gasto (Meta automático ou CSV). O painel calcula custo por visita, por checkout e por compra, e o retorno.</li></ol></div>'}
+function draw(){var v=$('v');v.innerHTML=tab==='painel'?painelV():tab==='leads'?leadsV():tab==='ads'?adsV():linksV();bind()}
+function bind(){
+ var g=function(i){return $(i)};
+ if(g('ladd'))g('ladd').onclick=function(){api('crm/leads',{method:'POST',body:{nome:g('ln').value,contato:g('lc').value,email:g('le').value,origem:g('lo').value,campanha:g('lk').value,proximo_contato:g('lp').value,etapa:'novo'}}).then(load).catch(function(e){say(e.message,1)})};
+ [].forEach.call(document.querySelectorAll('.lead'),function(el){var id=el.dataset.id;
+  [].forEach.call(el.querySelectorAll('[data-f]'),function(f){f.onchange=function(){var b={};b[f.dataset.f]=f.value;api('crm/leads/'+id,{method:'PATCH',body:b}).then(load).catch(function(e){say(e.message,1)})}});
+  var d=el.querySelector('[data-del]');if(d)d.onclick=function(){if(confirm('Excluir este contato?'))api('crm/leads/'+id,{method:'DELETE'}).then(load).catch(function(e){say(e.message,1)})}});
+ if(g('meta'))g('meta').onclick=function(){say('Sincronizando com a Meta...');api('crm/ads/meta',{method:'POST'}).then(function(r){say(r.n+' linhas atualizadas.');load()}).catch(function(e){say(e.message,1)})};
+ if(g('csvf'))g('csvf').onchange=function(){var f=g('csvf').files[0];if(!f)return;var r=new FileReader();r.onload=function(){api('crm/ads/csv',{method:'POST',body:{csv:r.result}}).then(function(x){say(x.n+' linhas importadas.');load()}).catch(function(e){say(e.message,1)})};r.readAsText(f)};
+ if(g('aadd'))g('aadd').onclick=function(){api('crm/ads',{method:'POST',body:{dia:g('ad').value,campanha:g('ac').value,investimento:g('av').value,impressoes:g('ai').value,cliques:g('ak').value}}).then(function(){say('Salvo.');load()}).catch(function(e){say(e.message,1)})};
+ if(g('gc')){var up=function(){var c=g('gc').value.trim();if(!c){g('gout').value='';return}var u=new URL('/triagem',location.origin);u.searchParams.set('utm_source',g('gs').value.trim()||'instagram');u.searchParams.set('utm_medium',g('gm').value.trim()||'cpc');u.searchParams.set('utm_campaign',c);if(g('gt').value.trim())u.searchParams.set('utm_content',g('gt').value.trim());g('gout').value=u.toString()};
+  ['gc','gs','gm','gt'].forEach(function(i){g(i).oninput=up});g('gcopy').onclick=function(){g('gout').select();try{document.execCommand('copy');say('Link copiado.')}catch(e){}}}
+}
+load();
+})();
+</script></body></html>

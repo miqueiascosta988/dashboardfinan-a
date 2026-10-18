@@ -33,7 +33,7 @@ test('Meta: consulta com token no cabeçalho, pagina e grava como fonte meta', a
   const calls = []; const g = globalThis.fetch;
   globalThis.fetch = async (url, init) => { calls.push([String(url), init]);
     if (/auth\/v1\/user/.test(url)) return { ok: true, json: async () => ({ id: 'u1', email: 'a@b' }) };
-    if (/rest\/v1\/staff/.test(url)) return { ok: true, json: async () => [{ role: 'admin' }] };
+    if (/rest\/v1\/crm_staff/.test(url)) return { ok: true, json: async () => [{ user_id: 'u1' }] };
     if (/graph\.facebook\.com/.test(url)) return { ok: true, json: async () => ({ data: [{ campaign_name: 'C1', date_start: '2026-10-15', spend: '10.5', impressions: '1000', inline_link_clicks: '30' }] }) };
     if (/rest\/v1\/crm_ads/.test(url)) return { ok: true, json: async () => ({}) };
     return { ok: false, json: async () => ({}) }; };
@@ -43,4 +43,28 @@ test('Meta: consulta com token no cabeçalho, pagina e grava como fonte meta', a
     const meta = calls.find((c) => /graph\.facebook/.test(c[0])); assert.match(meta[0], /act_123\/insights/); assert.equal(meta[1].headers.Authorization, 'Bearer tok'); assert.doesNotMatch(meta[0], /tok/);
     const save = calls.find((c) => /crm_ads/.test(c[0])); assert.equal(JSON.parse(save[1].body)[0].fonte, 'meta'); assert.equal(JSON.parse(save[1].body)[0].campanha, 'C1');
   } finally { globalThis.fetch = g; }
+});
+
+test('equipes separadas: quem está só na Auditoria (staff) não entra no CRM, e a consulta usa crm_staff', async () => {
+  const calls = []; const g = globalThis.fetch;
+  globalThis.fetch = async (url) => { calls.push(String(url));
+    if (/auth\/v1\/user/.test(url)) return { ok: true, json: async () => ({ id: 'u2', email: 'aud@b' }) };
+    if (/rest\/v1\/crm_staff/.test(url)) return { ok: true, json: async () => [] };          // não está na lista do CRM
+    if (/rest\/v1\/staff/.test(url)) return { ok: true, json: async () => [{ role: 'admin' }] };   // mas está na da Auditoria
+    return { ok: false, json: async () => ({}) }; };
+  try {
+    for (const [m, p] of [['get', '/crm/painel'], ['get', '/crm/leads'], ['get', '/crm/ui'], ['post', '/crm/ads/meta']]) {
+      const r = await run(find(m, p), { ip: '5' + p, path: p, headers: { authorization: 'Bearer t' }, query: {}, body: {} });
+      assert.equal(r.code, 403, p); assert.match(r.body.error, /CRM/);
+    }
+    assert.ok(calls.some((u) => /crm_staff/.test(u))); assert.ok(!calls.some((u) => /rest\/v1\/staff\?/.test(u)));
+  } finally { globalThis.fetch = g; }
+});
+test('migração 024 cria crm_staff separada e tira o CRM da equipe da Auditoria', () => {
+  const sql = require('fs').readFileSync(require('path').join(__dirname, '..', 'supabase', 'migrations', '024_crm_equipe_separada.sql'), 'utf8');
+  assert.match(sql, /create table if not exists public\.crm_staff/); assert.match(sql, /is_crm_staff\(\)/); assert.doesNotMatch(sql.replace(/--.*$/gm, ''), /public\.is_staff\(\)/);
+});
+test('as duas telas não têm atalho uma para a outra', () => {
+  const fs = require('fs'), p = require('path'), a = fs.readFileSync(p.join(__dirname, '..', 'src', 'internal', 'ui.html'), 'utf8'), c = fs.readFileSync(p.join(__dirname, '..', 'src', 'internal', 'crm.html'), 'utf8');
+  assert.doesNotMatch(a, /api\/crm/); assert.doesNotMatch(c, /api\/interno/);
 });

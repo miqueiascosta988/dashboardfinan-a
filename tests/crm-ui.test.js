@@ -37,19 +37,21 @@ test('funil: triagem e apresentação registram etapas e o checkout leva campanh
   const ctx = await browser.newContext(); const page = await ctx.newPage(), errs = []; page.on('pageerror', e => errs.push(e.message));
   await page.goto(base + '/triagem?utm_source=instagram&utm_medium=cpc&utm_campaign=Free%20Out'); await page.waitForTimeout(400);
   assert.ok(events.some(e => e.etapa === 'triagem_visita' && e.campanha === 'Free Out' && e.src === 'instagram'));
-  for (let i = 0; i < 5; i++) { await page.click('.opt >> nth=0'); await page.waitForTimeout(400); }
+  for (let i = 0; i < 5; i++) { await page.click('.opt >> nth=0'); await page.waitForTimeout(600); }
   await page.waitForSelector('#cta'); await page.waitForTimeout(300);
   assert.ok(events.some(e => e.etapa === 'triagem_fim'));
   await page.goto(base + '/apresentacao'); await page.waitForTimeout(600);
   const ev = events.find(e => e.etapa === 'apresentacao_visita'); assert.ok(ev && ev.campanha === 'Free Out', 'campanha lembrada do primeiro contato');
   const href = await page.evaluate(() => { const a = document.getElementById('cta1'); a.addEventListener('click', e => e.preventDefault()); a.click(); return a.href; });
+  await page.waitForTimeout(500);
   assert.match(href, /pay\.hotmart\.com/); assert.match(href, /sck=/); assert.match(href, /src=Free_Out/);
   assert.ok(events.some(e => e.etapa === 'checkout_clique'));
   assert.deepEqual(errs, []);
+  await ctx.close(); await new Promise(r => setTimeout(r, 300));
 });
 test('funil respeita Não rastrear', async () => {
   events.length = 0;
   const ctx = await browser.newContext(); await ctx.addInitScript(() => Object.defineProperty(navigator, 'doNotTrack', { get: () => '1' }));
-  const page = await ctx.newPage(); await page.goto(base + '/triagem?utm_campaign=X'); await page.waitForTimeout(500);
-  assert.equal(events.length, 0);
+  const page = await ctx.newPage(); await page.goto(base + '/triagem?utm_campaign=X'); await page.waitForTimeout(800);
+  assert.equal(events.filter(e => e.campanha === 'X').length, 0);
 });

@@ -1,4 +1,4 @@
-// CRM + funil + painel de tráfego pago. Uso exclusivo da equipe (tabela `staff`, como a Auditoria Interna).
+// CRM + funil + painel de tráfego pago. Uso exclusivo da equipe do CRM (tabela `crm_staff`). É uma lista DIFERENTE da Auditoria Interna (tabela `staff`).
 // - Eventos do funil chegam de forma anônima (código aleatório do visitante + origem/campanha, sem dados pessoais) por POST /api/funil/evento.
 // - A equipe lê e escreve com o próprio token, sob RLS (023_crm_funil.sql). A Meta é consultada com o token configurado no servidor.
 const express = require('express');
@@ -34,7 +34,7 @@ router.post('/funil/evento', limiter(40, 60000), express.json({ limit: '2kb' }),
   res.status(204).end();
 });
 
-// ── Área da equipe ──
+// ── Área da equipe do CRM (tabela `crm_staff`, separada da equipe da Auditoria) ──
 async function staffOnly(req, res, next) {
   res.set('Cache-Control', 'no-store');
   const h = req.headers.authorization || '', token = h.startsWith('Bearer ') ? h.slice(7) : '';
@@ -46,10 +46,10 @@ async function staffOnly(req, res, next) {
     const u = await fetch(base + '/auth/v1/user', { headers });
     if (!u.ok) return res.status(401).json({ error: 'Sessão expirada. Entre novamente.' });
     const user = await u.json();
-    const s = await fetch(base + '/rest/v1/staff?user_id=eq.' + encodeURIComponent(user.id) + '&select=role', { headers });
+    const s = await fetch(base + '/rest/v1/crm_staff?user_id=eq.' + encodeURIComponent(user.id) + '&select=user_id', { headers });
     const rows = s.ok ? await s.json() : [];
-    if (!Array.isArray(rows) || !rows[0]) return res.status(403).json({ error: 'Acesso restrito à equipe.' });
-    req.staff = { id: user.id, email: user.email, role: rows[0].role, headers };
+    if (!Array.isArray(rows) || !rows[0]) return res.status(403).json({ error: 'Acesso restrito à equipe do CRM.' });
+    req.staff = { id: user.id, email: user.email, headers };
     next();
   } catch (e) { res.status(503).json({ error: 'Serviço de autenticação indisponível.' }); }
 }

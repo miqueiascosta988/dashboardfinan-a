@@ -23,7 +23,7 @@ function enter(token){
   try{sessionStorage.setItem('sm_int_token',token)}catch(e){}
   var crm=/[?&]crm=1/.test(location.search);
   return fetch(crm?'/api/crm/ui':'/api/interno/ui',{headers:{Authorization:'Bearer '+token}}).then(function(r){
-    if(r.status===403){return sb.auth.signOut().then(function(){try{sessionStorage.removeItem('sm_int_token')}catch(e){};say('Esta conta não tem acesso à área interna.');throw new Error('x')})}
+    if(r.status===403){return sb.auth.signOut().then(function(){try{sessionStorage.removeItem('sm_int_token')}catch(e){};say(crm?'Esta conta não tem acesso ao CRM.':'Esta conta não tem acesso à Auditoria.');throw new Error('x')})}
     if(!r.ok){throw new Error('Não foi possível abrir a área interna agora.')}
     return r.text();
   }).then(function(html){document.open();document.write(html);document.close()});

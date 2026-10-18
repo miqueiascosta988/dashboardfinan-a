@@ -30,7 +30,7 @@ app.use(helmet({
       imgSrc: ["'self'", "data:", "blob:"],
       connectSrc: [
         "'self'", process.env.SUPABASE_URL || "https://*.supabase.co", "https://api.stripe.com",
-        "https://api.frankfurter.dev",   // câmbio (taxas de referência do BCE)
+        "https://api.frankfurter.dev",   // câmbio: variação de 10 dias (BCE); as cotações vêm de /api/cambio
         "https://api.bcb.gov.br",        // Selic ao vivo (Banco Central)
         "https://brasilapi.com.br",      // consulta de CNPJ
       ],
@@ -52,6 +52,7 @@ app.use('/api/stripe', stripeRoutes);
 // ─── Hotmart webhook (usa JSON normal, token "hottok" no corpo) ──
 const hotmartRoutes = require('./routes/hotmart');
 app.use('/api/hotmart', hotmartRoutes);
+app.use('/api', require('./routes/cambio'));   // cotações de todas as moedas (fonte e data na resposta)
 app.use('/api', require('./routes/semana'));   // /api/cron/semana (Vercel Cron) e /api/semana/sair
 
 app.use(express.json({ limit: '100kb' }));

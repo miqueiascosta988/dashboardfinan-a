@@ -19,6 +19,8 @@
 <script src="/agenda.js"></script>
 <script src="/trial.js"></script>
 <script src="/onboarding.js"></script>
+<script src="/calcdivida.js"></script>
+<script src="/calcdivida-ui.js"></script>
 <script src="/jornada.js"></script>
 <script src="/jornada-ui.js"></script>
 <script src="/weekplan.js"></script>
@@ -4473,14 +4475,14 @@ function getShapedPFTabs() {
 const tabsPF = [
   {id:'dashboard',label:'Visão Geral',section:'Operação'},{id:'receitas',label:'Renda',section:'Operação'},{id:'despesas',label:'Despesas',section:'Operação'},{id:'documentos',label:'Documentos',section:'Operação'},
   {id:'agenda',label:'Agenda & IA',section:'Planejamento'},{id:'orcamento',label:'Orçamento',section:'Planejamento'},{id:'metas',label:'Metas',section:'Planejamento'},{id:'projecao',label:'Projeção',plus:true,tier:'plus',section:'Planejamento'},{id:'estrategia',label:'Estratégia',plus:true,tier:'pro',section:'Planejamento'},
-  {id:'patrimonio',label:'Patrimônio',section:'Patrimônio & Dívidas'},{id:'dividas',label:'Dívidas',section:'Patrimônio & Dívidas'},{id:'investir',label:'Investimentos',plus:true,tier:'basic',section:'Patrimônio & Dívidas'},{id:'alivio',label:'Central de Alívio',plus:true,tier:'basic',section:'Patrimônio & Dívidas'},{id:'resolver',label:'Resolver Dívidas',plus:true,tier:'basic',section:'Patrimônio & Dívidas'},{id:'credito',label:'Crédito & Nome Sujo',plus:true,tier:'basic',section:'Patrimônio & Dívidas'},
+  {id:'patrimonio',label:'Patrimônio',section:'Patrimônio & Dívidas'},{id:'dividas',label:'Dívidas',section:'Patrimônio & Dívidas'},{id:'calcdivida',label:'Calculadora de dívidas',section:'Patrimônio & Dívidas'},{id:'investir',label:'Investimentos',plus:true,tier:'basic',section:'Patrimônio & Dívidas'},{id:'alivio',label:'Central de Alívio',plus:true,tier:'basic',section:'Patrimônio & Dívidas'},{id:'resolver',label:'Resolver Dívidas',plus:true,tier:'basic',section:'Patrimônio & Dívidas'},{id:'credito',label:'Crédito & Nome Sujo',plus:true,tier:'basic',section:'Patrimônio & Dívidas'},
   {id:'insights',label:'Insights',plus:true,tier:'plus',section:'Ferramentas'},{id:'assinaturas',label:'Assinaturas',section:'Ferramentas'},{id:'openfinance',label:'Extratos Bancários',plus:true,tier:'plus',section:'Ferramentas'},{id:'cambio',label:'Câmbio',plus:true,tier:'plus',section:'Ferramentas'},
   {id:'saude',label:'Saúde Financeira',section:'Conta'},{id:'plano',label:'Plano',section:'Conta'},
 ];
 const tabsPJ = [
   {id:'dashboard',label:'Visão Geral',section:'Operação'},{id:'receitas',label:'Faturamento',section:'Operação'},{id:'despesas',label:'Custos',section:'Operação'},{id:'documentos',label:'Documentos',section:'Operação'},
   {id:'agenda',label:'Agenda & IA',section:'Planejamento'},{id:'orcamento',label:'Orçamento',section:'Planejamento'},{id:'metas',label:'Metas',section:'Planejamento'},{id:'projecao',label:'Projeção',plus:true,tier:'plus',section:'Planejamento'},{id:'estrategia',label:'Estratégia',plus:true,tier:'pro',section:'Planejamento'},
-  {id:'patrimonio',label:'Patrimônio',section:'Patrimônio & Dívidas'},{id:'dividas',label:'Dívidas',section:'Patrimônio & Dívidas'},{id:'alivio',label:'Central de Alívio',plus:true,tier:'basic',section:'Patrimônio & Dívidas'},{id:'resolver',label:'Resolver Dívidas',plus:true,tier:'basic',section:'Patrimônio & Dívidas'},
+  {id:'patrimonio',label:'Patrimônio',section:'Patrimônio & Dívidas'},{id:'dividas',label:'Dívidas',section:'Patrimônio & Dívidas'},{id:'calcdivida',label:'Calculadora de dívidas',section:'Patrimônio & Dívidas'},{id:'alivio',label:'Central de Alívio',plus:true,tier:'basic',section:'Patrimônio & Dívidas'},{id:'resolver',label:'Resolver Dívidas',plus:true,tier:'basic',section:'Patrimônio & Dívidas'},
   {id:'fiscal',label:'Fiscal',pj:true,plus:true,tier:'business',section:'Fiscal & Caixa'},{id:'fluxo',label:'Fluxo de Caixa',pj:true,plus:true,tier:'business',section:'Fiscal & Caixa'},{id:'reforma',label:'Reforma Tributária',section:'Fiscal & Caixa'},
   {id:'insights',label:'Insights',plus:true,tier:'plus',section:'Ferramentas'},{id:'assinaturas',label:'Ferramentas & SaaS',section:'Ferramentas'},{id:'openfinance',label:'Extratos Bancários',section:'Ferramentas'},{id:'cambio',label:'Câmbio',plus:true,tier:'plus',section:'Ferramentas'},
   {id:'saude',label:'Saúde Financeira',section:'Conta'},{id:'plano',label:'Plano',section:'Conta'},
@@ -4501,7 +4503,7 @@ const NAV_GROUPS = [
   { id: 'g-trabalho', icon: '💼', label: 'Trabalho e renda',   tabs: ['perfilrenda', 'simuladorclt', 'obrigacoes'] },
   { id: 'g-fiscal',   icon: '🧾', label: 'Fiscal e caixa',     tabs: ['regimepj', 'fiscal', 'fluxo', 'caixapj', 'reforma'] },
   { id: 'g-planejar', icon: '🎯', label: 'Planejar',           tabs: ['agenda', 'metas', 'projecao', 'estrategia', 'insights'] },
-  { id: 'g-dividas',  icon: '🧩', label: 'Dívidas e crédito',  tabs: ['dividas', 'alivio', 'resolver', 'credito'] },
+  { id: 'g-dividas',  icon: '🧩', label: 'Dívidas e crédito',  tabs: ['dividas', 'calcdivida', 'alivio', 'resolver', 'credito'] },
   { id: 'g-patrim',   icon: '🏦', label: 'Patrimônio',         tabs: ['patrimonio', 'investir', 'cambio'] },
   { id: 'g-plano',    icon: '⭐', label: 'Plano',              tabs: ['plano'] },
 ];
@@ -5368,6 +5370,7 @@ function renderCurrentTab() {
     reforma: () => renderReforma(c),
     resolver: () => renderResolver(c),
     alivio: () => renderAlivio(c),
+    calcdivida: () => renderCalcDivida(),
     agenda: () => renderAgenda(),
     credito: () => renderCredito(c),
     regimepj: () => renderRegimePJ(c),
@@ -5380,6 +5383,7 @@ function renderCurrentTab() {
   updateNotifBadge();
   if (currentTab === 'projecao' && !isGated) bindScenarioPills();
   if (currentTab === 'cambio') bindConverter();
+  if (currentTab === 'calcdivida' && window.cdBind) cdBind();
   if (currentTab === 'documentos') bindUploadZone();
   if (currentTab === 'estrategia' && !isGated) bindSimulator();
   // Bind search
@@ -5580,35 +5584,52 @@ function renderSaude_core(c) {
 }
 
 // ─── CÂMBIO ─────────────────────────────────────
-var CAMBIO = { brl: { USD: 4.9686, EUR: 5.5994, GBP: 6.5964, JPY: 0.03143 }, delta: { USD: null, EUR: null, GBP: null, JPY: null }, date: '06/10/2026', live: false, tried: false };
+var CAMBIO = { brl: { USD: 4.9686, EUR: 5.5994, GBP: 6.5964, JPY: 0.03143 }, delta: { USD: null, EUR: null, GBP: null, JPY: null }, date: '06/10/2026', live: false, tried: false, all: null, source: null, fetchedAt: null, stale: false };
+function cambioBrlOf(code) { var r = CAMBIO.all; return r && r.BRL && r[code] ? r.BRL / r[code] : (code === 'BRL' ? 1 : (CAMBIO.brl[code] || null)); }
+function cambioName(code) { try { return new Intl.DisplayNames(['pt-BR'], { type: 'currency' }).of(code) || code; } catch (e) { return code; } }
+function cambioFlag(code) { if (!/^[A-Z]{3}$/.test(code) || /^X/.test(code) || { ANG: 1, CNH: 1, FOK: 1, KID: 1, TVD: 1, GGP: 1, JEP: 1, IMP: 1, SHP: 1, STN: 1, CUC: 1 }[code]) return '🌐'; var c = code.slice(0, 2); return String.fromCodePoint(127397 + c.charCodeAt(0), 127397 + c.charCodeAt(1)); }
 function cambioLoad() {
   if (CAMBIO.tried) return; CAMBIO.tried = true;
+  fetch('/api/cambio').then(function(r) { return r.json(); }).then(function(j) {
+    if (!j || !j.rates || !j.rates.BRL) return;
+    CAMBIO.all = j.rates; CAMBIO.source = j.source; CAMBIO.fetchedAt = j.fetchedAt; CAMBIO.stale = !!j.stale;
+    ['USD', 'EUR', 'GBP', 'JPY'].forEach(function(k) { if (j.rates[k]) CAMBIO.brl[k] = j.rates.BRL / j.rates[k]; });
+    CAMBIO.date = String(j.date).split('-').reverse().join('/'); CAMBIO.live = true;
+    if (currentTab === 'cambio') { renderCurrentTab(); }
+  }).catch(function() {});
   try {
     var d = new Date(); d.setDate(d.getDate() - 10);
     fetch('https://api.frankfurter.dev/v1/' + d.toISOString().slice(0, 10) + '..?base=USD&symbols=BRL,EUR,GBP,JPY')
       .then(function(r) { return r.json(); }).then(function(j) {
-        var days = Object.keys(j.rates).sort(); if (days.length < 1) return;
+        var days = Object.keys(j.rates).sort(); if (days.length < 2) return;
         var conv = function(r) { return { USD: r.BRL, EUR: r.BRL / r.EUR, GBP: r.BRL / r.GBP, JPY: r.BRL / r.JPY }; };
-        var last = conv(j.rates[days[days.length - 1]]), first = days.length > 1 ? conv(j.rates[days[0]]) : null;
-        CAMBIO.brl = last;
-        ['USD', 'EUR', 'GBP', 'JPY'].forEach(function(k) { CAMBIO.delta[k] = first ? (last[k] / first[k] - 1) * 100 : null; });
-        CAMBIO.date = days[days.length - 1].split('-').reverse().join('/'); CAMBIO.live = true;
+        var last = conv(j.rates[days[days.length - 1]]), first = conv(j.rates[days[0]]);
+        ['USD', 'EUR', 'GBP', 'JPY'].forEach(function(k) { CAMBIO.delta[k] = (last[k] / first[k] - 1) * 100; });
+        if (!CAMBIO.all) { CAMBIO.brl = last; CAMBIO.date = days[days.length - 1].split('-').reverse().join('/'); CAMBIO.live = true; CAMBIO.source = { name: 'Banco Central Europeu (via Frankfurter)', url: 'https://frankfurter.dev' }; }
         if (currentTab === 'cambio') { renderCurrentTab(); }
       }).catch(function() {});
   } catch (e) {}
 }
+function cambioCodes() { var l = CAMBIO.all ? Object.keys(CAMBIO.all) : ['BRL', 'USD', 'EUR', 'GBP', 'JPY']; if (l.indexOf('BRL') < 0) l.push('BRL'); return l.sort(function(a, b) { var top = ['BRL', 'USD', 'EUR', 'GBP', 'JPY', 'ARS', 'CAD', 'CHF', 'AUD', 'CNY']; var ia = top.indexOf(a), ib = top.indexOf(b); if (ia >= 0 || ib >= 0) return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib); return cambioName(a).localeCompare(cambioName(b), 'pt-BR'); }); }
 function renderCambio() {
   cambioLoad();
   const flags = { USD: '🇺🇸', EUR: '🇪🇺', GBP: '🇬🇧', JPY: '🇯🇵' };
   const currencies = ['USD', 'EUR', 'GBP', 'JPY'].map(k => ({ flag: flags[k], pair: k + '/BRL', rate: CAMBIO.brl[k], delta: CAMBIO.delta[k] }));
+  const src = CAMBIO.source || { name: 'Banco Central Europeu (via Frankfurter)', url: 'https://frankfurter.dev' };
+  const nMoedas = CAMBIO.all ? Object.keys(CAMBIO.all).length : 0;
   const fonte = CAMBIO.live
-    ? 'Fonte: taxas de referência do <b>Banco Central Europeu (BCE)</b>, via API Frankfurter (frankfurter.dev). Cotação de ' + CAMBIO.date + '; variação em ~10 dias.'
-    : 'Fonte: taxas de referência do <b>Banco Central Europeu (BCE)</b> via API Frankfurter — não foi possível atualizar agora; exibindo a última cotação conhecida (' + CAMBIO.date + ').';
-  return `<div class="section-header animate-in"><div><div class="section-title">Centro de Câmbio</div><div class="section-desc">Cotações de referência.</div></div></div>
+    ? 'Fonte: <a href="' + src.url + '" target="_blank" rel="noopener noreferrer"><b>' + src.name + '</b></a>. Cotação de ' + CAMBIO.date + (nMoedas ? ' · ' + nMoedas + ' moedas' : '') + '. Atualizada automaticamente todos os dias' + (CAMBIO.stale ? ' (não foi possível renovar agora; mostrando a última cotação obtida)' : '') + '. Variação dos 4 cartões: Banco Central Europeu (frankfurter.dev), ~10 dias.'
+    : 'Fonte: <b>' + src.name + '</b> — não foi possível atualizar agora; exibindo a última cotação conhecida (' + CAMBIO.date + ').';
+  const opts = cambioCodes().map(k => '<option value="' + k + '">' + cambioFlag(k) + ' ' + k + ' — ' + fxEsc(cambioName(k)) + '</option>');
+  const sel = (id, def) => '<select id="' + id + '" class="form-select" style="max-width:260px">' + opts.map(o => o.replace('value="' + def + '"', 'value="' + def + '" selected')).join('') + '</select>';
+  const rows = cambioCodes().filter(k => k !== 'BRL').map(k => { const v = cambioBrl(k); return '<tr data-cur="' + (k + ' ' + cambioName(k)).toLowerCase() + '"><td>' + cambioFlag(k) + ' <b>' + k + '</b></td><td>' + fxEsc(cambioName(k)) + '</td><td style="text-align:right">' + (v == null ? '—' : 'R$ ' + (v < 1 ? v.toFixed(4) : v.toFixed(2)).replace('.', ',')) + '</td></tr>'; }).join('');
+  return `<div class="section-header animate-in"><div><div class="section-title">Centro de Câmbio</div><div class="section-desc">Cotações de referência de todas as moedas, atualizadas todo dia.</div></div></div>
   <div class="currency-grid mb-24">${currencies.map((c,i)=>`<div class="currency-card animate-in stagger-${i+1}"><div class="currency-flag">${c.flag}</div><div class="currency-pair">${c.pair}</div><div class="currency-rate">${c.rate<1?c.rate.toFixed(4):c.rate.toFixed(2)}</div>${c.delta==null?'<div class="currency-delta">—</div>':`<div class="currency-delta" style="color:${c.delta>=0?'var(--income)':'var(--expense)'}">${c.delta>=0?'▲':'▼'} ${Math.abs(c.delta).toFixed(1)}%</div>`}</div>`).join('')}</div>
-  <div class="card mb-24 animate-in"><div class="occ-b-desc" style="font-size:12.5px">${fonte}<br>São taxas de <b>referência</b> (fechamento diário, dias úteis), não a cotação de compra/venda de bancos e casas de câmbio, que inclui spread e IOF (para compras no exterior, o IOF no cartão é maior que o de câmbio comercial). Use como parâmetro, não como valor final.</div></div>
-  <div class="card animate-in stagger-5"><div class="card-title" style="margin-bottom:16px">Conversor rápido</div><div style="display:flex;gap:12px;align-items:end;flex-wrap:wrap"><div><label style="font-size:12px;color:var(--ink-3);display:block;margin-bottom:4px">Valor</label><input id="conv-val" type="number" value="1000" class="form-input" style="width:140px" /></div><div><label style="font-size:12px;color:var(--ink-3);display:block;margin-bottom:4px">De</label><select id="conv-from" class="form-select"><option value="BRL" selected>BRL</option><option value="USD">USD</option><option value="EUR">EUR</option><option value="GBP">GBP</option><option value="JPY">JPY</option></select></div><div style="font-size:18px;color:var(--ink-3);padding-bottom:8px">→</div><div><label style="font-size:12px;color:var(--ink-3);display:block;margin-bottom:4px">Para</label><select id="conv-to" class="form-select"><option value="USD" selected>USD</option><option value="EUR">EUR</option><option value="GBP">GBP</option><option value="JPY">JPY</option><option value="BRL">BRL</option></select></div><div id="conv-result" style="font-family:var(--font-display);font-weight:700;font-size:22px;padding-bottom:4px;color:var(--teal)"></div></div></div>`;
+  <div class="card mb-24 animate-in" id="cambio-fonte"><div class="occ-b-desc" style="font-size:12.5px">${fonte}<br>São taxas de <b>referência</b> (mercado), não a cotação de compra/venda de bancos e casas de câmbio, que inclui spread e IOF (para compras no exterior, o IOF no cartão é maior que o de câmbio comercial). Use como parâmetro, não como valor final.</div></div>
+  <div class="card animate-in stagger-5 mb-24"><div class="card-title" style="margin-bottom:16px">Conversor rápido</div><div style="display:flex;gap:12px;align-items:end;flex-wrap:wrap"><div><label style="font-size:12px;color:var(--ink-3);display:block;margin-bottom:4px">Valor</label><input id="conv-val" type="number" value="1000" class="form-input" style="width:140px" /></div><div><label style="font-size:12px;color:var(--ink-3);display:block;margin-bottom:4px">De</label>${sel('conv-from', 'BRL')}</div><div style="font-size:18px;color:var(--ink-3);padding-bottom:8px">→</div><div><label style="font-size:12px;color:var(--ink-3);display:block;margin-bottom:4px">Para</label>${sel('conv-to', 'USD')}</div><div id="conv-result" style="font-family:var(--font-display);font-weight:700;font-size:22px;padding-bottom:4px;color:var(--teal)"></div></div></div>
+  ${nMoedas ? `<div class="card animate-in"><div class="card-title" style="margin-bottom:10px">Todas as moedas em reais</div><input id="cur-q" class="form-input" placeholder="Buscar moeda ou país (ex.: peso, dólar, AED)" style="margin-bottom:10px;max-width:360px"><div style="max-height:360px;overflow:auto"><table id="cur-tbl" style="width:100%;font-size:13.5px;border-collapse:collapse">${rows}</table></div><div class="occ-b-desc" style="font-size:12px;margin-top:8px">Valor de 1 unidade da moeda em reais. Fonte: ${src.name}, ${CAMBIO.date}.</div></div>` : ''}`;
 }
+function cambioBrl(code) { return cambioBrlOf(code); }
 
 // ─── FISCAL (PJ) ────────────────────────────────
 function renderFiscal_core(c) {
@@ -7512,11 +7533,14 @@ function bindScenarioPills() { document.getElementById('scenario-pills')?.addEve
 function bindConverter() {
   function update() {
     const val = parseFloat(document.getElementById('conv-val')?.value) || 0, from = document.getElementById('conv-from')?.value, to = document.getElementById('conv-to')?.value;
-    const rates = Object.assign({ BRL: 1 }, CAMBIO.brl), syms = { BRL: 'R$', USD: '$', EUR: '€', GBP: '£', JPY: '¥' };
-    const inBRL = from === 'BRL' ? val : val * rates[from], result = to === 'BRL' ? inBRL : inBRL / rates[to], el = document.getElementById('conv-result');
-    if (el) el.textContent = `${syms[to]} ${result.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const f = from === 'BRL' ? 1 : cambioBrlOf(from), t = to === 'BRL' ? 1 : cambioBrlOf(to), el = document.getElementById('conv-result');
+    if (!el) return;
+    if (!f || !t) { el.textContent = '—'; return; }
+    el.textContent = `${to} ${(val * f / t).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   }
   ['conv-val', 'conv-from', 'conv-to'].forEach(id => { const el = document.getElementById(id); if (el) { el.addEventListener('input', update); el.addEventListener('change', update); } }); update();
+  const q = document.getElementById('cur-q');
+  if (q) q.addEventListener('input', () => { const v = q.value.trim().toLowerCase(); document.querySelectorAll('#cur-tbl tr').forEach(r => { r.style.display = !v || r.getAttribute('data-cur').indexOf(v) >= 0 ? '' : 'none'; }); });
 }
 
 // ═══════════════════════════════════════════════════════

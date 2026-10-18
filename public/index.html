@@ -4603,16 +4603,29 @@ function tierLimit(key) {
 // Banco Central; se o navegador/CSP bloquear, usa a referência fixa abaixo. Conteúdo
 // educativo — não é recomendação individual de investimento nem de crédito.
 // ═══════════════════════════════════════════════════════
-const MKT = { ref: 'Copom, set/2026', selic: 13.75, cdi: 13.65, poupanca: 6.17, live: false, tried: false };
-function mktLoad() {
-  if (MKT.tried) return; MKT.tried = true;
+const MKT = { ref: 'referência fixa (set/2026), não atualizada', selic: 13.75, cdi: 13.65, poupanca: 6.17, ipca12: null, live: false, tried: false, at: 0, ind: null, stale: false };
+function mktLoad(force) {
+  // Busca os indicadores no servidor (Banco Central) sempre que o app abre e, depois, no máximo 1x por hora.
+  if (!force && MKT.at && Date.now() - MKT.at < 3600000) return;
+  MKT.at = Date.now(); MKT.tried = true;
   try {
-    fetch('https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/1?formato=json')
-      .then(r => r.json()).then(j => {
-        const v = parseFloat(j[0].valor);
-        if (v > 0 && v < 40) { MKT.selic = v; MKT.cdi = Math.round((v - 0.10) * 100) / 100; MKT.live = true; MKT.ref = 'Banco Central (ao vivo)'; if (currentTab === 'investir') renderCurrentTab(); }
-      }).catch(() => {});
+    fetch('/api/mercado').then(r => r.json()).then(j => {
+      const I = j && j.indicadores; if (!I || !I.selic) return;
+      MKT.ind = I; MKT.selic = I.selic.valor;
+      MKT.cdi = I.cdi ? I.cdi.valor : Math.round((I.selic.valor - 0.10) * 100) / 100;
+      if (I.poupanca) MKT.poupanca = I.poupanca.valor;
+      MKT.ipca12 = I.ipca12 ? I.ipca12.valor : null;
+      MKT.stale = !!j.stale || Object.keys(I).some(k => I[k].stale);
+      MKT.live = true; MKT.ref = 'Banco Central do Brasil, ' + String(I.selic.data).split('-').reverse().join('/');
+      if (currentTab === 'investir' || currentTab === 'dashboard') renderCurrentTab();
+    }).catch(() => {});
   } catch (e) {}
+}
+function mktFontes() {
+  if (!MKT.ind) return 'Não foi possível atualizar agora. Os números mostrados são uma <b>referência fixa de set/2026</b>, que pode estar desatualizada; confira no site do Banco Central (bcb.gov.br) antes de decidir.';
+  const br = d => String(d).split('-').reverse().join('/');
+  const rows = ['selic', 'cdi', 'ipca12', 'poupanca'].filter(k => MKT.ind[k]).map(k => { const x = MKT.ind[k]; return '<li>' + fxEsc(x.nome) + ': <b>' + String(x.valor).replace('.', ',') + (x.unidade === '% a.a.' ? '% a.a.' : '%') + '</b>, de ' + br(x.data) + (x.stale ? ' (última leitura válida; não renovou agora)' : '') + '. Fonte: <a href="' + x.url + '" target="_blank" rel="noopener noreferrer">' + fxEsc(x.fonte) + '</a></li>'; }).join('');
+  return '<ul style="margin:6px 0 0 18px">' + rows + '</ul><div style="margin-top:6px">Atualizado automaticamente toda vez que você abre o app. Os dados oficiais são divulgados pelo Banco Central em dias úteis.</div>';
 }
 // ─── PREFERÊNCIAS NA NUVEM (user_prefs) ───
 // Dados que antes ficavam só no navegador (Investimentos, Crédito, Resolver, checklist da Reforma, extratos importados)
@@ -4716,7 +4729,7 @@ function renderInvestir(c) {
   fxInit(); mktLoad();
   const I = FX.inv, prazo = I.prazo || '2a+';
   const prods = invProdutos(prazo);
-  const mercado = '<div class="card mb-24 animate-in"><div class="card-title">📈 Mercado hoje <span style="font-size:11.5px;font-weight:400;color:var(--ink-3)">· ref. ' + fxEsc(MKT.ref) + '</span></div><div class="kpi-grid" style="margin-top:12px"><div class="kpi"><div class="kpi-label">Selic (meta)</div><div class="kpi-value">' + fxPct(MKT.selic) + ' a.a.</div></div><div class="kpi"><div class="kpi-label">CDI (aprox.)</div><div class="kpi-value">' + fxPct(MKT.cdi) + ' a.a.</div></div><div class="kpi"><div class="kpi-label">Poupança</div><div class="kpi-value">≈ ' + fxPct(MKT.poupanca) + ' a.a.</div></div></div><div class="occ-b-desc" style="margin-top:10px">Com a Selic em patamar alto, a renda fixa paga bem: a poupança rende bem menos que Tesouro Selic ou CDB. Em set/2026 o Copom reduziu a Selic (próxima reunião: 3 e 4 de novembro); se os juros seguirem caindo, prefira não ficar só em pós-fixados para dinheiro que não será usado tão cedo.</div></div>';
+  const mercado = '<div class="card mb-24 animate-in" id="mkt-card"><div class="card-title">📈 Mercado hoje <span style="font-size:11.5px;font-weight:400;color:var(--ink-3)">· ref. ' + fxEsc(MKT.ref) + '</span></div><div class="kpi-grid" style="margin-top:12px"><div class="kpi"><div class="kpi-label">Selic (meta)</div><div class="kpi-value">' + fxPct(MKT.selic) + ' a.a.</div></div><div class="kpi"><div class="kpi-label">CDI</div><div class="kpi-value">' + fxPct(MKT.cdi) + ' a.a.</div></div><div class="kpi"><div class="kpi-label">Poupança</div><div class="kpi-value">≈ ' + fxPct(MKT.poupanca) + ' a.a.</div></div>' + (MKT.ipca12 != null ? '<div class="kpi"><div class="kpi-label">Inflação (IPCA, 12 meses)</div><div class="kpi-value">' + fxPct(MKT.ipca12) + '</div></div>' : '') + '</div><div class="occ-b-desc" style="margin-top:10px">Compare a poupança com Tesouro Selic e CDB: quando a Selic está alta, a diferença costuma ser grande. Se os juros começarem a cair, avalie não ficar só em pós-fixados para dinheiro que não será usado tão cedo.</div><div class="occ-b-desc" id="mkt-fontes" style="margin-top:10px;font-size:12px">' + mktFontes() + '</div></div>';
   const tipos = Object.keys(INV_TIPOS).map(t => '<button class="btn-add" style="margin:0 6px 6px 0;' + (I.tipos.includes(t) ? '' : 'opacity:.55') + '" onclick="fxToggleTipo(\'' + t + '\')">' + INV_TIPOS[t] + '</button>').join('');
   const form = '<div class="card mb-24 animate-in"><div class="card-title">🧭 Seu perfil de investidor</div><div class="occ-b-desc" style="margin:8px 0 12px">Responda rápido; seus dados de renda, despesas e dívidas já cadastrados no app entram na análise. As respostas ficam salvas só neste navegador.</div>'
     + '<div class="form-group"><label class="form-label">Você já investe?</label>' + fxChip('inv', 'has', 'sim', 'Sim, já invisto') + fxChip('inv', 'has', 'nao', 'Ainda não') + '</div>'
@@ -5397,6 +5410,7 @@ function switchTab(id) { searchQuery = ''; currentTab = id; document.querySelect
 
 // ─── DASHBOARD ──────────────────────────────────
 function renderDashboard(c) {
+  try { mktLoad(); } catch (e) {}
   const saldo = c.totalAssets - c.totalLiab;
   const isPJ = state.profile_type === 'PJ';
   const heroLabel = isPJ ? 'Patrimônio da empresa' : 'Saldo patrimonial';

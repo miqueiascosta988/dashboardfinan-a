@@ -2982,6 +2982,15 @@ function showAuthError(msg) {
   el.textContent = msg; el.style.display = 'block';
 }
 
+// Enter nos campos do login, cadastro, recuperação e nova senha aciona o botão principal do formulário aberto.
+document.getElementById('auth-screen').addEventListener('keydown', function (e) {
+  if (e.key !== 'Enter' || e.isComposing || e.shiftKey || e.ctrlKey || e.altKey || e.metaKey) return;
+  var t = e.target; if (!t || t.tagName !== 'INPUT' || t.type === 'checkbox' || t.type === 'radio') return;
+  var form = t.closest('[id^="auth-form-"]'); if (!form) return;
+  var btn = form.querySelector('.btn-primary'); if (!btn || btn.disabled) return;
+  e.preventDefault(); btn.click();
+});
+
 document.getElementById('btn-login').addEventListener('click', async () => {
   const email = document.getElementById('login-email').value;
   const pass = document.getElementById('login-pass').value;

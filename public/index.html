@@ -19,6 +19,8 @@
 <script src="/agenda.js"></script>
 <script src="/trial.js"></script>
 <script src="/onboarding.js"></script>
+<script src="/jornada.js"></script>
+<script src="/jornada-ui.js"></script>
 <script src="/weekplan.js"></script>
 <script src="/weekplan-ui.js"></script>
 <script src="/consultor.js"></script>
@@ -4636,7 +4638,7 @@ async function prefsLoad() {
     if (r && r.error) { console.warn('user_prefs indisponível (rode a migração 011):', r.error.message); PREFS.ok = false; return; }
     cloud = (r && r.data && r.data.data) || {};
   } catch (e) { console.warn(e); return; }
-  const keyOf = { inv: fxKey('inv'), crd: fxKey('crd'), dpl: fxKey('dpl'), reforma: fxKey('reforma'), of: ofKey(), gtd: gtDoneKey(), agenda: fxKey('agenda'), cartoes: fxKey('cartoes'), wk: fxKey('wk'), estr: fxKey('estr') };
+  const keyOf = { inv: fxKey('inv'), crd: fxKey('crd'), dpl: fxKey('dpl'), reforma: fxKey('reforma'), of: ofKey(), gtd: gtDoneKey(), agenda: fxKey('agenda'), cartoes: fxKey('cartoes'), wk: fxKey('wk'), estr: fxKey('estr'), jor: fxKey('jor') };
   let needPush = false;
   Object.keys(keyOf).forEach(n => {
     if (cloud[n] != null) { try { localStorage.setItem(keyOf[n], JSON.stringify(cloud[n])); } catch (e) {} PREFS.data[n] = cloud[n]; }
@@ -5396,7 +5398,7 @@ function renderDashboard(c) {
   const heroLabel = isPJ ? 'Patrimônio da empresa' : 'Saldo patrimonial';
   const greeting = state.name ? (isPJ ? `${fxEsc(state.name)} · Empresa` : `Olá, ${fxEsc(state.name)}`) : '';
   return `<div class="hero-card mb-24 animate-in"><div class="hero-label">${heroLabel}</div><div class="hero-value">${fmt(saldo)}</div><div class="hero-sub">${greeting} · Atualizado agora</div></div>
-  ${renderCrisisBanner(c)}
+  ${typeof jornadaCard === 'function' ? jornadaCard() : ''}${renderCrisisBanner(c)}
   ${renderReqBanner()}${renderDocBanner()}${renderDebtNudge(c)}${typeof weekPlanCard === 'function' ? weekPlanCard() : ''}${typeof agendaCard === 'function' ? agendaCard() : ''}${renderOccBanner(c)}
   <div class="card mb-24 animate-in" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><div><div class="card-title" style="margin:0">💭 Pensando em comprar algo?</div><div style="font-size:12px;color:var(--ink-3)">Simule o impacto na sua meta e no seu orçamento antes de decidir.</div></div><button class="btn-add" onclick="openBuySimulator()">${isPlusUser()?'Simular compra':'🔒 Simular compra'}</button></div>
   <div class="kpi-grid">${[

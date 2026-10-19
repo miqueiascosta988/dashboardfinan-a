@@ -42,6 +42,7 @@ h2{margin-top:14px;font-size:23px;line-height:1.22;font-weight:800;letter-spacin
 .cta{display:block;width:100%;text-align:center;text-decoration:none;margin-top:22px;background:var(--gold-l);color:#0D1F33;font-weight:800;font-size:18px;padding:18px 20px;border-radius:16px;box-shadow:0 4px 0 #A98B35;transition:transform .1s}
 .cta:active{transform:translateY(2px);box-shadow:0 2px 0 #A98B35}
 .alt{display:block;text-align:center;margin-top:14px;color:var(--navy2);font-weight:700;font-size:16px;text-decoration:none;padding:10px}
+.nf{margin-top:20px;padding:14px;border-radius:14px;background:rgba(255,255,255,.06);text-align:left}.nf label{display:block;font-size:14px;margin-bottom:8px}.nf input[type=email]{width:100%;box-sizing:border-box;padding:12px;border-radius:10px;border:1px solid #8A94A6;font-size:16px}.nf .nc{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;margin:10px 0}.nf .nb{width:100%;padding:12px;border-radius:10px;border:0;background:#16324F;color:#fff;font-weight:800;font-size:15px;cursor:pointer}.nm{margin-top:8px;font-size:13px}.nm.ok{font-weight:700}
 .note{margin-top:14px;text-align:center;font-size:12.5px;color:var(--ink3);line-height:1.5}
 .slogan{margin-top:22px;text-align:center;font-weight:700;color:var(--gold);font-size:15px;max-width:380px;line-height:1.4}
 footer{margin-top:14px;font-size:12px;color:var(--ink3);text-align:center}
@@ -127,7 +128,18 @@ footer a{color:var(--ink3)}
       '<ul class="steps">' + T.steps.map(function (s, k) { return '<li><span>' + (k + 1) + '</span><div>' + esc(s) + '</div></li>'; }).join('') + '</ul>' +
       '<a class="cta" id="cta" href="' + esc(primary[1]) + '">' + esc(primary[0]) + '</a>' +
       (second ? '<a class="alt" id="alt" href="' + esc(second[1]) + '">' + esc(second[0]) + '</a>' : '') +
-      '<div class="note">Suas respostas ficam só neste aparelho. Não pedimos telefone nem e-mail aqui. Cancele quando quiser.</div>';
+      '<form id="nf" class="nf"><label for="ne">Quer receber dicas com carinho no seu e-mail? (opcional)</label><input id="ne" type="email" autocomplete="email" placeholder="seu@email.com" maxlength="160">' +
+      '<label class="nc"><input type="checkbox" id="nk"> Autorizo o envio de 3 e-mails com apoio e dicas. Posso sair a qualquer momento.</label><button type="submit" class="nb">Quero receber</button><div id="nm" class="nm" role="status"></div></form>' +
+      '<div class="note">Suas respostas ficam só neste aparelho. O e-mail é opcional e só usamos se você autorizar. Cancele quando quiser.</div>';
+    var nf = document.getElementById('nf');
+    if (nf) nf.addEventListener('submit', function (ev) {
+      ev.preventDefault(); var nm = document.getElementById('nm'), em = document.getElementById('ne').value.trim(), ok = document.getElementById('nk').checked;
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(em) || !ok) { nm.textContent = 'Preencha um e-mail válido e marque a autorização.'; return; }
+      var st = (window.smFunil && smFunil.state()) || {};
+      fetch('/api/funil/inscrever', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: em, consentimento: true, visitor: st.visitor || null, campanha: st.campanha || null }) })
+        .then(function (r) { if (!r.ok) throw 0; nf.innerHTML = '<div class="nm ok">Pronto! Enviamos o primeiro e-mail. Se não chegar, olhe o spam.</div>'; })
+        .catch(function () { nm.textContent = 'Não foi possível agora. Tente de novo em instantes.'; });
+    });
     try { if (window.smFunil) smFunil.track('triagem_fim'); } catch (e) {}
     var c = document.getElementById('cta'); if (c) c.focus({ preventScroll: true });
     window.scrollTo({ top: 0, behavior: 'smooth' });

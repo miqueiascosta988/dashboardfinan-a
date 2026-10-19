@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════
 // Motor de cálculo CLT (servidor) — INSS/IRRF 2026, férias, 13º, rescisão e previsão de salário.
 // Roda só no servidor: o navegador envia os dados e recebe o resultado. Atualizar TAX2026 a cada janeiro.
-// © 360 Suítes — todos os direitos reservados.
+// © SM Financial — todos os direitos reservados.
 // ═══════════════════════════════════════════════════════
 'use strict';
 let SIM = null, ANO = new Date().getFullYear();

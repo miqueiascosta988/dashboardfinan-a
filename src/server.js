@@ -54,6 +54,7 @@ const hotmartRoutes = require('./routes/hotmart');
 app.use('/api/hotmart', hotmartRoutes);
 app.use('/api', require('./routes/mercado'));  // Selic, CDI, IPCA e poupança (Banco Central), com fonte e data
 app.use('/api', require('./routes/cambio'));   // cotações de todas as moedas (fonte e data na resposta)
+app.use('/api', require('./routes/nutricao')); // /api/funil/inscrever, /api/cron/nutricao e /api/nutricao/sair
 app.use('/api', require('./routes/semana'));   // /api/cron/semana (Vercel Cron) e /api/semana/sair
 
 app.use(express.json({ limit: '100kb' }));

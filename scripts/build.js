@@ -2,7 +2,7 @@
 // (dificulta a leitura e a cópia do código). Uso: npm run build   (requer: npm i -D terser)
 const fs = require('fs'), path = require('path');
 const ROOT = path.join(__dirname, '..'), SRC = path.join(ROOT, 'public'), OUT = path.join(ROOT, 'dist');
-const BANNER = '/*! © 2026 360 Suítes. Todos os direitos reservados. Proibida a cópia, reprodução ou engenharia reversa. */\n';
+const BANNER = '/*! © 2026 SM Financial. Todos os direitos reservados. Proibida a cópia, reprodução ou engenharia reversa. */\n';
 
 (async () => {
   fs.rmSync(OUT, { recursive: true, force: true });

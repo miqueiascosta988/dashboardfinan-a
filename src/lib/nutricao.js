@@ -24,4 +24,14 @@ function buildNutricao(step, { appUrl, unsubUrl, apresUrl }) {
     + '<p style="margin-top:22px;font-size:13px;color:#8A94A6;border-top:1px solid #E3E8EF;padding-top:12px"><i>' + esc(SLOGAN) + '</i><br>Você recebeu este e-mail porque pediu o resultado da triagem. <a href="' + esc(unsubUrl) + '" style="color:#8A94A6">Não quero mais receber</a></p></div>';
   return { subject: t.subject, text, html };
 }
-module.exports = { DIAS, validEmail, dueStep, buildNutricao, SLOGAN };
+function buildConfirmacao({ confirmUrl, unsubUrl }) {
+  const subject = 'Confirme seu e-mail para receber as dicas';
+  const corpo = ['Você pediu para receber dicas e apoio por e-mail depois da triagem do SM Financial.', 'Para começar, confirme que este e-mail é seu. Se não foi você, é só ignorar esta mensagem: nada será enviado.'];
+  const text = ['Olá!', '', ...corpo.flatMap((p) => [p, '']), 'Confirmar meu e-mail: ' + confirmUrl, '', SLOGAN, '', 'Se não pediu, ignore ou use este link: ' + unsubUrl].join('\n');
+  const html = '<div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;color:#101B2D;line-height:1.6"><h2 style="color:#16324F;margin:0 0 12px">' + esc(subject) + '</h2><p>Olá!</p>'
+    + corpo.map((p) => '<p>' + esc(p) + '</p>').join('')
+    + '<p><a href="' + esc(confirmUrl) + '" style="display:inline-block;background:#16324F;color:#fff;text-decoration:none;font-weight:700;padding:13px 22px;border-radius:10px">Confirmar meu e-mail</a></p>'
+    + '<p style="margin-top:22px;font-size:13px;color:#8A94A6;border-top:1px solid #E3E8EF;padding-top:12px"><i>' + esc(SLOGAN) + '</i><br>Não pediu? Ignore esta mensagem ou <a href="' + esc(unsubUrl) + '" style="color:#8A94A6">não quero receber</a>.</p></div>';
+  return { subject, text, html };
+}
+module.exports = { buildConfirmacao, DIAS, validEmail, dueStep, buildNutricao, SLOGAN };

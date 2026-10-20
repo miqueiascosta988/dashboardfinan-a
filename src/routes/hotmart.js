@@ -55,6 +55,9 @@ async function crmRegistrarCompra(supabase, data, buyerEmail, plan, transactionI
     if (origin.sck && /^[a-zA-Z0-9-]{8,40}$/.test(String(origin.sck))) await supabase.from('crm_events').insert({ visitor: String(origin.sck), etapa: 'compra', campanha: cleanStr(origin.src, 100), src: 'hotmart' });
   } catch (e) { console.warn('CRM: compra não registrada:', e.message); }
 }
+// E-mail mascarado para logs (a***@dominio.com): minimização de dados pessoais (LGPD).
+const maskEmail = (e) => { const m = /^(.)[^@]*(@.+)$/.exec(String(e || '')); return m ? m[1] + '***' + m[2] : '(sem e-mail)'; };
+
 function safeEqual(a, b) {
   const x = Buffer.from(String(a || '')), y = Buffer.from(String(b || ''));
   return x.length === y.length && crypto.timingSafeEqual(x, y);
@@ -74,7 +77,7 @@ async function welcomeOnce(supabase, email, plan, trial) {
     try {
       const r = await sendWelcomeEmail({ to: key, plan, trial });
       if (!r.sent) { await supabase.from('welcome_emails').delete().eq('email', key); console.warn('Boas-vindas não enviado:', r.skipped); }
-      else console.log('Boas-vindas enviado para', key);
+      else console.log('Boas-vindas enviado para', maskEmail(key));
     } catch (e) { await supabase.from('welcome_emails').delete().eq('email', key); console.error('Boas-vindas falhou:', e.message); }
   } catch (e) { console.error('Boas-vindas erro:', e.message); }
 }
@@ -86,7 +89,8 @@ router.post('/webhook', express.json(), async (req, res) => {
   // Autenticação simples via "Hottok" — token estático definido no painel da
   // Hotmart (Ferramentas > Webhook) e conferido aqui. Sem isso, qualquer um
   // poderia forjar uma compra e se auto-promover a Plus.
-  const receivedToken = body.hottok || req.query.hottok || req.headers['x-hotmart-hottok'];
+  // O token nunca é aceito pela URL (apareceria em logs); só pelo cabeçalho ou pelo corpo.
+  const receivedToken = body.hottok || req.headers['x-hotmart-hottok'];
   if (!process.env.HOTMART_HOTTOK) {
     console.warn('HOTMART_HOTTOK não configurado — webhook da Hotmart ignorado por segurança.');
     return res.status(503).json({ error: 'Hotmart not configured' });
@@ -130,7 +134,7 @@ router.post('/webhook', express.json(), async (req, res) => {
       if (!updated || updated.length === 0) {
         if (trial) {
           const { data: ex } = await supabase.from('profiles').select('id').ilike('email', likeEscape(buyerEmail)).limit(1);
-          if (ex && ex.length) { console.log('Hotmart: teste ignorado, conta já tem plano pago:', buyerEmail); return res.json({ received: true, skipped: 'already_paid' }); }
+          if (ex && ex.length) { console.log('Hotmart: teste ignorado, conta já tem plano pago:', maskEmail(buyerEmail)); return res.json({ received: true, skipped: 'already_paid' }); }
         }
         // Comprador ainda não tem conta no Finança com esse e-mail — comum quando a
         // compra acontece antes do cadastro. Guardamos como "compra pendente" para
@@ -142,9 +146,9 @@ router.post('/webhook', express.json(), async (req, res) => {
           hotmart_subscriber_code: subscriberCode || null,
           hotmart_transaction_id: transactionId || null,
         }, { onConflict: 'email' });
-        console.log('Hotmart: compra aprovada para e-mail sem conta ainda:', buyerEmail);
+        console.log('Hotmart: compra aprovada para e-mail sem conta ainda:', maskEmail(buyerEmail));
       } else {
-        console.log('Hotmart: plano', plan, trial ? '(teste de ' + TRIAL_DAYS + ' dias)' : '', 'liberado para', buyerEmail);
+        console.log('Hotmart: plano', plan, trial ? '(teste de ' + TRIAL_DAYS + ' dias)' : '', 'liberado para', maskEmail(buyerEmail));
       }
       if (event === 'PURCHASE_APPROVED') { await welcomeOnce(supabase, buyerEmail, plan, trial); if (transactionId) await crmRegistrarCompra(supabase, data, buyerEmail, plan, transactionId); }
     } else if (DOWNGRADE_EVENTS.includes(event)) {
@@ -155,7 +159,7 @@ router.post('/webhook', express.json(), async (req, res) => {
       await q;
       await supabase.from('pending_purchases').delete().ilike('email', likeEscape(buyerEmail));
       if (transactionId && (event === 'PURCHASE_REFUNDED' || event === 'PURCHASE_CHARGEBACK')) { try { await supabase.from('crm_leads').update({ etapa: 'perdido', updated_at: new Date().toISOString() }).eq('hotmart_tx', String(transactionId)); } catch (e) {} }
-      console.log('Hotmart: assinatura encerrada —', buyerEmail, '(' + event + ')');
+      console.log('Hotmart: assinatura encerrada —', maskEmail(buyerEmail), '(' + event + ')');
     } else {
       console.log('Hotmart: evento não tratado:', event);
     }

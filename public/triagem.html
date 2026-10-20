@@ -137,7 +137,7 @@ footer a{color:var(--ink3)}
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(em) || !ok) { nm.textContent = 'Preencha um e-mail válido e marque a autorização.'; return; }
       var st = (window.smFunil && smFunil.state()) || {};
       fetch('/api/funil/inscrever', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: em, consentimento: true, visitor: st.visitor || null, campanha: st.campanha || null }) })
-        .then(function (r) { if (!r.ok) throw 0; nf.innerHTML = '<div class="nm ok">Pronto! Enviamos o primeiro e-mail. Se não chegar, olhe o spam.</div>'; })
+        .then(function (r) { if (!r.ok) throw 0; nf.innerHTML = '<div class="nm ok">Quase lá! Enviamos um e-mail para você confirmar. Clique no link dele para começar a receber. Se não chegar, olhe o spam.</div>'; })
         .catch(function () { nm.textContent = 'Não foi possível agora. Tente de novo em instantes.'; });
     });
     try { if (window.smFunil) smFunil.track('triagem_fim'); } catch (e) {}

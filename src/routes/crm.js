@@ -12,18 +12,10 @@ const VISITOR = /^[a-zA-Z0-9-]{8,40}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const LEAD_ETAPAS = ['novo', 'conversando', 'trial', 'cliente', 'perdido'];
 
-const hits = new Map();
-function limiter(max, windowMs) {
-  return (req, res, next) => {
-    const now = Date.now(), k = req.ip + req.path, arr = (hits.get(k) || []).filter((t) => now - t < windowMs);
-    if (arr.length >= max) return res.status(429).json({ error: 'Muitas requisições. Aguarde um instante.' });
-    arr.push(now); hits.set(k, arr); next();
-  };
-}
-setInterval(() => { const now = Date.now(); for (const [k, v] of hits) { const f = v.filter((t) => now - t < 60000); if (f.length) hits.set(k, f); else hits.delete(k); } }, 60000).unref();
+const { limiter } = require('../lib/ratelimit');
 
 // ── Entrada pública (anônima) dos eventos do funil ──
-router.post('/funil/evento', limiter(40, 60000), express.json({ limit: '2kb' }), async (req, res) => {
+router.post('/funil/evento', limiter(40, 60000, { persistent: true }), express.json({ limit: '2kb' }), async (req, res) => {
   const b = req.body || {};
   if (!ETAPAS.includes(b.etapa) || b.etapa === 'compra' || !VISITOR.test(String(b.visitor || ''))) return res.status(204).end();
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(204).end();

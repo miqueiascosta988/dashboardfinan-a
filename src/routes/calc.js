@@ -23,7 +23,7 @@ setInterval(() => { const now = Date.now(); for (const [k, v] of hits) { const f
 async function auth(req, res, next) {
   const h = req.headers.authorization || '', token = h.startsWith('Bearer ') ? h.slice(7) : '';
   if (!token) return res.status(401).json({ error: 'Faça login para usar este recurso.' });
-  if (process.env.NODE_ENV === 'test' && process.env.CALC_TEST_PLAN) { req.plan = process.env.CALC_TEST_PLAN; return next(); } // somente testes automatizados
+  if (process.env.NODE_ENV === 'test' && !process.env.VERCEL && process.env.CALC_TEST_PLAN) { req.plan = process.env.CALC_TEST_PLAN; return next(); } // somente testes automatizados
   const base = process.env.SUPABASE_URL, key = process.env.SUPABASE_ANON_KEY;
   if (!base || !key) return res.status(503).json({ error: 'Serviço indisponível.' });
   try {

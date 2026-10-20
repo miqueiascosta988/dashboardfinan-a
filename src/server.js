@@ -18,7 +18,7 @@ app.disable('x-powered-by');
 app.set('trust proxy', 1); // Railway/Vercel: IP real do cliente para o limite de requisições
 app.use(compression());
 // CORS: defina ALLOWED_ORIGIN (ex.: https://app.seudominio.com.br, separados por vírgula) para restringir
-app.use(cors({ origin: process.env.ALLOWED_ORIGIN ? process.env.ALLOWED_ORIGIN.split(',').map(s => s.trim()) : true }));
+app.use(cors({ origin: process.env.ALLOWED_ORIGIN ? process.env.ALLOWED_ORIGIN.split(',').map(s => s.trim()) : false }));
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {

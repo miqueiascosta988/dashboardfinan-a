@@ -38,25 +38,35 @@ function load(db) {
   return { mod, call, sent, supabase: { from }, restore: () => { globalThis.fetch = g; } };
 }
 
-test('inscrição: exige consentimento e e-mail válido; grava, cria contato no CRM e envia o 1º e-mail uma única vez', async () => {
+test('inscrição com confirmação: só envia o e-mail de confirmação; a sequência começa depois do clique', async () => {
   const db = {}; const t = load(db);
   try {
     assert.equal((await t.call('post', '/funil/inscrever', { body: { email: 'a@b.com' } })).c, 400);
     assert.equal((await t.call('post', '/funil/inscrever', { body: { email: 'ruim', consentimento: true } })).c, 400);
     assert.equal(db.nutricao, undefined);
     const ok = await t.call('post', '/funil/inscrever', { body: { email: ' Ana@B.com ', consentimento: true, visitor: 'abcdef12-3456', campanha: 'Free Out' } });
-    assert.equal(ok.c, 200); assert.equal(db.nutricao.length, 1); assert.equal(db.nutricao[0].email, 'ana@b.com'); assert.equal(db.nutricao[0].step, 1);
-    assert.equal(db.crm_leads.length, 1); assert.equal(db.crm_leads[0].origem, 'triagem');
-    assert.equal(t.sent.length, 1); assert.deepEqual(t.sent[0].to, ['ana@b.com']); assert.match(t.sent[0].html, /utm_campaign=Free\+Out/);
+    assert.equal(ok.c, 200); assert.equal(db.nutricao.length, 1); assert.equal(db.nutricao[0].email, 'ana@b.com');
+    assert.ok(!db.nutricao[0].confirmed_at); assert.equal(db.crm_leads, undefined);
+    assert.equal(t.sent.length, 1); assert.match(t.sent[0].subject, /Confirme/); const link = /nutricao\/confirmar\?i=([0-9a-f-]+)&(?:amp;)?t=([\w-]+)/.exec(t.sent[0].html);
+    assert.ok(link);
+    // repetir logo em seguida não reenvia (limite de 1 por hora) nem duplica
     await t.call('post', '/funil/inscrever', { body: { email: 'ana@b.com', consentimento: true } });
     assert.equal(db.nutricao.length, 1); assert.equal(t.sent.length, 1);
+    // link inválido não confirma
+    assert.equal((await t.call('get', '/nutricao/confirmar', { query: { i: link[1], t: 'x'.repeat(32) } })).c, 400); assert.ok(!db.nutricao[0].confirmed_at);
+    // link válido confirma, cria o contato no CRM e envia o 1º e-mail uma única vez
+    assert.equal((await t.call('get', '/nutricao/confirmar', { query: { i: link[1], t: link[2] } })).c, 200);
+    assert.ok(db.nutricao[0].confirmed_at); assert.equal(db.crm_leads.length, 1); assert.equal(db.crm_leads[0].origem, 'triagem');
+    assert.equal(t.sent.length, 2); assert.match(t.sent[1].html, /utm_campaign=Free\+Out/);
+    await t.call('get', '/nutricao/confirmar', { query: { i: link[1], t: link[2] } });
+    assert.equal(t.sent.length, 2); assert.equal(db.crm_leads.length, 1);
   } finally { t.restore(); }
 });
 
 test('cron: exige segredo; envia só o que venceu; para quem comprou ou saiu', async () => {
   const U = (n) => '0000000' + n + '-0000-0000-0000-000000000000';
-  const mk = (n, o) => Object.assign({ id: U(n), email: 'p' + n + '@x.com', campanha: null, step: 1, opt_out: false, converted: false, created_at: new Date(NOW - 2 * DAY).toISOString() }, o);
-  const db = { nutricao: [mk(1), mk(2, { created_at: new Date(NOW - 1 * DAY).toISOString() }), mk(3), mk(4, { opt_out: true }), mk(5)], profiles: [{ email: 'p3@x.com', plan: 'basic' }], crm_leads: [{ email: 'p5@x.com', etapa: 'cliente' }] };
+  const mk = (n, o) => Object.assign({ id: U(n), email: 'p' + n + '@x.com', campanha: null, step: 1, confirmed_at: '2026-10-01T00:00:00Z', opt_out: false, converted: false, created_at: new Date(NOW - 2 * DAY).toISOString() }, o);
+  const db = { nutricao: [mk(1), mk(2, { created_at: new Date(NOW - 1 * DAY).toISOString() }), mk(3), mk(4, { opt_out: true }), mk(5), mk(6, { confirmed_at: null })], profiles: [{ email: 'p3@x.com', plan: 'basic' }], crm_leads: [{ email: 'p5@x.com', etapa: 'cliente' }] };
   const t = load(db);
   try {
     assert.equal((await t.call('get', '/cron/nutricao', { headers: {} })).c, 401);

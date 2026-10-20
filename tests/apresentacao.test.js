@@ -29,7 +29,7 @@ test('apresentação: botões levam ao checkout com origem; slogan; sem rolagem 
 });
 test('vercel.json: /triagem, /apresentacao e arquivos .html/.webmanifest/.wasm não caem no app', () => {
   const v = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'vercel.json'), 'utf8'));
-  const dest = (url) => { for (const r of v.routes) { const m = new RegExp('^' + r.src + '$').exec(url); if (m) return r.dest.replace('$1', m[1]); } };
+  const dest = (url) => { for (const r of v.routes) { if (r.continue) continue; const m = new RegExp('^' + r.src + '$').exec(url); if (m) return r.dest.replace('$1', m[1]); } };
   assert.equal(dest('/triagem'), '/public/triagem.html'); assert.equal(dest('/apresentacao'), '/public/apresentacao.html');
   assert.equal(dest('/triagem.html'), '/public/triagem.html'); assert.equal(dest('/termos.html'), '/public/termos.html');
   assert.equal(dest('/manifest.webmanifest'), '/public/manifest.webmanifest'); assert.equal(dest('/ocr/core.wasm'), '/public/ocr/core.wasm');

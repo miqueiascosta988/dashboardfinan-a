@@ -1,6 +1,6 @@
 // Service worker do SM Financial: instalação (PWA), abertura rápida e notificações de lembrete.
 // Nunca guarda em cache chamadas de API, do Supabase ou de pagamento: dados financeiros não ficam em cache.
-const VERSION = 'sm-v2';
+const VERSION = 'sm-v3';
 const SHELL = ['/', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png'];
 
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(VERSION).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting())); });

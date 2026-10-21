@@ -3484,7 +3484,7 @@ async function deleteAllTransactions(type) {
 function openGoalModal(existing = null) {
   const isEdit = !!existing;
   openModal(isEdit ? 'Editar meta' : 'Nova meta', `
-    <div class="form-row"><div class="form-group"><label class="form-label">Emoji</label><input class="form-input" type="text" id="m-icon" value="${existing?.icon || (state.profile_type==='PJ' ? '💼' : '🎯')}" maxlength="4" /></div><div class="form-group"><label class="form-label">Nome</label><input class="form-input" type="text" id="m-gname" value="${existing?.name || ''}" placeholder="Ex: ${state.profile_type==='PJ'?'Reserva de capital de giro':'Comprar carro'}" /></div></div>
+    <div class="form-row"><div class="form-group"><label class="form-label">Nome</label><input class="form-input" type="text" id="m-gname" value="${existing?.name || ''}" placeholder="Ex: ${state.profile_type==='PJ'?'Reserva de capital de giro':'Comprar carro'}" /></div></div>
     <div class="form-row"><div class="form-group"><label class="form-label">Valor total</label><input class="form-input" type="number" id="m-target" value="${existing?.target || ''}" step="0.01" /></div><div class="form-group"><label class="form-label">Já acumulado</label><input class="form-input" type="number" id="m-current" value="${existing?.current || ''}" step="0.01" /></div></div>
     <div class="form-group"><label class="form-label">Aporte mensal</label><input class="form-input" type="number" id="m-monthly" value="${existing?.monthly || ''}" step="0.01" /></div>
     ${profileFieldHtml(existing)}
@@ -3493,7 +3493,7 @@ function openGoalModal(existing = null) {
 async function saveGoal(editId) {
   if (!editId && !checkPlanLimit(state.goals.length, PLAN_LIMITS.maxActiveGoals, 'Plano ' + currentPlanLabel() + ' permite até ' + PLAN_LIMITS.maxActiveGoals + ' meta ativa. Exclua a atual ou faça upgrade para metas ilimitadas.')) return;
   const profile = readProfileField();
-  const g = { id: editId || genId(), icon: document.getElementById('m-icon').value || '🎯', name: document.getElementById('m-gname').value, target: parseFloat(document.getElementById('m-target').value) || 0, current: parseFloat(document.getElementById('m-current').value) || 0, monthly: parseFloat(document.getElementById('m-monthly').value) || 0, profile };
+  const g = { id: editId || genId(), icon: ((state.goals.find(x => x.id === editId) || {}).icon) || (state.profile_type === 'PJ' ? '💼' : '🎯'), name: document.getElementById('m-gname').value, target: parseFloat(document.getElementById('m-target').value) || 0, current: parseFloat(document.getElementById('m-current').value) || 0, monthly: parseFloat(document.getElementById('m-monthly').value) || 0, profile };
   if (editId) { const i = state.goals.findIndex(x => x.id === editId); if (i >= 0) state.goals[i] = g; } else state.goals.push(g);
   await dbUpsert('goals', { id: g.id, user_id: currentUser?.id, name: g.name, icon: g.icon, target_amount: g.target, current_amount: g.current, monthly_contribution: g.monthly, profile });
   closeModal(); renderCurrentTab(); showToast(editId ? 'Meta atualizada' : 'Meta criada', 'success');
@@ -5459,16 +5459,58 @@ function renderTransactionList(type, c) {
   ].map((k,i) => `<div class="kpi animate-in stagger-${i+1}"><div class="kpi-label">${k.label}</div><div class="kpi-value ${k.cls||''}">${k.value}</div></div>`).join('')}</div>
   <div class="search-bar animate-in stagger-3"><input type="text" id="tx-search" placeholder="Buscar por descrição ou categoria..." /></div>
   ${items.length===0?`<div class="card animate-in stagger-4"><div class="empty-state"><div class="empty-icon">${type==='income'?'💰':'🧾'}</div><div class="empty-title">Nenhum lançamento</div><div class="empty-desc">${searchQuery?'Nenhum resultado para a busca.':'Clique em "+ Novo" para adicionar.'}</div></div></div>`:
-  `<div class="card overflow-x animate-in stagger-4"><table class="data-table"><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Recorrente</th><th class="text-right">Valor</th><th></th>${type==='expense'&&!isPJ?'<th></th>':''}</tr></thead><tbody>${items.map(t=>`<tr><td onclick='openTransactionModal("${type}",${JSON.stringify(t).replace(/'/g,"&#39;")})' style="cursor:pointer">${t.date}</td><td onclick='openTransactionModal("${type}",${JSON.stringify(t).replace(/'/g,"&#39;")})' style="font-weight:500;cursor:pointer">${fxEsc(t.desc)}</td><td onclick='openTransactionModal("${type}",${JSON.stringify(t).replace(/'/g,"&#39;")})' style="cursor:pointer"><span class="cat-badge"><span class="cat-dot" style="background:${CAT_COLORS[t.cat]||'var(--ink-3)'}"></span>${t.cat}</span></td><td onclick='openTransactionModal("${type}",${JSON.stringify(t).replace(/'/g,"&#39;")})' style="cursor:pointer">${t.recur?'<span class="recur">Sim</span>':'<span style="color:var(--ink-3);font-size:12px">—</span>'}</td><td class="amount ${type}" onclick='openTransactionModal("${type}",${JSON.stringify(t).replace(/'/g,"&#39;")})' style="cursor:pointer">${type==='income'?'+':'-'} ${fmt(t.amount)}</td><td><button class="btn-sm" onclick="event.stopPropagation();deleteTransaction('${t.id}')" title="Excluir este lançamento">🗑️</button></td>${type==='expense'&&!isPJ?`<td><button class="btn-sm" onclick="openSplitExpense('${t.id}')" title="Dividir despesa">🔀</button></td>`:''}</tr>`).join('')}</tbody></table></div>`}`;
+  `<div class="card overflow-x animate-in stagger-4"><table class="data-table"><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Recorrente</th><th class="text-right">Valor</th><th></th>${type==='expense'&&!isPJ?'<th></th>':''}</tr></thead><tbody>${txRowsHtml(items, type, isPJ)}</tbody></table></div>`}`;
+}
+
+function txRowHtml(t, type, isPJ, inv) {
+  return `<tr${inv ? ` data-inv="${inv}" hidden` : ''}><td onclick='openTransactionModal("${type}",${JSON.stringify(t).replace(/'/g,"&#39;")})' style="cursor:pointer">${t.date}</td><td onclick='openTransactionModal("${type}",${JSON.stringify(t).replace(/'/g,"&#39;")})' style="font-weight:500;cursor:pointer">${fxEsc(t.desc)}</td><td onclick='openTransactionModal("${type}",${JSON.stringify(t).replace(/'/g,"&#39;")})' style="cursor:pointer"><span class="cat-badge"><span class="cat-dot" style="background:${CAT_COLORS[t.cat]||'var(--ink-3)'}"></span>${t.cat}</span></td><td onclick='openTransactionModal("${type}",${JSON.stringify(t).replace(/'/g,"&#39;")})' style="cursor:pointer">${t.recur?'<span class="recur">Sim</span>':'<span style="color:var(--ink-3);font-size:12px">—</span>'}</td><td class="amount ${type}" onclick='openTransactionModal("${type}",${JSON.stringify(t).replace(/'/g,"&#39;")})' style="cursor:pointer">${type==='income'?'+':'-'} ${fmt(t.amount)}</td><td><button class="btn-sm" onclick="event.stopPropagation();deleteTransaction('${t.id}')" title="Excluir este lançamento">🗑️</button></td>${type==='expense'&&!isPJ?`<td><button class="btn-sm" onclick="openSplitExpense('${t.id}')" title="Dividir despesa">🔀</button></td>`:''}</tr>`;
+}
+function txRowsHtml(items, type, isPJ) {
+  const groups = type === 'expense' ? invoiceGroups() : {}, seen = {}, out = [];
+  items.forEach(t => {
+    const g = groups[t.id];
+    if (!g) { out.push(txRowHtml(t, type, isPJ)); return; }
+    if (seen[g.key]) return; seen[g.key] = 1;
+    const mine = items.filter(z => groups[z.id] === g), sum = mine.reduce((a, z) => a + z.amount, 0);
+    out.push('<tr style="cursor:pointer;background:rgba(26,60,94,.06)" onclick="toggleInv(\'' + g.key + '\')"><td>' + (g.venc ? brDate(g.venc) : '') + '</td><td style="font-weight:600"><span id="inv-arrow-' + g.key + '">▸</span> 💳 ' + fxEsc(g.title) + '<div style="font-size:11.5px;font-weight:400;color:var(--ink-3)">' + mine.length + ' compra(s) neste período' + (g.fechado != null ? ' · fatura fechada: <b>' + fmt(g.fechado) + '</b>' : '') + ' · clique para ver cada compra</div></td><td><span class="cat-badge"><span class="cat-dot" style="background:var(--ink-3)"></span>Vários</span></td><td><span style="color:var(--ink-3);font-size:12px">—</span></td><td class="amount expense">- ' + fmt(sum) + '</td><td></td>' + (type === 'expense' && !isPJ ? '<td></td>' : '') + '</tr>');
+    mine.forEach(z => out.push(txRowHtml(z, type, isPJ, g.key)));
+  });
+  return out.join('');
 }
 
 // ─── ORÇAMENTO POR CATEGORIA ────────────────────
+function balancaHtml(inc, exp) {
+  const isPJ = state.profile_type === 'PJ', lblIn = isPJ ? 'Faturamento' : 'Receitas', lblOut = isPJ ? 'Custos' : 'Despesas';
+  const diff = inc - exp, base = Math.max(inc, exp, 1), ang = Math.sign(exp - inc) * Math.min(14, Math.sqrt(Math.abs(exp - inc) / base) * 14);   // despesas maiores: o lado direito desce
+  let msg, cls;
+  if (inc === 0 && exp === 0) { msg = 'Sem lançamentos neste período.'; cls = 'var(--ink-3)'; }
+  else if (Math.abs(diff) < 0.5) { msg = 'Em equilíbrio: ' + lblIn.toLowerCase() + ' e ' + lblOut.toLowerCase() + ' iguais.'; cls = 'var(--ink-2)'; }
+  else if (diff > 0) { msg = 'Sobrou ' + fmt(diff) + ' (' + Math.round(diff / Math.max(inc, 1) * 100) + '% do que entrou).'; cls = 'var(--income)'; }
+  else { msg = 'Faltou ' + fmt(-diff) + ': saiu mais do que entrou.'; cls = 'var(--expense)'; }
+  const pan = (x, y, color) => '<path d="M' + (x - 62) + ' ' + y + ' Q' + x + ' ' + (y + 46) + ' ' + (x + 62) + ' ' + y + 'Z" fill="' + color + '"/>';
+  return '<div class="card animate-in" style="margin-bottom:16px"><div class="card-header"><div><div class="card-title">Balança do período</div><div class="card-subtitle">' + lblIn + ' de um lado, ' + lblOut.toLowerCase() + ' do outro</div></div></div>'
+    + '<svg viewBox="0 0 400 190" style="width:100%;max-width:420px;display:block;margin:0 auto" role="img" aria-label="Balança entre ' + lblIn.toLowerCase() + ' e ' + lblOut.toLowerCase() + '">'
+    + '<path d="M200 60 L178 170 L222 170Z" fill="var(--border)"/><rect x="150" y="168" width="100" height="8" rx="4" fill="var(--border)"/>'
+    + '<g style="transform-origin:200px 60px;transform:rotate(' + ang.toFixed(1) + 'deg);transition:transform .8s cubic-bezier(.2,.9,.3,1.2)">'
+    + '<rect x="50" y="56" width="300" height="8" rx="4" fill="var(--ink-2)"/>'
+    + '<path d="M62 60 L62 96 M62 60 L36 96 M62 60 L88 96" stroke="var(--ink-3)" stroke-width="2" fill="none"/>' + pan(62, 96, 'var(--income)')
+    + '<path d="M338 60 L338 96 M338 60 L312 96 M338 60 L364 96" stroke="var(--ink-3)" stroke-width="2" fill="none"/>' + pan(338, 96, 'var(--expense)')
+    + '</g><circle cx="200" cy="60" r="9" fill="var(--ink)"/></svg>'
+    + '<div style="display:flex;justify-content:space-between;gap:12px;margin:4px 8px 8px"><div><div style="font-size:12px;color:var(--ink-3)">' + lblIn + '</div><div style="font-weight:700;color:var(--income)">' + fmt(inc) + '</div></div><div style="text-align:right"><div style="font-size:12px;color:var(--ink-3)">' + lblOut + '</div><div style="font-weight:700;color:var(--expense)">' + fmt(exp) + '</div></div></div>'
+    + '<div style="text-align:center;font-weight:600;font-size:14px;color:' + cls + '">' + msg + '</div></div>';
+}
 function renderOrcamento(c) {
-  const cats = getCatsExpense();
-  const catMap = {};
-  visibleList('transactions').filter(t => t.type === 'expense').forEach(e => { catMap[e.cat] = (catMap[e.cat] || 0) + e.amount; });
-  return `<div class="section-header animate-in"><div><div class="section-title">Orçamento por Categoria</div><div class="section-desc">Defina limites e acompanhe seus gastos.</div></div><button class="btn-add" onclick="openBudgetModal()">Editar limites</button></div>
-  <div class="card animate-in stagger-1">${cats.map(cat => {
+  const isPJ = state.profile_type === 'PJ', cats = getCatsExpense(), catsIn = getCatsIncome();
+  const catMap = {}, inMap = {};
+  filterByPeriod(visibleList('transactions').filter(t => t.type === 'expense'), 'date').forEach(e => { catMap[e.cat] = (catMap[e.cat] || 0) + e.amount; });
+  filterByPeriod(visibleList('transactions').filter(t => t.type === 'income'), 'date').forEach(e => { inMap[e.cat] = (inMap[e.cat] || 0) + e.amount; });
+  const totalIn = Object.values(inMap).reduce((a, b) => a + b, 0), totalOut = Object.values(catMap).reduce((a, b) => a + b, 0);
+  const inKeys = catsIn.filter(k => inMap[k] > 0).concat(Object.keys(inMap).filter(k => catsIn.indexOf(k) < 0 && inMap[k] > 0));
+  const inRows = inKeys.map(k => { const v = inMap[k], p = totalIn > 0 ? v / totalIn * 100 : 0; return `<div class="budget-row"><div class="budget-cat">${k}</div><div class="budget-track"><div class="budget-fill" style="width:${Math.min(100, p)}%;background:var(--income)"></div></div><div class="budget-nums">${fmt(v)} · ${Math.round(p)}%</div></div>`; }).join('');
+  return `<div class="section-header animate-in"><div><div class="section-title">Orçamento</div><div class="section-desc">Veja o que entrou, o que saiu e acompanhe seus limites por categoria.</div></div><button class="btn-add" onclick="openBudgetModal()">Editar limites</button></div>
+  ${balancaHtml(totalIn, totalOut)}
+  <div class="card animate-in stagger-1" style="margin-bottom:16px"><div class="card-header"><div><div class="card-title">${isPJ ? 'Faturamento recebido' : 'Receitas recebidas'}</div><div class="card-subtitle">Total no período: ${fmt(totalIn)}</div></div></div>${inRows || '<div class="empty-state"><div class="empty-icon">💰</div><div class="empty-title">Nenhuma receita no período</div><div class="empty-desc">Lance uma receita ou envie um holerite para ela aparecer aqui.</div></div>'}</div>
+  <div class="card animate-in stagger-2"><div class="card-header"><div><div class="card-title">${isPJ ? 'Custos' : 'Despesas'} por categoria</div><div class="card-subtitle">Limite mensal e quanto já foi usado</div></div></div>${cats.map(cat => {
     const spent = catMap[cat] || 0;
     const budget = state.budgets[cat] || 0;
     if (budget === 0 && spent === 0) return '';
@@ -5477,7 +5519,7 @@ function renderOrcamento(c) {
     const isWarn = pctUsed > 80 && !isOver;
     const fillColor = isOver ? '' : (CAT_COLORS[cat] || 'var(--ink-3)');
     return `<div class="budget-row"><div class="budget-cat">${cat}</div><div class="budget-track"><div class="budget-fill ${isOver?'over':''}" style="width:${Math.min(100,pctUsed)}%;${fillColor?`background:${fillColor}`:''}"></div></div><div class="budget-nums">${fmt(spent)}${budget>0?' / '+fmt(budget):''}</div>${isOver?'<span class="budget-alert danger">Estourou</span>':isWarn?'<span class="budget-alert warn">Atenção</span>':''}</div>`;
-  }).filter(Boolean).join('') || '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">Sem orçamento definido</div><div class="empty-desc">Clique em "Editar limites" para definir.</div></div>'}</div>`;
+  }).filter(Boolean).join('') || '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">Sem limites definidos</div><div class="empty-desc">Clique em "Editar limites" para definir.</div></div>'}</div>`;
 }
 
 function openBudgetModal() {
@@ -6037,7 +6079,9 @@ function docEvent(d) {                 // o que o documento significa financeira
   if ((f.direction !== 'in' && f.direction !== 'out') || !(f.amount > 0) || !f.date) return null;
   const k = f.kind, cp = f.counterparty ? ' · ' + f.counterparty : '';
   const desc = k === 'boleto' ? 'Boleto' + cp : k === 'fatura' ? 'Fatura do cartão' + cp : k === 'nf' ? (f.direction === 'in' ? 'NF emitida' : 'NF recebida') + cp + (f.extra && f.extra.numero ? ' nº ' + f.extra.numero : '') : k === 'assinatura' ? ({ assinatura: 'Assinatura ', pedido: 'Pedido ', corrida: 'Corrida ', compra: 'Compra ' }[(f.extra && f.extra.tipoCobranca) || 'compra']) + (f.counterparty || 'serviço') + (f.extra && f.extra.tipoCobranca === 'assinatura' && f.extra.plano ? ' · ' + f.extra.plano : '') : (f.counterparty || 'Guia de imposto') + (f.extra && f.extra.periodo ? ' · ' + f.extra.periodo : '');
-  return { type: f.direction === 'in' ? 'income' : 'expense', date: f.date, amount: f.amount, cat: finCategory(f, f.direction), desc, match: 'day', label: desc };
+  const base = { type: f.direction === 'in' ? 'income' : 'expense', date: f.date, amount: f.amount, cat: finCategory(f, f.direction), desc, match: 'day', label: desc };
+  if (k === 'fatura' && f.extra && Array.isArray(f.extra.compras) && f.extra.compras.length) base.invoice = { compras: f.extra.compras, fechado: f.amount, venc: f.date, banco: f.counterparty || '' };   // fatura com compras lidas: cada compra é lançada e categorizada
+  return base;
 }
 function syncDocTransaction(d) { const r = syncDocTransactionCore(d); try { if (typeof agendaFromDoc === 'function') agendaFromDoc(d); } catch (e) { console.warn('agenda:', e); } return r; }
 function syncDocTransactionCore(d) {
@@ -6045,6 +6089,7 @@ function syncDocTransactionCore(d) {
   if (!(x.state === 'done' || x.userConfirmed)) return null;
   const ev = docEvent(d); if (!ev) return null;
   if (ev.debt) return syncDocDebt(d, ev);
+  if (ev.invoice) return syncDocInvoice(d, ev);
   const cur = x.txId ? state.transactions.find(t => t.id === x.txId) : null;
   if (cur) {
     if (x.txOwned !== false && (Math.abs(cur.amount - ev.amount) > 0.001 || cur.date !== ev.date || cur.type !== ev.type || cur.cat !== ev.cat || cur.desc !== ev.desc)) { Object.assign(cur, { amount: ev.amount, date: ev.date, type: ev.type, cat: ev.cat, desc: ev.desc }); docTxPersist(cur); }
@@ -6060,6 +6105,32 @@ function syncDocTransactionCore(d) {
   showToast((ev.type === 'income' ? '💰 Receita de ' : '💸 Despesa de ') + fmt(ev.amount) + ' lançada (' + ev.label + ') e integrada ao painel' + (txInPeriod(t) ? '.' : '. Atenção: ela está em ' + txMonthLabel(t) + ', fora do período exibido; use "ver nesse mês" no card do documento.'), 'success');
   return t;
 }
+function brDate(iso) { const p = String(iso || '').split('-'); return p.length === 3 ? p[2] + '/' + p[1] : ''; }
+function invoiceTitle(inv) { return 'Fatura ' + (inv.banco || 'do cartão') + (inv.venc ? ' · venc. ' + brDate(inv.venc) : ''); }
+// Fatura de cartão com compras lidas: uma despesa por compra (data da compra, categoria própria), todas ligadas ao documento.
+// O total fechado fica no documento e aparece em destaque na linha agrupada; nunca é somado de novo.
+function syncDocInvoice(d, ev) {
+  const x = d.extractedData, inv = ev.invoice;
+  if ((x.invTxIds || []).length) return state.transactions.find(t => t.id === x.invTxIds[0]) || { id: x.invTxIds[0] };   // já lançada; compra excluída de propósito não volta
+  if (x.txDeleted) return null;
+  const prof = docProfile(d), cats = getCatsExpense(), ids = []; let soma = 0;
+  const add = (date, desc, amount, cat) => { const t = { id: genId(), date, desc, cat, amount, type: 'expense', recur: false, profile: prof }; state.transactions.push(t); docTxPersist(t); ids.push(t.id); soma += amount; };
+  inv.compras.forEach(c => {
+    let cat = learnedCat(c[1], 'expense') || guessTxCategory(c[1], 'expense'); if (cats.indexOf(cat) < 0) cat = cats[cats.length - 1];
+    add(c[0], c[1], c[2], cat);
+  });
+  const dif = inv.fechado != null ? Math.round((inv.fechado - soma) * 100) / 100 : 0;
+  if (dif > 0.009) add(inv.venc || inv.compras[inv.compras.length - 1][0], 'Encargos e ajustes da fatura (juros, anuidade ou itens não detalhados)', dif, cats.indexOf('Outros') >= 0 ? 'Outros' : cats[cats.length - 1]);
+  x.invTxIds = ids; x.txId = ids[0]; x.txOwned = true; persistDoc(d);
+  showToast('💳 ' + invoiceTitle(inv) + ': ' + ids.length + ' lançamento(s) categorizado(s), somando ' + fmt(soma) + (inv.fechado != null ? ' (fatura fechada em ' + fmt(inv.fechado) + ')' : '') + '. Em Despesas, ficam agrupados em uma linha.', 'success');
+  return state.transactions.find(t => t.id === ids[0]);
+}
+function invoiceGroups() {          // { txId → grupo } para agrupar as compras de cada fatura em Despesas
+  const map = {}; (state.documents || []).forEach(d => { const x = d.extractedData, f = x && x.fin; if (!x || !(x.invTxIds || []).length) return;
+    const g = { key: d.id, title: invoiceTitle({ banco: f && f.counterparty, venc: f && f.date }), fechado: f && f.amount, venc: f && f.date }; x.invTxIds.forEach(id => { map[id] = g; }); });
+  return map;
+}
+function toggleInv(key) { document.querySelectorAll('tr[data-inv="' + key + '"]').forEach(r => { r.hidden = !r.hidden; }); const h = document.getElementById('inv-arrow-' + key); if (h) h.textContent = h.textContent === '▾' ? '▸' : '▾'; }
 function docsHeal() {                 // documentos já enviados que nunca chegaram (ou perderam) o lançamento: distribui de novo, sem duplicar
   let n = 0;
   docsVisible().forEach(d => {
@@ -6425,10 +6496,11 @@ function createTransactionFromDoc(id) {
 
 function deleteDoc(id) {
   const dd = state.documents.find(d => d.id === id), xx = dd && dd.extractedData;
-  if (xx && xx.txId && xx.txOwned !== false) {
+  if (xx && xx.txId && xx.txOwned !== false && !(xx.invTxIds || []).length) {
     const tx = state.transactions.find(t => t.id === xx.txId);
     if (tx) { state.transactions = state.transactions.filter(t => t.id !== tx.id); dbDelete('transactions', tx.id); showToast('O lançamento criado por esse documento também foi removido.', 'info'); }
   }
+  if (xx && (xx.invTxIds || []).length && xx.txOwned !== false) { const gone = xx.invTxIds.slice(); state.transactions = state.transactions.filter(t => gone.indexOf(t.id) < 0); gone.forEach(id => dbDelete('transactions', id)); showToast('As compras lançadas a partir dessa fatura também foram removidas.', 'info'); }
   if (xx && xx.debtId && xx.debtOwned !== false) { state.debts = state.debts.filter(z => z.id !== xx.debtId); dbDelete('debts', xx.debtId); showToast('A dívida criada por esse documento também foi removida.', 'info'); }
   try { if (typeof agendaDropDoc === 'function') agendaDropDoc(id); } catch (e) {}
   state.documents = state.documents.filter(d => d.id !== id);
@@ -6883,43 +6955,43 @@ function generateInsights(c, isPJ) {
   if (c.categories.length > 0) {
     const top = c.categories[0];
     const topPct = c.totalExpense > 0 ? (top.value / c.totalExpense * 100).toFixed(0) : 0;
-    insights.push({ type: 'trend', icon: '📊', title: `Maior ${isPJ ? 'custo' : 'gasto'}: ${fxEsc(top.name)}`, sub: 'Análise de categorias', body: `<strong>${fxEsc(top.name)}</strong> representa <strong>${topPct}%</strong> dos seus ${isPJ ? 'custos' : 'gastos'} (${fmt(top.value)}). ${topPct > 40 ? 'Considere diversificar e renegociar para reduzir a concentração.' : 'A distribuição está equilibrada.'}` });
+    insights.push({ type: 'trend', icon: '📊', title: `Maior ${isPJ ? 'custo' : 'gasto'}: ${fxEsc(top.name)}`, sub: 'Análise de categorias', body: `<strong>${fxEsc(top.name)}</strong> é <strong>${topPct}%</strong> dos seus ${isPJ ? 'custos' : 'gastos'} (${fmt(top.value)}). ${topPct > 40 ? 'Está concentrado: comece a reduzir ou renegociar por aqui.' : 'Nenhuma categoria domina os seus ' + (isPJ ? 'custos' : 'gastos') + '.'}` });
   }
   // 2. Savings rate
   if (c.totalIncome > 0) {
     const rate = c.taxaEconomia;
     if (rate < 10) {
-      insights.push({ type: 'alert', icon: '🚨', title: isPJ ? 'Margem muito baixa' : 'Taxa de economia crítica', sub: 'Alerta financeiro', body: `Sua ${isPJ ? 'margem líquida' : 'taxa de economia'} está em <strong>${pct(rate)}</strong>. O recomendado é manter acima de ${isPJ ? '15%' : '20%'}. Revise ${isPJ ? 'custos fixos e variáveis' : 'gastos recorrentes'} para aumentar a margem.` });
+      insights.push({ type: 'alert', icon: '🚨', title: isPJ ? 'Margem muito baixa' : 'Taxa de economia crítica', sub: 'Alerta financeiro', body: `${isPJ ? 'Sua margem líquida é' : 'Você guarda'} <strong>${pct(rate)}</strong>${isPJ ? '' : ' do que ganha'}. O ideal é pelo menos ${isPJ ? '15%' : '20%'}. Comece revisando ${isPJ ? 'custos fixos e variáveis' : 'os gastos recorrentes'}.` });
     } else if (rate >= 30) {
-      insights.push({ type: 'tip', icon: '🏆', title: isPJ ? 'Margem excelente' : 'Poupança exemplar', sub: 'Parabéns!', body: `Você está ${isPJ ? 'com margem de' : 'economizando'} <strong>${pct(rate)}</strong> ${isPJ ? 'do faturamento' : 'da renda'}. Continue assim e considere direcionar o excedente para investimentos de maior retorno.` });
+      insights.push({ type: 'tip', icon: '🏆', title: isPJ ? 'Margem excelente' : 'Poupança exemplar', sub: 'Parabéns!', body: `${isPJ ? 'Sua margem é de' : 'Você guarda'} <strong>${pct(rate)}</strong> ${isPJ ? 'do faturamento' : 'da renda'}. Ótimo ritmo: considere direcionar o excedente para investimentos.` });
     }
   }
   // 3. Debt alert
   if (c.debtPct > 30) {
-    insights.push({ type: 'alert', icon: '⚠️', title: 'Endividamento elevado', sub: 'Gestão de dívidas', body: `Suas dívidas mensais consomem <strong>${pct(c.debtPct)}</strong> ${isPJ ? 'do faturamento' : 'da renda'}. O ideal é manter abaixo de 30%. ${visibleList('debts').filter(d => d.juros > 5).length > 0 ? 'Priorize quitar as dívidas com juros mais altos para economizar em juros compostos.' : ''}` });
+    insights.push({ type: 'alert', icon: '⚠️', title: 'Endividamento elevado', sub: 'Gestão de dívidas', body: `As parcelas das dívidas levam <strong>${pct(c.debtPct)}</strong> ${isPJ ? 'do faturamento' : 'da renda'} por mês. O ideal é ficar abaixo de 30%. ${visibleList('debts').filter(d => d.juros > 5).length > 0 ? 'Comece pelas dívidas de juros mais altos: é onde mais se economiza.' : ''}` });
   }
   // 4. Subscriptions analysis
   if (c.totalSubs > 0) {
     const subPct = c.totalIncome > 0 ? (c.totalSubs / c.totalIncome * 100).toFixed(1) : 0;
-    insights.push({ type: 'warn', icon: '💸', title: `${isPJ ? 'Ferramentas & SaaS' : 'Assinaturas'}: ${fmtD(c.totalSubs)}/mês`, sub: 'Recorrências', body: `Você gasta <strong>${fmtD(c.totalSubs * 12)}</strong> por ano em ${isPJ ? 'ferramentas' : 'assinaturas'} (${subPct}% da renda). Revise periodicamente se todas estão sendo utilizadas.` });
+    insights.push({ type: 'warn', icon: '💸', title: `${isPJ ? 'Ferramentas & SaaS' : 'Assinaturas'}: ${fmtD(c.totalSubs)}/mês`, sub: 'Recorrências', body: `São <strong>${fmtD(c.totalSubs * 12)}</strong> por ano em ${isPJ ? 'ferramentas' : 'assinaturas'} (${subPct}% da renda). Cancele o que você não usa.` });
   }
   // 5. Goals progress
   if (visibleList('goals').length > 0) {
     const closest = visibleList('goals').reduce((a, b) => { const pa = a.target > 0 ? a.current / a.target : 0; const pb = b.target > 0 ? b.current / b.target : 0; return pa > pb ? a : b; });
     const pctDone = closest.target > 0 ? (closest.current / closest.target * 100).toFixed(0) : 0;
-    insights.push({ type: 'tip', icon: '🎯', title: `Meta mais próxima: ${fxEsc(closest.name)}`, sub: 'Progresso de metas', body: `Você já alcançou <strong>${pctDone}%</strong> da meta "${fxEsc(closest.name)}" (${fmt(closest.current)} de ${fmt(closest.target)}). ${pctDone > 75 ? 'Está quase lá! Mantenha o ritmo.' : 'Continue contribuindo mensalmente para atingir o objetivo.'}` });
+    insights.push({ type: 'tip', icon: '🎯', title: `Meta mais próxima: ${fxEsc(closest.name)}`, sub: 'Progresso de metas', body: `A meta "${fxEsc(closest.name)}" está em <strong>${pctDone}%</strong> (${fmt(closest.current)} de ${fmt(closest.target)}). ${pctDone > 75 ? 'Falta pouco: mantenha o ritmo.' : 'Continue aportando todo mês.'}` });
   }
   // 6. Net worth trend
   if (c.netWorth !== 0) {
-    insights.push({ type: 'trend', icon: '📈', title: `Patrimônio líquido: ${fmt(c.netWorth)}`, sub: 'Evolução patrimonial', body: `${c.netWorth > 0 ? 'Seu patrimônio é positivo — seus ativos superam seus passivos.' : 'Seu patrimônio está negativo — seus passivos superam seus ativos. Foque em reduzir dívidas e aumentar reservas.'} ${c.resultado > 0 ? `Com o resultado mensal de ${fmt(c.resultado)}, seu patrimônio tende a crescer.` : ''}` });
+    insights.push({ type: 'trend', icon: '📈', title: `Patrimônio líquido: ${fmt(c.netWorth)}`, sub: 'Evolução patrimonial', body: `${c.netWorth > 0 ? 'Seus bens e saldos superam as suas dívidas.' : 'Suas dívidas superam seus bens e saldos. Priorize reduzir dívidas e formar reserva.'} ${c.resultado > 0 ? `Com a sobra de ${fmt(c.resultado)} por mês, seu patrimônio tende a crescer.` : ''}` });
   }
   // 7. Emergency fund
   const emergMonths = c.totalExpense > 0 ? (c.totalAssets / c.totalExpense) : 0;
   if (emergMonths < 6 && c.totalExpense > 0) {
-    insights.push({ type: 'warn', icon: '🛡️', title: `Reserva de emergência: ${emergMonths.toFixed(1)} meses`, sub: 'Segurança financeira', body: `Sua reserva cobre <strong>${emergMonths.toFixed(1)} meses</strong> de ${isPJ ? 'custos' : 'gastos'}. O recomendado é ter pelo menos 6 meses. Faltam <strong>${fmt(Math.max(0, c.totalExpense * 6 - c.totalAssets))}</strong> para atingir o ideal.` });
+    insights.push({ type: 'warn', icon: '🛡️', title: `Reserva de emergência: ${emergMonths.toFixed(1)} meses`, sub: 'Segurança financeira', body: `Sua reserva cobre <strong>${emergMonths.toFixed(1)} meses</strong> de ${isPJ ? 'custos' : 'gastos'}. O ideal é ter 6 meses. Faltam <strong>${fmt(Math.max(0, c.totalExpense * 6 - c.totalAssets))}</strong>.` });
   }
   // 8. CTA de importação de extrato
-  insights.push({ type: 'premium', icon: '📄', title: 'Importe seu extrato bancário', sub: 'Feature Premium', body: `Importe o extrato (OFX ou CSV) do seu banco e traga as transações automaticamente, categorizadas, sem digitação manual. <strong>Disponível no plano Plus ou superior.</strong>` });
+  insights.push({ type: 'premium', icon: '📄', title: 'Importe seu extrato bancário', sub: 'Recurso Premium', body: `Importe o extrato do seu banco (OFX ou CSV) e as transações entram já categorizadas, sem digitar. <strong>Disponível no plano Plus ou superior.</strong>` });
 
   return insights;
 }

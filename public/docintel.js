@@ -728,7 +728,7 @@
     return null;
   }
   var STMT_SKIP = /(saldo\s*(anterior|final|do\s*dia|parcial|dispon|em\s*conta|bloqueado|atual|inicial|total)|total\s*(de\s*)?(entradas|saidas|creditos|debitos|dispon)|limite|ouvidoria|sac\b|pagina\s*\d|p[aá]g\.?\s*\d|www\.|cnpj|ag[eê]ncia|extrato\s*(de|conta|banc)|periodo|emitido|gerado)/;
-  function parseStatement(lines, now) {
+  function parseStatement(lines, now, keepRaw) {
     var all = lines, text = strip(allDigitsText(lines)).toLowerCase(), nowD = now ? new Date(now) : new Date(); if (isNaN(nowD)) nowD = new Date();
     var pm = /per[ií]odo[^0-9]{0,30}(\d{2})\/(\d{2})\/(\d{4})\s*(?:a|at[eé]|ate|-|–|—)\s*(\d{2})\/(\d{2})\/(\d{4})/.exec(text) || /(\d{2})\/(\d{2})\/(\d{4})\s*(?:a|at[eé]|ate|-|–|—)\s*(\d{2})\/(\d{2})\/(\d{4})/.exec(text);
     var per = pm && validDate(+pm[1], +pm[2], +pm[3]) && validDate(+pm[4], +pm[5], +pm[6]) ? [iso(+pm[1], +pm[2], +pm[3]), iso(+pm[4], +pm[5], +pm[6])] : null;
@@ -765,6 +765,7 @@
       var mv = [d, desc.slice(0, 90), val, sign, saldoApos]; var rec = { mv: mv, y: ln.y }; movs.push(rec); prev = rec;
     });
     // sinal: pela diferença de saldo quando há coluna de saldo; senão pelo texto
+    var rawSigns = movs.map(function (r) { return r.mv[3]; });   // sinal impresso (antes de deduzir pelo texto)
     var rows = movs.map(function (r) { return r.mv; }), withBal = rows.filter(function (m) { return m[4] != null; }).length;
     var IN_RX = /(recebid|dep[oó]sito|cr[eé]dito|sal[aá]rio|estorno|rendimento|reembolso|devolu|cashback|resgate|transfer[eê]ncia\s*recebida|pix\s*recebido|ted\s*recebida|proventos?|remunera)/, OUT_RX = /(pagamento|compra|d[eé]bito|tarifa|saque|enviad|boleto|fatura|iof|juros|anuidade|pix\s*enviado|transfer[eê]ncia\s*enviada|ted\s*enviada|presta[cç][aã]o|seguro)/;
     var base = out.saldoIni != null ? out.saldoIni : null, incertos = 0;
@@ -776,11 +777,43 @@
     });
     var ent = r2(rows.filter(function (m) { return m[3] > 0; }).reduce(function (s, m) { return s + m[2]; }, 0)), sai = r2(rows.filter(function (m) { return m[3] < 0; }).reduce(function (s, m) { return s + m[2]; }, 0));
     out.movs = rows.slice(0, 1500).map(function (m) { return [m[0], m[1], m[2], m[3] > 0 ? 1 : 0, m.length > 5 ? 1 : 0]; });   // [data, descrição, valor, entrada?, sinalIncerto?]
+    if (keepRaw) out.rawSigns = rawSigns.slice(0, 1500);
     out.qtd = rows.length; out.entradas = ent; out.saidas = sai; out.incertos = incertos; out.truncado = rows.length > 1500;
     if (out.saldoIni != null && out.saldoFim != null && rows.length) { out.fecha = Math.abs(r2(out.saldoIni + ent - sai) - out.saldoFim) <= 0.02; out.diferenca = r2(out.saldoIni + ent - sai - out.saldoFim); }
     var byS = {};
     rows.forEach(function (m) { if (m[3] < 0) { var sv = findService(m[1]); if (sv) { var o = byS[sv.name] || (byS[sv.name] = { servico: sv.name, categoria: sv.cat, gasto: sv.gasto, qtd: 0, total: 0, ultimo: null }); o.qtd++; o.total = r2(o.total + m[2]); o.ultimo = m[0]; o.media = r2(o.total / o.qtd); } } });
     out.servicos = Object.keys(byS).map(function (k) { return byS[k]; }).sort(function (a, b) { return b.total - a.total; });
+    return out;
+  }
+
+  // ───────── 6d. fatura de cartão → compras (uma por linha), estornos e conferência com o total fechado ─────────
+  // Pagamento da fatura anterior não é compra e fica de fora. Estorno reduz a compra do mesmo estabelecimento.
+  var INV_SKIP = /(pagamento\s*(recebido|efetuado|de\s*fatura|em\s|on[\s-]*line)|pgto|pagto|total\s*(da\s*)?fatura|pagamento\s*m[ií]nimo|valor\s*m[ií]nimo|fatura\s*anterior|saldo\s*(anterior|restante)|limite|pr[oó]xim[ao]s?\s*fatura|fechamento|vencimento)/i;
+  var INV_CREDIT = /(estorno|cr[eé]dito|devolu|reembolso|cashback|chargeback)/i;
+  function parseInvoice(lines, now, venc, fechado) {
+    var ST = null; try { ST = parseStatement(lines, now, true); } catch (e) { ST = null; }
+    var out = { compras: [], creditos: [], soma: 0, somaCreditos: 0, ignoradas: 0 };
+    if (!ST || !ST.movs) return out;
+    var vlim = venc ? Date.parse(venc + 'T00:00:00') + 45 * 86400000 : null;
+    ST.movs.forEach(function (m, mi) {                              // [data, descrição, valor, entrada?, sinalIncerto?]
+      var d = m[0], desc = String(m[1] || '').replace(/\s+/g, ' ').trim(), tl = strip(desc).toLowerCase(), v = m[2];
+      if (!(v > 0) || !desc) return;
+      if (INV_SKIP.test(tl)) { out.ignoradas++; return; }
+      if (vlim && Date.parse(d + 'T00:00:00') > vlim) { var yy = +d.slice(0, 4) - 1; d = yy + d.slice(4); }   // compra de dezembro numa fatura de janeiro
+      var raw = ST.rawSigns ? ST.rawSigns[mi] : 0, credit = raw < 0 || INV_CREDIT.test(tl);   // sinal de menos impresso = crédito; sem sinal = compra
+      if (credit) { out.creditos.push([d, desc.slice(0, 70), r2(v)]); out.somaCreditos = r2(out.somaCreditos + v); }
+      else { out.compras.push([d, desc.slice(0, 70), r2(v), 0]); out.soma = r2(out.soma + v); }
+    });
+    // estorno abate a compra do mesmo estabelecimento (palavra em comum)
+    var STOP = /^(estorno|credito|devolucao|reembolso|cashback|compra|parcela)$/;
+    out.creditos.forEach(function (cr) {
+      var words = strip(cr[1]).toLowerCase().split(/[^a-z0-9]+/).filter(function (w) { return w.length >= 4 && !STOP.test(w); }), best = -1;
+      out.compras.forEach(function (p, i) { if (p[2] + 0.001 >= cr[2] && words.some(function (w) { return strip(p[1]).toLowerCase().indexOf(w) >= 0; }) && (best < 0 || p[2] > out.compras[best][2])) best = i; });
+      if (best >= 0) { var p = out.compras[best]; p[2] = r2(p[2] - cr[2]); p[1] = (p[1] + ' (estorno de R$ ' + brl(cr[2]) + ')').slice(0, 90); p[3] = 1; cr.push(1); out.soma = r2(out.soma - cr[2]); }
+    });
+    out.compras = out.compras.filter(function (p) { return p[2] > 0.004; });
+    out.creditosSemCompra = out.creditos.filter(function (c) { return c.length < 4; }).reduce(function (a, c) { return r2(a + c[2]); }, 0);
+    out.diferenca = fechado != null ? r2(fechado - out.soma) : null;
     return out;
   }
 
@@ -797,6 +830,14 @@
       f.direction = 'out'; f.amount = moneyAfter(lines, /(total\s*da\s*fatura|valor\s*total\s*da\s*fatura|valor\s*da\s*fatura|total\s*a\s*pagar|pagamento\s*total|valor\s*total)/);
       f.date = dateAfter(lines, /vencimento/); f.counterparty = issuer(text); f.extra.minimo = moneyAfter(lines, /pagamento\s*m[ií]nimo/);
       if (f.amount == null) f.notes.push('Total da fatura não encontrado (só o pagamento mínimo apareceu). Informe o total.');
+      var INV = parseInvoice(lines, now, f.date, f.amount);
+      if (INV.compras.length) {
+        f.extra.compras = INV.compras.slice(0, 600); f.extra.comprasSoma = INV.soma; f.extra.diferenca = INV.diferenca; f.extra.estornos = INV.somaCreditos;
+        f.notes.push(INV.compras.length + ' compra(s) lida(s) na fatura, somando R$ ' + brl(INV.soma) + (f.amount != null ? ' (total fechado: R$ ' + brl(f.amount) + ')' : '') + '. Cada compra será lançada e categorizada, agrupada nesta fatura.');
+        if (INV.somaCreditos > 0) f.notes.push('Estornos/créditos de R$ ' + brl(INV.somaCreditos) + ' foram abatidos das compras correspondentes' + (INV.creditosSemCompra > 0 ? '; R$ ' + brl(INV.creditosSemCompra) + ' não casaram com nenhuma compra: confira.' : '.'));
+        if (INV.diferenca != null && INV.diferenca > 0.009) f.notes.push('Diferença de R$ ' + brl(INV.diferenca) + ' entre o total fechado e as compras lidas (juros, anuidade ou itens que não consegui ler). Ela entra como "Encargos e ajustes" para a fatura fechar no valor certo.');
+        else if (INV.diferenca != null && INV.diferenca < -0.009) f.notes.push('Atenção: as compras lidas somam R$ ' + brl(-INV.diferenca) + ' a mais que o total fechado. Confira as linhas antes de confirmar.');
+      } else f.notes.push('Não consegui ler as compras desta fatura: só o total será lançado. Para categorizar cada compra, importe o extrato da fatura em OFX ou CSV.');
       f.key = 'fatura|' + norm(f.counterparty || '') + '|' + (f.date || '');
     } else if (kind === 'imposto' && /informe\s*de\s*rendimentos|declara[cç][aã]o\s*de\s*imposto|recibo\s*de\s*entrega/.test(text)) {
       f.direction = 'none'; f.notes.push('Documento informativo (sem valor a pagar ou receber). Fica guardado para o Imposto de Renda.'); f.key = 'info|' + norm(text.slice(0, 60));

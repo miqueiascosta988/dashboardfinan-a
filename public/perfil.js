@@ -187,7 +187,7 @@
     if (!root.document || root.document.getElementById('perfil-style')) return;
     var st = root.document.createElement('style'); st.id = 'perfil-style';
     st.textContent = '.pf-grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}.pf-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}' +
-      '.pf-kv{display:grid;grid-template-columns:140px 1fr;gap:6px 12px;font-size:14px}.pf-kv b{color:var(--ink-3,#667);font-weight:600}' +
+      '.pf-kv{display:grid;grid-template-columns:minmax(80px,max-content) minmax(0,1fr);gap:8px 14px;font-size:14px;align-items:start}.pf-kv span{overflow-wrap:anywhere;word-break:break-word;min-width:0}.pf-grid>.card{min-width:0;overflow:hidden}.pf-kv b{color:var(--ink-3,#667);font-weight:600}' +
       '.pf-lang{display:flex;gap:8px;flex-wrap:wrap}.pf-lang button{padding:9px 16px;border-radius:999px;border:1.5px solid var(--border,#d7dbe2);background:var(--card,#fff);color:var(--ink,#111);font:600 13.5px inherit;font-family:inherit;cursor:pointer}.pf-lang button.on{border-color:var(--gold,#AD8A2A);background:var(--teal-wash,#f6efdb)}' +
       '.pf-msg{font-size:13px;margin-top:8px;min-height:18px}.pf-msg.err{color:var(--expense,#b3261e)}.pf-msg.ok{color:var(--income,#1a7f4b)}' +
       '.pf-danger{border:1px solid var(--expense,#b3261e)}.pf-note{font-size:12.5px;color:var(--ink-3,#667);margin-top:8px}' +
@@ -310,10 +310,9 @@
         '<div class="form-group"><label class="form-label" for="pf-new-pass">' + esc(s('newPass')) + '</label><input class="form-input" id="pf-new-pass" type="password" autocomplete="new-password"' + dis + '></div>' +
         '<div class="form-group"><label class="form-label" for="pf-new-pass2">' + esc(s('newPass2')) + '</label><input class="form-input" id="pf-new-pass2" type="password" autocomplete="new-password"' + dis + '></div>' +
         '<button class="btn-add" id="pf-pass-btn" onclick="Perfil.changePassword()"' + dis + '>' + esc(s('savePass')) + '</button><div class="pf-msg" id="pf-pass-msg" role="status">' + (demo ? esc(s('demoOff')) : '') + '</div></div>';
-      h += '<div class="card animate-in"><div class="card-title">🛡️ ' + esc(s('privacy')) + '</div><div class="occ-b-desc" style="margin:8px 0 10px">' + esc(s('privacyDesc')) + '</div><button class="btn-sm" onclick="openPrivacyModal()">' + esc(s('open')) + '</button></div>';
       h += '<div class="card animate-in"><div class="card-title">🎬 ' + esc(s('help')) + '</div><div class="occ-b-desc" style="margin:8px 0 10px">' + esc(s('helpDesc')) + '</div><div class="pf-row"><button class="btn-add" onclick="Tutor.open()">' + esc(s('openTutor')) + '</button><span class="occ-b-desc">' + seenCount() + '/' + L.length + ' ' + esc(s('progress')) + '</span></div></div>';
       h += '<div class="card animate-in pf-danger" id="pf-del"><div class="card-title" style="color:var(--expense,#b3261e)">⚠️ ' + esc(s('delTitle')) + '</div><div class="occ-b-desc" style="margin:8px 0 10px">' + esc(s('delDesc')) + '</div><div class="pf-row">' +
-        nums.map(function (n, i) { return '<a class="btn-sm" style="text-decoration:none;border-color:var(--expense,#b3261e);color:var(--expense,#b3261e)" target="_blank" rel="noopener" href="' + esc(waLink(n)) + '">' + (i === 0 ? esc(s('delBtn')) : esc(s('delAlt')) + ' · ' + esc(n.display)) + '</a>'; }).join('') + '</div><div class="pf-note"><a href="#" onclick="openPrivacyModal();return false">' + esc(s('privacy')) + '</a></div></div>';
+        nums.map(function (n, i) { return '<a class="btn-sm" style="text-decoration:none;border-color:var(--expense,#b3261e);color:var(--expense,#b3261e)" target="_blank" rel="noopener" href="' + esc(waLink(n)) + '">' + (i === 0 ? esc(s('delBtn')) : esc(s('delAlt')) + ' · ' + esc(n.display)) + '</a>'; }).join('') + '</div></div>';
       h += '</div>';
       return h;
     },

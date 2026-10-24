@@ -1161,6 +1161,9 @@ svg text { font-family: var(--font-body); }
 /* ── Vínculo de trabalho & estabilidade de renda ── */
 .occ-chip { cursor:pointer; }
 .occ-chip:hover { filter:brightness(1.08); }
+.perfil-chip { display:inline-flex; align-items:center; gap:4px; border:0; cursor:pointer; font-family:inherit; text-transform:uppercase; }
+.perfil-chip:hover { filter:brightness(.95); }
+.perfil-chip:focus-visible { outline:2px solid var(--teal-mid); outline-offset:2px; }
 .occ-banner { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; border-left:4px solid var(--gold); }
 .occ-banner .occ-b-title { font-family:var(--font-display); font-weight:700; font-size:14px; }
 .occ-banner .occ-b-desc { font-size:12.5px; color:var(--ink-3); margin-top:2px; line-height:1.5; }
@@ -1394,6 +1397,7 @@ body.demo-on{padding-bottom:56px}
           <span class="sidebar-plan plan-badge-free" id="plan-badge">Sem plano</span>
           <span class="sidebar-type-badge" id="profile-type-badge">Personal</span>
           <span class="sidebar-type-badge occ-chip" id="occ-chip" title="Alterar perfil" onclick="openProfileModal()" hidden></span>
+          <button type="button" class="sidebar-type-badge perfil-chip" id="perfil-btn" title="Meu perfil" aria-label="Meu perfil" onclick="Perfil.open()"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg><span data-i18n="Perfil">Perfil</span></button>
         </div>
       </div>
     </div>
@@ -1429,7 +1433,6 @@ body.demo-on{padding-bottom:56px}
           </div>
           <button class="btn-sm" id="btn-install" title="Instalar o aplicativo" onclick="installApp()">📲 <span data-i18n="Instalar">Instalar</span></button>
           <button class="gt-btn" id="gt-btn" title="Tutoriais em vídeo" onclick="Tutor.open()">🎓 <span data-i18n="Tutorial">Tutorial</span></button>
-          <button class="gt-btn" id="perfil-btn" title="Meu perfil" onclick="Perfil.open()">👤 <span data-i18n="Perfil">Perfil</span></button>
           <button class="help-btn" id="help-btn" title="Ajuda & Tutorial" onclick="openHelpPanel()">?</button>
           <button class="theme-toggle" id="theme-toggle" title="Alternar tema" onclick="toggleTheme()">🌙</button>
           <div style="position:relative">

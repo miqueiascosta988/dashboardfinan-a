@@ -14,7 +14,7 @@ async function walk(vp, shotDir) {
   const page = await browser.newPage({ viewport: vp }), errs = []; page.on('pageerror', e => errs.push(e.message));
   await page.goto(base + '/?demo=clt'); await page.waitForTimeout(1500);
   assert.equal(await page.locator('#gt-panel').count(), 0, 'sem painel de legendas fixas');
-  await page.click('#gt-btn'); await page.waitForSelector('#ob-root .ob-bub');
+  await page.evaluate(() => Onboard.start()); await page.waitForSelector('#ob-root .ob-bub');
   const seen = [], bad = []; let guard = 0;
   while (guard++ < 120) {
     const info = await page.evaluate(() => {
@@ -63,7 +63,7 @@ test('balão de vídeo logo no início: aparece no 2º passo, com botão quando 
   const page = await browser.newPage({ viewport: { width: 1366, height: 800 } });
   await page.goto(base + '/?demo=clt'); await page.waitForTimeout(1500);
   await page.evaluate(() => { appConfig.onboardingVideoUrl = 'https://exemplo.com/video'; });
-  await page.click('#gt-btn'); await page.waitForSelector('#ob-root .ob-bub');
+  await page.evaluate(() => Onboard.start()); await page.waitForSelector('#ob-root .ob-bub');
   await page.click('#ob-next'); await page.waitForFunction(() => /vídeo/i.test(document.querySelector('#ob-root .ob-title').textContent));
   assert.match(await page.textContent('#ob-root .ob-text'), /explica melhor/);
   assert.equal(await page.getAttribute('#ob-root .ob-vid', 'href'), 'https://exemplo.com/video'); assert.equal(await page.getAttribute('#ob-root .ob-vid', 'rel'), 'noopener noreferrer');

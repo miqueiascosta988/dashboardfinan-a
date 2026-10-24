@@ -109,7 +109,8 @@ test('tutoriais: módulos, aulas de 1 a 3 min, botão por aba e vídeo ausente c
       assert.equal(await page.locator('#main .tut-bar').count(), 1, 'um botão de tutorial em ' + id);
     }
     await page.evaluate(() => switchTab('dashboard')); await page.click('#main .tut-bar button');
-    await page.waitForSelector('#modal-overlay.open .tut-soon'); assert.match(await page.textContent('#modal-body'), /Vídeo em produção/);
+    await page.waitForSelector('#modal-overlay.open #modal-body video'); assert.equal(await page.locator('#modal-body .tut-soon').count(), 0);
+    await page.evaluate(() => Tutor.lesson('reforma')); await page.waitForSelector('#modal-overlay.open .tut-soon'); assert.match(await page.textContent('#modal-body'), /Vídeo em produção/);
     await page.click('#modal-body >> text=← Voltar'); assert.ok(await page.locator('#modal-body .tut-mod').count() >= 5);
     assert.deepEqual(errs, []); await page.close();
   }
@@ -124,4 +125,19 @@ test('celular: perfil sem rolagem lateral', async () => {
   const { page } = await open('clt', { width: 390, height: 800 });
   await page.evaluate(() => Perfil.open()); await page.waitForSelector('#pf-email');
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)); await page.close();
+});
+test('vídeos: toda aula visível tem .mp4 e capa, e o player aparece quando o arquivo existe', async () => {
+  const { page, errs } = await open('clt');
+  const hidden = new Set(['regimepj', 'fiscal', 'fluxo', 'caixapj', 'reforma']); // telas de empresa ainda "em breve"
+  const missing = [];
+  for (const persona of ['clt', 'autonomo', 'negativado', 'mei']) {
+    const pg = await open(persona);
+    const L = await pg.page.evaluate(() => { const av = getAvailableTabs().map(t => t.id); return Tutor.lessons().filter(l => !l.tabs.length || l.tabs.some(t => av.includes(t) || t === 'perfil')).map(l => ({ id: l.id, video: l.video || '/tutorial/' + l.id + '.mp4', poster: l.poster || '/tutorial/' + l.id + '.jpg', tabs: l.tabs })); });
+    L.filter(l => !l.tabs.some(t => hidden.has(t))).forEach(l => { for (const f of [l.video, l.poster]) if (!fs.existsSync(path.join(ROOT, f))) missing.push(persona + ':' + f); if (fs.existsSync(path.join(ROOT, l.video)) && fs.statSync(path.join(ROOT, l.video)).size < 100000) missing.push('vazio:' + l.video); });
+    await pg.page.close();
+  }
+  assert.deepEqual([...new Set(missing)], [], 'arquivos de vídeo/capa faltando');
+  await page.evaluate(() => Tutor.lesson('dashboard')); await page.waitForSelector('#modal-body video source[src="/tutorial/dashboard.mp4"]', { state: 'attached' });
+  assert.equal(await page.locator('#modal-body .tut-soon').count(), 0);
+  await page.evaluate(() => closeModal()); assert.deepEqual(errs, []); await page.close();
 });

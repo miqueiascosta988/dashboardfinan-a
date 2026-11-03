@@ -18,6 +18,7 @@
 <script src="/finplan.js"></script>
 <script src="/money.js"></script>
 <script src="/guia.js"></script>
+<script src="/parcelas.js"></script>
 <script src="/agenda.js"></script>
 <script src="/trial.js"></script>
 <script src="/onboarding.js"></script>
@@ -4693,7 +4694,7 @@ async function prefsLoad() {
     if (r && r.error) { console.warn('user_prefs indisponível (rode a migração 011):', r.error.message); PREFS.ok = false; return; }
     cloud = (r && r.data && r.data.data) || {};
   } catch (e) { console.warn(e); return; }
-  const keyOf = { inv: fxKey('inv'), crd: fxKey('crd'), dpl: fxKey('dpl'), reforma: fxKey('reforma'), of: ofKey(), gtd: gtDoneKey(), agenda: fxKey('agenda'), cartoes: fxKey('cartoes'), wk: fxKey('wk'), estr: fxKey('estr'), jor: fxKey('jor'), tut: fxKey('tut'), gd: fxKey('gd') };
+  const keyOf = { inv: fxKey('inv'), crd: fxKey('crd'), dpl: fxKey('dpl'), reforma: fxKey('reforma'), of: ofKey(), gtd: gtDoneKey(), agenda: fxKey('agenda'), cartoes: fxKey('cartoes'), wk: fxKey('wk'), estr: fxKey('estr'), jor: fxKey('jor'), tut: fxKey('tut'), gd: fxKey('gd'), pcl: fxKey('pcl') };
   let needPush = false;
   Object.keys(keyOf).forEach(n => {
     if (cloud[n] != null) { try { localStorage.setItem(keyOf[n], JSON.stringify(cloud[n])); } catch (e) {} PREFS.data[n] = cloud[n]; }
@@ -5459,7 +5460,7 @@ function renderDashboard(c) {
   const heroLabel = isPJ ? 'Patrimônio da empresa' : 'Saldo patrimonial';
   const greeting = state.name ? (isPJ ? `${fxEsc(state.name)} · Empresa` : `Olá, ${fxEsc(state.name)}`) : '';
   return `<div class="hero-card mb-24 animate-in"><div class="hero-label">${heroLabel}</div><div class="hero-value">${fmt(saldo)}</div><div class="hero-sub">${greeting} · Atualizado agora</div></div>
-  ${typeof guiaCard === 'function' ? guiaCard() : ''}${typeof jornadaCard === 'function' ? jornadaCard() : ''}${renderCrisisBanner(c)}
+  ${typeof guiaCard === 'function' ? guiaCard() : ''}${typeof parcelasCard === 'function' ? parcelasCard() : ''}${typeof jornadaCard === 'function' ? jornadaCard() : ''}${renderCrisisBanner(c)}
   ${renderReqBanner()}${renderDocBanner()}${renderDebtNudge(c)}${typeof weekPlanCard === 'function' ? weekPlanCard() : ''}${typeof agendaCard === 'function' ? agendaCard() : ''}${renderOccBanner(c)}
   <div class="card mb-24 animate-in" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><div><div class="card-title" style="margin:0">💭 Pensando em comprar algo?</div><div style="font-size:12px;color:var(--ink-3)">Simule o impacto na sua meta e no seu orçamento antes de decidir.</div></div><button class="btn-add" onclick="openBuySimulator()">${isPlusUser()?'Simular compra':'🔒 Simular compra'}</button></div>
   <div class="kpi-grid">${[
@@ -6156,8 +6157,33 @@ function syncDocInvoice(d, ev) {
   const dif = inv.fechado != null ? Math.round((inv.fechado - soma) * 100) / 100 : 0;
   if (dif > 0.009) add(inv.venc || inv.compras[inv.compras.length - 1][0], 'Encargos e ajustes da fatura (juros, anuidade ou itens não detalhados)', dif, cats.indexOf('Outros') >= 0 ? 'Outros' : cats[cats.length - 1]);
   x.invTxIds = ids; x.txId = ids[0]; x.txOwned = true; persistDoc(d);
+  try { pclIngest(inv, d.id); } catch (e) {}
   showToast('💳 ' + invoiceTitle(inv) + ': ' + ids.length + ' lançamento(s) categorizado(s), somando ' + fmt(soma) + (inv.fechado != null ? ' (fatura fechada em ' + fmt(inv.fechado) + ')' : '') + '. Em Despesas, ficam agrupados em uma linha.', 'success');
   return state.transactions.find(t => t.id === ids[0]);
+}
+// ───────── Parcelas de cartão: o que a fatura mostra como "N de M" vira plano; o que falta aparece como PREVISTO (nunca somado como pago) ─────────
+function pclStore() { try { const s = (PREFS.data && PREFS.data.pcl) || JSON.parse(localStorage.getItem(fxKey('pcl')) || 'null'); return s && s.v === 1 ? s : Parcelas.emptyStore(); } catch (e) { return Parcelas.emptyStore(); } }
+function pclSave(s) { try { localStorage.setItem(fxKey('pcl'), JSON.stringify(s)); } catch (e) {} try { prefsPush('pcl', s); } catch (e) {} }
+function pclIngest(inv, docId) {
+  const cats = getCatsExpense(), r = Parcelas.ingest(pclStore(), inv.compras, { docId, venc: inv.venc, banco: inv.banco || 'Cartão', cat: desc => { const c = learnedCat(desc, 'expense') || guessTxCategory(desc, 'expense'); return cats.indexOf(c) >= 0 ? c : 'A revisar'; } });
+  if (r.novas || r.repetidas) pclSave(r.store);
+  if (r.novas) showToast('🧾 ' + r.novas + ' compra(s) parcelada(s) reconhecida(s). As parcelas que faltam aparecem como previstas no Início.', 'info');
+  else if (r.repetidas) showToast('Essas parcelas já estavam registradas por outra fatura; não foram contadas duas vezes.', 'info');
+}
+function pclDia(banco) { openModal('Dia do vencimento', '<div class="form-group"><label class="form-label">Sua fatura do ' + fxEsc(banco) + ' vence em que dia do mês?</label><input class="form-input" id="pcl-dia" type="number" min="1" max="31" placeholder="Ex.: 10" /></div><div class="modal-actions"><button class="btn-cancel" onclick="closeModal()">Cancelar</button><button class="btn-save" onclick="pclDiaSave(\'' + fxEsc(banco).replace(/'/g, '') + '\')">Salvar</button></div>'); }
+function pclDiaSave(banco) { const d = parseInt(document.getElementById('pcl-dia').value, 10); if (!(d >= 1 && d <= 31)) { showToast('Digite um dia entre 1 e 31.', 'error'); return; } pclSave(Parcelas.setDia(pclStore(), banco, d)); closeModal(); renderCurrentTab(); }
+function parcelasCard() {
+  try {
+    const s = pclStore(), pr = Parcelas.project(s), hs = Parcelas.history(s); if (!pr.length && !hs.gaps.length) return '';
+    const byM = {}; pr.forEach(p => { const k = p.date.slice(0, 7); (byM[k] = byM[k] || []).push(p); });
+    const meses = Object.keys(byM).sort().slice(0, 6), mn = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+    const bancos = Object.keys(s.plans).map(k => s.plans[k].banco).filter((b, i, a) => b && a.indexOf(b) === i && !(s.dia || {})[b]);
+    const total = pr.reduce((a, p) => a + p.valor, 0);
+    return '<div class="card mb-24 animate-in" id="pcl-card"><div class="card-title">🧾 Parcelas do cartão a vencer</div><div class="occ-b-desc" style="margin-bottom:8px">Ainda faltam <b>' + fmt(total) + '</b> em ' + pr.length + ' parcela(s). São <b>previstas</b>: só viram gasto pago quando aparecerem em uma fatura.</div>'
+      + meses.map(k => '<div style="padding:6px 0;border-top:1px solid var(--border)"><b>' + mn[+k.slice(5) - 1] + '/' + k.slice(2, 4) + '</b> · ' + fmt(byM[k].reduce((a, p) => a + p.valor, 0)) + '<div class="occ-b-desc">' + byM[k].map(p => fxEsc(p.desc) + ' ' + p.n + '/' + p.m + ' (' + fmt(p.valor) + ', prevista)' + (p.cat === 'A revisar' ? ' · categoria a revisar' : '')).join(' · ') + '</div></div>').join('')
+      + (hs.gaps.length ? '<div class="occ-b-desc" style="margin-top:8px">' + hs.gaps.length + ' parcela(s) anterior(es) sem dados. Envie faturas mais antigas para completar o histórico.</div>' : '')
+      + bancos.map(b => '<div style="margin-top:8px"><button class="btn-sm" onclick="pclDia(\'' + fxEsc(b).replace(/'/g, '') + '\')">Informar o dia do vencimento do ' + fxEsc(b) + '</button></div>').join('') + '</div>';
+  } catch (e) { return ''; }
 }
 function invoiceGroups() {          // { txId → grupo } para agrupar as compras de cada fatura em Despesas
   const map = {}; (state.documents || []).forEach(d => { const x = d.extractedData, f = x && x.fin; if (!x || !(x.invTxIds || []).length) return;

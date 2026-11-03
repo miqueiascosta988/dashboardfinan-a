@@ -154,7 +154,7 @@ test('Integração assistente ↔ calendário: comandos abrem o calendário pree
   await page.evaluate(() => agView('ia'));
   await page.evaluate(() => { document.getElementById('ag-q').value = 'adicionar salário de R$ 4.500,00 dia 20'; agSubmit({ preventDefault() {} }); });
   assert.equal((await evs(page)).length, 0);                                  // só preparou o formulário
-  assert.equal(await page.inputValue('#ag-amount'), '4500'); assert.equal(await page.inputValue('#ag-date'), '2026-10-20'); assert.equal(await page.inputValue('#ag-kind'), 'income');
+  assert.equal(await page.inputValue('#ag-amount'), '4.500,00'); assert.equal(await page.inputValue('#ag-date'), '2026-10-20'); assert.equal(await page.inputValue('#ag-kind'), 'income');
   await page.evaluate(() => agSaveEvent(null));
   assert.equal((await evs(page)).length, 1);
   await addEvent(page, { kind: 'payable', title: 'Luz', amount: 200, date: '2026-10-15' });

@@ -16,6 +16,7 @@
 <script src="/payroll.js"></script>
 <script src="/cardplan.js"></script>
 <script src="/finplan.js"></script>
+<script src="/money.js"></script>
 <script src="/agenda.js"></script>
 <script src="/trial.js"></script>
 <script src="/onboarding.js"></script>
@@ -1380,7 +1381,7 @@ body.demo-on{padding-bottom:56px}
       <div class="onboard-title">Renda mensal estimada</div>
       <div class="onboard-desc">Isso ajuda a calibrar suas projeções.</div>
       <div class="form-group"><label class="form-label">Renda mensal</label>
-        <input class="form-input" type="number" id="onboard-income" placeholder="5000" /></div>
+        <input class="form-input" type="text" inputmode="decimal" data-money id="onboard-income" placeholder="5000" /></div>
       <button class="btn-primary" onclick="finishOnboard()">Começar a usar</button>
     </div>
   </div>
@@ -1593,12 +1594,15 @@ function getCatsIncome() {
   return o ? o.cats : CATS_INCOME_PF;
 }
 
-const fmt = (v) => SYMBOLS[state.currency] + ' ' + Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+const fmt = (v) => SYMBOLS[state.currency] + ' ' + Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });   // sempre com centavos: soma dos itens = total mostrado
+const fmtS = (v) => (v < 0 ? '- ' : '') + fmt(v);   // com sinal: fmt() mostra só o módulo
 const fmtD = (v) => SYMBOLS[state.currency] + ' ' + Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const pct = (v) => v.toFixed(1) + '%';
 const genId = () => crypto.randomUUID();
 const currentMonth = () => new Date().getMonth();
 const currentYear = () => new Date().getFullYear();
+// data do lançamento no campo DD/MM: o que veio do banco (AAAA-MM-DD) é mostrado como DD/MM
+const txFieldDate = (d) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d || ''); return m ? m[3] + '/' + m[2] : (d || ''); };
 
 // ═══════════════════════════════════════════════════════
 // SELECTED PERIOD STATE
@@ -1676,8 +1680,9 @@ function filterByPeriod(items, dateField) {
     if (raw instanceof Date) d = raw;
     else if (typeof raw === 'string' && raw.includes('-')) d = new Date(raw + 'T00:00:00');
     else if (typeof raw === 'string' && raw.includes('/')) {
-      const parts = raw.split('/');
-      d = new Date(selectedPeriod.year, selectedPeriod.month, parseInt(parts[0]));
+      const parts = raw.split('/'), mo = parseInt(parts[1], 10);
+      // "DD/MM" não traz ano: o app grava com o ano corrente (mesma regra do saveTransaction)
+      d = (mo >= 1 && mo <= 12) ? new Date(currentYear(), mo - 1, parseInt(parts[0], 10)) : new Date(selectedPeriod.year, selectedPeriod.month, parseInt(parts[0], 10));
     } else return true;
     if (isNaN(d)) return true;
     if (selectedPeriod.mode === 'range' && selectedPeriod.startDate && selectedPeriod.endDate) {
@@ -1996,7 +2001,7 @@ function generateNotifications() {
 
   // ── Saúde financeira → direciona para Insights (consultoria) ──
   const _hasData = visibleList('transactions').length > 0 || visibleList('debts').length > 0;   // conta nova, sem dados: não alarma com nota baixa
-  if (c.healthTotal < 50 && _hasData) notifs.push({ id: 'health-low', icon: '💊', title: 'Saúde financeira precisa de atenção', desc: 'Score atual: ' + c.healthTotal + '/100. Veja uma análise completa e recomendações personalizadas.', type: 'danger', time: 'Diagnóstico', tab: 'insights' });
+  if (c.healthTotal != null && c.healthTotal < 50 && _hasData) notifs.push({ id: 'health-low', icon: '💊', title: 'Saúde financeira precisa de atenção', desc: 'Score atual: ' + c.healthTotal + '/100. Veja uma análise completa e recomendações personalizadas.', type: 'danger', time: 'Diagnóstico', tab: 'insights' });
   else if (c.healthTotal >= 85) notifs.push({ id: 'health-great', icon: '🌟', title: 'Saúde financeira excelente!', desc: 'Score atual: ' + c.healthTotal + '/100. Continue assim — veja insights para otimizar ainda mais.', type: 'success', time: 'Diagnóstico', tab: 'insights' });
 
   // ── Contas/dívidas vencendo (despesas recorrentes com dia do mês próximo) ──
@@ -3230,6 +3235,7 @@ function nextOnboard(step) {
   docApplyHighlights();
 }
 async function finishOnboard() {
+  if (window.Money && Money.hasInvalid(['onboard-income'], showToast)) return;
   state.monthlyIncome = parseFloat(document.getElementById('onboard-income').value) || 5000;
   document.getElementById('onboarding-screen').hidden = true;
   if (sb && currentUser) {
@@ -3437,7 +3443,7 @@ function openTransactionModal(type, existing = null) {
   openModal(title, `
     <div class="form-row">
       <div class="form-group"><label class="form-label">Data</label>
-        <input class="form-input" type="text" id="m-date" value="${existing?.date || ''}" placeholder="DD/MM" /></div>
+        <input class="form-input" type="text" id="m-date" value="${txFieldDate(existing?.date)}" placeholder="DD/MM" /></div>
       <div class="form-group"><label class="form-label">Categoria</label>
         <select class="form-select" id="m-cat">${cats.map(c => `<option ${existing?.cat === c ? 'selected' : ''}>${c}</option>`).join('')}</select></div>
     </div>
@@ -3445,7 +3451,7 @@ function openTransactionModal(type, existing = null) {
       <input class="form-input" type="text" id="m-desc" value="${existing?.desc || ''}" placeholder="Ex: ${type==='income'?'Salário':'Aluguel'}" /></div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">Valor</label>
-        <input class="form-input" type="number" id="m-amount" value="${existing?.amount || ''}" placeholder="0" step="0.01" /></div>
+        <input class="form-input" type="text" inputmode="decimal" data-money id="m-amount" value="${existing?.amount || ''}" placeholder="0" /></div>
       <div class="form-group"><label class="form-label">Recorrente?</label>
         <select class="form-select" id="m-recur"><option value="false" ${existing && !existing.recur ? 'selected' : ''}>Não</option><option value="true" ${existing?.recur ? 'selected' : ''}>Sim</option></select></div>
     </div>
@@ -3457,13 +3463,20 @@ function openTransactionModal(type, existing = null) {
     </div>`);
 }
 async function saveTransaction(type, editId) {
+  if (window.Money && Money.hasInvalid(['m-amount'], showToast)) return;
   if (!editId && !checkPlanLimit(countThisMonth(state.transactions, 'date'), PLAN_LIMITS.maxTransactionsPerMonth, 'Plano ' + currentPlanLabel() + ' permite até ' + PLAN_LIMITS.maxTransactionsPerMonth + ' lançamentos por mês. Faça upgrade para lançamentos ilimitados.')) return;
-  const dateStr = document.getElementById('m-date').value;
+  const dateStr = document.getElementById('m-date').value.trim();
+  { const dm = /^(\d{1,2})\/(\d{1,2})$/.exec(dateStr), okD = dm && (() => { const dd0 = +dm[1], mm0 = +dm[2], dt = new Date(currentYear(), mm0 - 1, dd0); return mm0 >= 1 && mm0 <= 12 && dt.getMonth() === mm0 - 1 && dt.getDate() === dd0; })();
+    if (!okD) { showToast('Data inválida. Use DD/MM com um dia que exista no mês. Exemplo: 05/11', 'error'); return; } }
   const profile = readProfileField();
+  const before = editId ? state.transactions.find(x => x.id === editId) : null;   // antes de substituir, para preservar o ano
   const t = { id: editId || genId(), date: dateStr, desc: document.getElementById('m-desc').value, cat: document.getElementById('m-cat').value, amount: parseFloat(document.getElementById('m-amount').value) || 0, type, recur: document.getElementById('m-recur').value === 'true', profile };
-  if (editId) { const i = state.transactions.findIndex(x => x.id === editId); if (i >= 0) state.transactions[i] = t; } else state.transactions.push(t);
+  if (editId) { const i = state.transactions.findIndex(x => x.id === editId); if (i >= 0) { state.transactions[i] = t; } } else state.transactions.push(t);
   const dd = dateStr.split('/')[0] || '01', mm = dateStr.split('/')[1] || String(currentMonth()+1);
-  await dbUpsert('transactions', { id: t.id, user_id: currentUser?.id, type, description: t.desc, category: t.cat, amount: t.amount, date: `${currentYear()}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}`, recurring: t.recur, profile });
+  // editar sem mudar dia e mês preserva o ano original (antes, editar um lançamento de outro ano o movia para o ano corrente)
+  let keepYear = currentYear();
+  if (editId) { const old = (before && before.date) || ''; const om = /^(\d{4})-(\d{2})-(\d{2})/.exec(old); if (om && +om[2] === +mm && +om[3] === +dd) keepYear = +om[1]; }
+  await dbUpsert('transactions', { id: t.id, user_id: currentUser?.id, type, description: t.desc, category: t.cat, amount: t.amount, date: `${keepYear}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}`, recurring: t.recur, profile });
   closeModal(); renderCurrentTab();
   showToast(editId ? 'Lançamento atualizado' : 'Lançamento adicionado', 'success');
 }
@@ -3491,12 +3504,13 @@ function openGoalModal(existing = null) {
   const isEdit = !!existing;
   openModal(isEdit ? 'Editar meta' : 'Nova meta', `
     <div class="form-row"><div class="form-group"><label class="form-label">Nome</label><input class="form-input" type="text" id="m-gname" value="${existing?.name || ''}" placeholder="Ex: ${state.profile_type==='PJ'?'Reserva de capital de giro':'Comprar carro'}" /></div></div>
-    <div class="form-row"><div class="form-group"><label class="form-label">Valor total</label><input class="form-input" type="number" id="m-target" value="${existing?.target || ''}" step="0.01" /></div><div class="form-group"><label class="form-label">Já acumulado</label><input class="form-input" type="number" id="m-current" value="${existing?.current || ''}" step="0.01" /></div></div>
-    <div class="form-group"><label class="form-label">Aporte mensal</label><input class="form-input" type="number" id="m-monthly" value="${existing?.monthly || ''}" step="0.01" /></div>
+    <div class="form-row"><div class="form-group"><label class="form-label">Valor total</label><input class="form-input" type="text" inputmode="decimal" data-money id="m-target" value="${existing?.target || ''}" /></div><div class="form-group"><label class="form-label">Já acumulado</label><input class="form-input" type="text" inputmode="decimal" data-money id="m-current" value="${existing?.current || ''}" /></div></div>
+    <div class="form-group"><label class="form-label">Aporte mensal</label><input class="form-input" type="text" inputmode="decimal" data-money id="m-monthly" value="${existing?.monthly || ''}" /></div>
     ${profileFieldHtml(existing)}
     <div class="modal-actions">${isEdit ? `<button class="btn-danger" onclick="deleteGoal('${existing.id}')">Excluir</button>` : ''}<button class="btn-cancel" onclick="closeModal()">Cancelar</button><button class="btn-save" onclick="saveGoal(${isEdit ? `'${existing.id}'` : 'null'})">Salvar</button></div>`);
 }
 async function saveGoal(editId) {
+  if (window.Money && Money.hasInvalid(['m-target','m-current','m-monthly'], showToast)) return;
   if (!editId && !checkPlanLimit(state.goals.length, PLAN_LIMITS.maxActiveGoals, 'Plano ' + currentPlanLabel() + ' permite até ' + PLAN_LIMITS.maxActiveGoals + ' meta ativa. Exclua a atual ou faça upgrade para metas ilimitadas.')) return;
   const profile = readProfileField();
   const g = { id: editId || genId(), icon: ((state.goals.find(x => x.id === editId) || {}).icon) || (state.profile_type === 'PJ' ? '💼' : '🎯'), name: document.getElementById('m-gname').value, target: parseFloat(document.getElementById('m-target').value) || 0, current: parseFloat(document.getElementById('m-current').value) || 0, monthly: parseFloat(document.getElementById('m-monthly').value) || 0, profile };
@@ -3530,7 +3544,7 @@ function cardsExtra() {          // parcelamentos de fatura que NÃO estão dent
 }
 function cardRowHtml(p) {
   p = p || {};
-  const f = (cls, lb, v) => '<label style="font-size:11px;color:var(--ink-3);display:block;min-width:0">' + lb + '<input class="form-input ' + cls + '" type="number" step="0.01" min="0" value="' + (v == null || v === '' ? '' : v) + '" style="min-width:0;margin-top:2px"></label>';
+  const f = (cls, lb, v) => '<label style="font-size:11px;color:var(--ink-3);display:block;min-width:0">' + lb + '<input class="form-input ' + cls + '"' + (cls === 'cp-rest' ? ' type="number" step="0.01" min="0"' : ' type="text" inputmode="decimal" data-money') + ' value="' + (v == null || v === '' ? '' : v) + '" style="min-width:0;margin-top:2px"></label>';
   return '<div class="cp-row" style="display:grid;grid-template-columns:1fr 1fr 34px;gap:6px 8px;margin-bottom:10px;align-items:end;padding-bottom:10px;border-bottom:1px dashed var(--border)">' + f('cp-parcela', 'Valor de cada parcela (R$)', p.parcela) + f('cp-rest', 'Parcelas que faltam pagar', p.restantes) + '<button type="button" class="btn-cancel" style="padding:4px;grid-row:1/3;grid-column:3" title="Remover" onclick="this.parentNode.remove()">✕</button>' + f('cp-total', 'Total de parcelas (opcional)', p.total) + f('cp-valor', 'Valor total parcelado (R$, opcional)', p.valor) + '</div>';
 }
 // Corrige campos trocados (ex.: nº de parcelas no campo do valor) e devolve mensal/parcelas para a dívida
@@ -3681,14 +3695,15 @@ function openDebtModal(existing = null) {
   const types = DebtLab.categories(state.profile_type), curT = existing ? (DebtLab.normalizeLegacy(existing.type)) : null;
   openModal(isEdit ? 'Editar dívida' : 'Nova dívida', `
     <div class="form-row"><div class="form-group"><label class="form-label">Nome</label><input class="form-input" type="text" id="m-dname" value="${existing?.name || ''}" /></div><div class="form-group"><label class="form-label">Categoria (obrigatória)</label><select class="form-select" id="m-dtype" onchange="cardToggleBox()"><option value="" ${curT ? '' : 'selected'} disabled>Escolha a categoria…</option>${types.map(t => `<option ${curT === t ? 'selected' : ''}>${t}</option>`).join('')}</select>${existing && !curT ? '<div class="occ-b-desc" style="color:var(--gold);margin-top:4px">Esta dívida é antiga e ainda não tem categoria: escolha uma para salvar.</div>' : ''}</div></div>
-    <div class="form-row"><div class="form-group"><label class="form-label">Saldo devedor</label><input class="form-input" type="number" id="m-dsaldo" value="${existing?.saldo || ''}" step="0.01" /></div><div class="form-group"><label class="form-label">Juros (% a.m.)</label><input class="form-input" type="number" id="m-djuros" value="${existing?.juros || 0}" step="0.1" /></div></div>
-    <div class="form-row"><div class="form-group"><label class="form-label">Parcelas restantes</label><input class="form-input" type="number" id="m-dparcelas" value="${existing?.parcelas || 0}" /></div><div class="form-group"><label class="form-label">Valor mensal</label><input class="form-input" type="number" id="m-dmensal" value="${existing?.mensal || ''}" step="0.01" /></div></div>
+    <div class="form-row"><div class="form-group"><label class="form-label">Saldo devedor</label><input class="form-input" type="text" inputmode="decimal" data-money id="m-dsaldo" value="${existing?.saldo || ''}" /></div><div class="form-group"><label class="form-label">Juros (% a.m.)</label><input class="form-input" type="number" id="m-djuros" value="${existing?.juros || 0}" step="0.1" /></div></div>
+    <div class="form-row"><div class="form-group"><label class="form-label">Parcelas restantes</label><input class="form-input" type="number" id="m-dparcelas" value="${existing?.parcelas || 0}" /></div><div class="form-group"><label class="form-label">Valor mensal</label><input class="form-input" type="text" inputmode="decimal" data-money id="m-dmensal" value="${existing?.mensal || ''}" /></div></div>
     ${cardBoxHtml(existing)}
     ${profileFieldHtml(existing)}
     <div class="modal-actions">${isEdit ? `<button class="btn-danger" onclick="deleteDebt('${existing.id}')">Excluir</button>` : ''}<button class="btn-cancel" onclick="closeModal()">Cancelar</button><button class="btn-save" onclick="saveDebt(${isEdit ? `'${existing.id}'` : 'null'})">Salvar</button></div>`);
   cardToggleBox();
 }
 async function saveDebt(editId) {
+  if (window.Money && Money.hasInvalid(['m-dsaldo','m-dmensal'], showToast)) return;
   if (!editId && !checkPlanLimit(state.debts.length, PLAN_LIMITS.maxDebts, 'Plano ' + currentPlanLabel() + ' permite registrar até ' + PLAN_LIMITS.maxDebts + ' dívidas. Faça upgrade para o Plus (ilimitado).')) return;
   { const gate = DebtLab.validateDebt({ name: (document.getElementById('m-dname').value || '').trim(), type: document.getElementById('m-dtype').value }, state.profile_type); if (!gate.ok) { showToast(gate.msg, 'error'); return; } }
   try { if (/cart[aã]o/i.test(document.getElementById('m-dtype').value)) cardNormalizeDom(); } catch (e) { console.warn(e); }
@@ -3716,11 +3731,12 @@ function openAssetModal(listKey, existing = null) {
   const title = listKey === 'assets' ? (isEdit ? 'Editar ativo' : 'Novo ativo') : (isEdit ? 'Editar passivo' : 'Novo passivo');
   openModal(title, `
     <div class="form-group"><label class="form-label">Nome</label><input class="form-input" type="text" id="m-aname" value="${existing?.name || ''}" /></div>
-    <div class="form-group"><label class="form-label">Valor</label><input class="form-input" type="number" id="m-aval" value="${existing?.value || ''}" step="0.01" /></div>
+    <div class="form-group"><label class="form-label">Valor</label><input class="form-input" type="text" inputmode="decimal" data-money id="m-aval" value="${existing?.value || ''}" /></div>
     ${profileFieldHtml(existing)}
     <div class="modal-actions">${isEdit ? `<button class="btn-danger" onclick="deleteAsset('${listKey}','${existing.id}')">Excluir</button>` : ''}<button class="btn-cancel" onclick="closeModal()">Cancelar</button><button class="btn-save" onclick="saveAsset('${listKey}',${isEdit ? `'${existing.id}'` : 'null'})">Salvar</button></div>`);
 }
 async function saveAsset(listKey, editId) {
+  if (window.Money && Money.hasInvalid(['m-aval'], showToast)) return;
   if (!editId && listKey === 'assets' && !checkPlanLimit(state.assets.length, PLAN_LIMITS.maxPatrimonioItems, (PLAN_LIMITS.maxPatrimonioItems === 0 ? 'Patrimônio não faz parte do plano Free. Assine o Basic para liberar.' : 'Plano ' + currentPlanLabel() + ' permite até ' + PLAN_LIMITS.maxPatrimonioItems + ' itens em Patrimônio. Faça upgrade para itens ilimitados.'))) return;
   const profile = readProfileField();
   const a = { id: editId || genId(), name: document.getElementById('m-aname').value, value: parseFloat(document.getElementById('m-aval').value) || 0, profile };
@@ -3753,11 +3769,12 @@ function openSubModal(existing = null) {
   const isEdit = !!existing;
   openModal(isEdit ? 'Editar assinatura' : 'Nova assinatura', `
     <div class="form-row"><div class="form-group"><label class="form-label">Nome</label><input class="form-input" type="text" id="m-sname" value="${existing?.name || ''}" /></div><div class="form-group"><label class="form-label">Categoria</label><input class="form-input" type="text" id="m-scat" value="${existing?.cat || ''}" placeholder="Ex: ${state.profile_type==='PJ'?'Software':'Streaming'}" /></div></div>
-    <div class="form-row"><div class="form-group"><label class="form-label">Valor mensal</label><input class="form-input" type="number" id="m-sprice" value="${existing?.price || ''}" step="0.01" /></div><div class="form-group"><label class="form-label">Cor</label><input class="form-input" type="color" id="m-scolor" value="${existing?.color || '#7C3AED'}" style="height:42px;padding:4px" /></div></div>
+    <div class="form-row"><div class="form-group"><label class="form-label">Valor mensal</label><input class="form-input" type="text" inputmode="decimal" data-money id="m-sprice" value="${existing?.price || ''}" /></div><div class="form-group"><label class="form-label">Cor</label><input class="form-input" type="color" id="m-scolor" value="${existing?.color || '#7C3AED'}" style="height:42px;padding:4px" /></div></div>
     ${profileFieldHtml(existing)}
     <div class="modal-actions">${isEdit ? `<button class="btn-danger" onclick="deleteSub('${existing.id}')">Excluir</button>` : ''}<button class="btn-cancel" onclick="closeModal()">Cancelar</button><button class="btn-save" onclick="saveSub(${isEdit ? `'${existing.id}'` : 'null'})">Salvar</button></div>`);
 }
 async function saveSub(editId) {
+  if (window.Money && Money.hasInvalid(['m-sprice'], showToast)) return;
   if (!editId && !checkPlanLimit(state.subscriptions.length, PLAN_LIMITS.maxSubscriptions, 'Plano ' + currentPlanLabel() + ' permite monitorar até ' + PLAN_LIMITS.maxSubscriptions + ' assinaturas. Faça upgrade para monitorar todas.')) return;
   const profile = readProfileField();
   const s = { id: editId || genId(), name: document.getElementById('m-sname').value, cat: document.getElementById('m-scat').value, price: parseFloat(document.getElementById('m-sprice').value) || 0, color: document.getElementById('m-scolor').value, profile };
@@ -3798,21 +3815,25 @@ function compute() {
   const catMap = {};
   expenses.forEach(e => { catMap[e.cat] = (catMap[e.cat] || 0) + e.amount; });
   const categories = Object.entries(catMap).map(([name, value]) => ({ name, value, color: CAT_COLORS[name] || 'var(--ink-3)' })).sort((a, b) => b.value - a.value);
-  const reserveMonths = totalExpense > 0 ? (totalAssets / totalExpense) : 0;
-  const sReserva = Math.min(100, reserveMonths * 16);
-  const sDivida = totalIncome > 0 ? Math.max(0, 100 - debtPct * 2) : 100;
-  const sEconomia = Math.min(100, taxaEconomia * 2.5);
-  const fixedPct = totalIncome > 0 ? (expenses.filter(e => e.recur).reduce((s, e) => s + e.amount, 0) / totalIncome * 100) : 0;
-  const sFixos = Math.max(0, 100 - fixedPct);
-  const sInvest = Math.min(100, (visibleList('assets').filter(a => a.name.match(/invest|ação|tesouro|cripto|fii/i)).reduce((s, a) => s + a.value, 0) / Math.max(1, totalAssets)) * 130);
+  // Cada nota fica entre 0 e 100. Sem base de cálculo (ex.: sem renda), a nota é "sem dados" (na) e não entra na média.
+  const clamp100 = (v) => Math.max(0, Math.min(100, Math.round(v)));
+  const hasInc = totalIncome > 0, hasExp = totalExpense > 0;
+  const reserveMonths = hasExp ? (totalAssets / totalExpense) : 0;
+  const sReserva = clamp100(reserveMonths * 16);
+  const sDivida = hasInc ? clamp100(100 - debtPct * 2) : 100;
+  const sEconomia = clamp100(taxaEconomia * 2.5);
+  const fixedPct = hasInc ? (expenses.filter(e => e.recur).reduce((s, e) => s + e.amount, 0) / totalIncome * 100) : 0;
+  const sFixos = clamp100(100 - fixedPct);
+  const sInvest = clamp100((visibleList('assets').filter(a => a.name.match(/invest|ação|tesouro|cripto|fii/i)).reduce((s, a) => s + a.value, 0) / Math.max(1, totalAssets)) * 130);
   const healthItems = [
-    { name: state.profile_type === 'PJ' ? 'Capital de giro' : 'Reserva financeira', score: Math.round(sReserva) },
-    { name: 'Nível de dívidas', score: Math.round(sDivida) },
-    { name: state.profile_type === 'PJ' ? 'Margem líquida' : 'Economia mensal', score: Math.round(sEconomia) },
-    { name: state.profile_type === 'PJ' ? 'Custos fixos' : 'Gastos fixos', score: Math.round(sFixos) },
-    { name: 'Investimentos', score: Math.round(sInvest) },
+    { name: state.profile_type === 'PJ' ? 'Capital de giro' : 'Reserva financeira', score: sReserva, na: !hasExp },
+    { name: 'Nível de dívidas', score: sDivida, na: !hasInc },
+    { name: state.profile_type === 'PJ' ? 'Margem líquida' : 'Economia mensal', score: sEconomia, na: !hasInc },
+    { name: state.profile_type === 'PJ' ? 'Custos fixos' : 'Gastos fixos', score: sFixos, na: !hasInc },
+    { name: 'Investimentos', score: sInvest, na: !hasInc && totalAssets === 0 },
   ];
-  const healthTotal = Math.round(healthItems.reduce((s, i) => s + i.score, 0) / healthItems.length);
+  const _hv = healthItems.filter(i => !i.na);
+  const healthTotal = _hv.length ? Math.round(_hv.reduce((s, i) => s + i.score, 0) / _hv.length) : null;   // null = sem dados suficientes
   return { totalIncome, totalExpense, resultado, taxaEconomia, totalDebt, totalDebtMonthly, debtFolha, debtPct, totalAssets, totalLiab, netWorth, totalSubs, categories, incomes, expenses, healthTotal, healthItems };
 }
 
@@ -3827,8 +3848,9 @@ function renderDonut(categories, size = 180) {
   return `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" style="display:block;margin:0 auto">${paths}<text x="${cx}" y="${cy-6}" text-anchor="middle" fill="var(--ink-3)" font-size="11" font-weight="500">Total</text><text x="${cx}" y="${cy+14}" text-anchor="middle" fill="var(--ink)" font-size="16" font-weight="700" font-family="var(--font-display)">${fmt(total)}</text></svg>`;
 }
 function renderScoreRing(score, size=140) {
+  const na = score == null || isNaN(score); if (na) score = 0;
   const cx=size/2,cy=size/2,r=size/2-12,circ=2*Math.PI*r,offset=circ*(1-score/100),color=score>=85?'var(--income)':score>=70?'var(--teal)':score>=50?'var(--amber)':'var(--expense)';
-  return `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" style="flex-shrink:0"><circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--border)" stroke-width="10"/><circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="10" stroke-linecap="round" stroke-dasharray="${circ}" stroke-dashoffset="${offset}" transform="rotate(-90 ${cx} ${cy})" style="transition:stroke-dashoffset 0.8s ease"/><text x="${cx}" y="${cy+2}" text-anchor="middle" fill="var(--ink)" font-family="var(--font-display)" font-size="32" font-weight="800">${score}</text><text x="${cx}" y="${cy+18}" text-anchor="middle" fill="var(--ink-3)" font-size="10" font-weight="500">/100</text></svg>`;
+  return `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" style="flex-shrink:0"><circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--border)" stroke-width="10"/><circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="10" stroke-linecap="round" stroke-dasharray="${circ}" stroke-dashoffset="${offset}" transform="rotate(-90 ${cx} ${cy})" style="transition:stroke-dashoffset 0.8s ease"/><text x="${cx}" y="${cy+2}" text-anchor="middle" fill="var(--ink)" font-family="var(--font-display)" font-size="32" font-weight="800">${na ? '—' : score}</text><text x="${cx}" y="${cy+18}" text-anchor="middle" fill="var(--ink-3)" font-size="10" font-weight="500">${na ? 'sem dados' : '/100'}</text></svg>`;
 }
 function scoreColor(s) { return s>=85?'var(--income)':s>=70?'var(--teal)':s>=50?'var(--amber)':'var(--expense)'; }
 
@@ -3863,7 +3885,7 @@ function renderComparativo(c) {
     if (!t.date) return false;
     let d;
     if (typeof t.date === 'string' && t.date.includes('-')) d = new Date(t.date + 'T00:00:00');
-    else if (typeof t.date === 'string' && t.date.includes('/')) d = new Date(prevYear, prevMonth, parseInt(t.date.split('/')[0]));
+    else if (typeof t.date === 'string' && t.date.includes('/')) { const _mo = parseInt(t.date.split('/')[1], 10); d = (_mo >= 1 && _mo <= 12) ? new Date(currentYear(), _mo - 1, parseInt(t.date.split('/')[0], 10)) : new Date(prevYear, prevMonth, parseInt(t.date.split('/')[0], 10)); }
     else return false;
     return d.getMonth() === prevMonth && d.getFullYear() === prevYear;
   });
@@ -3883,7 +3905,7 @@ function renderComparativo(c) {
   return '<div class="compare-grid">' +
     '<div class="compare-card"><div class="compare-label">' + (isPJ ? 'Faturamento' : 'Renda') + '</div><div class="compare-value" style="color:var(--income)">' + fmt(c.totalIncome) + '</div>' + changeHtml(c.totalIncome, prevIncome, false) + '</div>' +
     '<div class="compare-card"><div class="compare-label">' + (isPJ ? 'Custos' : 'Despesas') + '</div><div class="compare-value" style="color:var(--expense)">' + fmt(c.totalExpense) + '</div>' + changeHtml(c.totalExpense, prevExpense, true) + '</div>' +
-    '<div class="compare-card"><div class="compare-label">Resultado</div><div class="compare-value" style="color:' + (c.resultado >= 0 ? 'var(--income)' : 'var(--expense)') + '">' + fmt(c.resultado) + '</div>' + changeHtml(c.resultado, prevResult, false) + '</div>' +
+    '<div class="compare-card"><div class="compare-label">Resultado</div><div class="compare-value" style="color:' + (c.resultado >= 0 ? 'var(--income)' : 'var(--expense)') + '">' + fmtS(c.resultado) + '</div>' + changeHtml(c.resultado, prevResult, false) + '</div>' +
     '<div class="compare-card"><div class="compare-label">Economia</div><div class="compare-value" style="color:var(--teal)">' + pct(c.taxaEconomia) + '</div>' + changeHtml(c.taxaEconomia, prevIncome > 0 ? ((prevIncome-prevExpense)/prevIncome*100) : 0, false) + '</div>' +
     '</div>';
 }
@@ -5136,7 +5158,7 @@ function renderCardPlans(c) {
       + (a.warn.map(w => '<div class="occ-b-desc" style="color:var(--expense);margin-bottom:8px">⚠️ ' + fxEsc(w) + '</div>').join(''))
       + (a.plans.length ? '<div style="overflow-x:auto"><table class="data-table" style="width:100%"><thead><tr><th style="text-align:left">Parcelamento</th><th style="text-align:right">Faltam</th><th style="text-align:right">Falta pagar</th><th style="text-align:right">Quitando hoje (aprox.)</th><th style="text-align:right">Juros real</th></tr></thead><tbody>' + planRows + '</tbody></table></div>' : '<div class="occ-b-desc">Nenhum parcelamento de fatura informado. Se você já parcelou, edite a dívida e conte em “Já parcelou a fatura?”.</div>')
       + '<div style="display:flex;gap:12px;flex-wrap:wrap;margin:12px 0"><label style="font-size:12px;color:var(--ink-3)">Taxa que o banco oferece para parcelar (% a.m.)<br><input class="form-input" type="number" step="0.01" min="0" style="max-width:160px" value="' + (cfg.oferta || '') + '" placeholder="ex.: 6,5" onchange="cardSetOffer(\'' + d.id + '\', this)"></label>'
-      + '<label style="font-size:12px;color:var(--ink-3)">Gastos essenciais por mês (R$)<br><input class="form-input" type="number" step="0.01" min="0" style="max-width:160px" value="' + (cardsLoad()._ess || '') + '" placeholder="' + (ess.v > 0 ? ess.v : 'ex.: 2500') + '" onchange="cardSetNum(\'_ess\', this)"></label></div>'
+      + '<label style="font-size:12px;color:var(--ink-3)">Gastos essenciais por mês (R$)<br><input class="form-input" type="text" inputmode="decimal" data-money style="max-width:160px" value="' + (cardsLoad()._ess || '') + '" placeholder="' + (ess.v > 0 ? ess.v : 'ex.: 2500') + '" onchange="cardSetNum(\'_ess\', this)"></label></div>'
       + (a.options.length ? '<div class="occ-b-desc" style="margin-bottom:6px"><strong>Parcelar o saldo em aberto (' + B(a.aberto) + ')</strong> — calculado com ' + a.rateSrc + ' (' + a.rateRefPct.toString().replace('.', ',') + '% a.m.). A coluna “% da renda” já soma as parcelas atuais.</div><div style="overflow-x:auto"><table class="data-table" style="width:100%"><thead><tr><th style="text-align:left">Prazo</th><th style="text-align:right">Parcela</th><th style="text-align:right">Juros totais</th><th style="text-align:right">% da renda (todas as parcelas)</th><th>Cabe?</th></tr></thead><tbody>' + optRows + '</tbody></table></div>' : '')
       + '<div style="margin-top:12px;padding:12px 14px;border-radius:12px;background:' + kind[0] + ';color:' + kind[1] + ';line-height:1.6"><strong>Parcelar de novo?</strong> ' + fxEsc(a.verdict) + '</div>'
       + '<div style="margin-top:10px;padding:12px 14px;border-radius:12px;background:' + (a.stop ? '#fdecec' : '#eef2f8') + ';color:' + (a.stop ? '#7f1d1d' : '#1e293b') + ';line-height:1.6"><strong>' + (a.stop ? '🛑 Hora de parar de usar o cartão.' : 'Uso do cartão.') + '</strong> ' + fxEsc(a.stopAdvice) + '</div>'
@@ -5447,7 +5469,7 @@ function renderDashboard(c) {
   <div class="charts-grid"><div class="card animate-in stagger-3"><div class="card-header"><div><div class="card-title">${isPJ?'Custos por categoria':'Gastos por categoria'}</div></div></div>${renderDonut(c.categories)}<div class="donut-legend">${c.categories.map(cat=>{const total=c.categories.reduce((s,x)=>s+x.value,0);return`<div class="donut-legend-item"><span class="donut-legend-swatch" style="background:${cat.color}"></span><span class="donut-legend-label">${fxEsc(cat.name)}</span><span class="donut-legend-value">${fmt(cat.value)}</span><span class="donut-legend-pct">${total>0?(cat.value/total*100).toFixed(0):0}%</span></div>`;}).join('')}</div></div>
   <div class="card animate-in stagger-4"><div class="card-header"><div><div class="card-title">${isPJ?'Faturamento vs Custos':'Renda vs Despesa'}</div><div class="card-subtitle">Últimos 6 meses</div></div></div>${renderBarChart(c)}</div></div>
   <div class="card animate-in stagger-5" style="margin-bottom:16px"><div class="card-header"><div><div class="card-title">Comparativo Mensal</div><div class="card-subtitle">Atual vs. mês anterior</div></div></div>${renderComparativo(c)}</div>
-  <div class="charts-grid"><div class="card animate-in stagger-5"><div class="card-header"><div><div class="card-title">Saúde Financeira</div></div></div><div class="score-ring-container">${renderScoreRing(c.healthTotal)}<div class="score-details">${c.healthItems.map(item=>`<div class="score-bar-row"><span class="score-bar-label">${fxEsc(item.name)}</span><div class="score-bar-track"><div class="score-bar-fill" style="width:${item.score}%;background:${scoreColor(item.score)}"></div></div><span class="score-bar-num">${item.score}</span></div>`).join('')}</div></div></div>
+  <div class="charts-grid"><div class="card animate-in stagger-5"><div class="card-header"><div><div class="card-title">Saúde Financeira</div></div></div><div class="score-ring-container">${renderScoreRing(c.healthTotal)}<div class="score-details">${c.healthItems.map(item=>`<div class="score-bar-row"><span class="score-bar-label">${fxEsc(item.name)}</span><div class="score-bar-track"><div class="score-bar-fill" style="width:${item.na ? 0 : item.score}%;background:${scoreColor(item.score)}"></div></div><span class="score-bar-num">${item.na ? '—' : item.score}</span></div>`).join('')}</div></div></div>
   <div class="card animate-in stagger-6"><div style="display:flex;flex-direction:column;gap:12px"><div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:var(--expense-light);border-radius:var(--radius-sm)"><div><div style="font-size:12px;color:var(--ink-3)">Dívidas totais</div><div style="font-family:var(--font-display);font-weight:700;font-size:20px;color:var(--expense)">${fmt(c.totalDebt)}</div></div><div style="font-size:12px;color:var(--ink-3)">${pct(c.debtPct)} da renda</div></div>
   <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:var(--amber-light);border-radius:var(--radius-sm)"><div><div style="font-size:12px;color:var(--ink-3)">${isPJ?'Ferramentas & SaaS':'Assinaturas'}</div><div style="font-family:var(--font-display);font-weight:700;font-size:20px;color:var(--amber)">${fmtD(c.totalSubs)}/mês</div></div><div style="font-size:12px;color:var(--ink-3)">${fmtD(c.totalSubs*12)}/ano</div></div></div></div></div>`;
 }
@@ -5535,11 +5557,12 @@ function openBudgetModal() {
   const cats = getCatsExpense();
   openModal('Definir Orçamento', `
     <div style="font-size:13px;color:var(--ink-2);margin-bottom:16px">Defina o limite mensal para cada categoria. Deixe 0 para sem limite.</div>
-    ${cats.map(cat => `<div class="form-group" style="display:flex;align-items:center;gap:12px"><label class="form-label" style="width:130px;margin:0;flex-shrink:0">${cat}</label><input class="form-input" type="number" id="budget-${cat.replace(/[^a-zA-Z]/g,'')}" value="${state.budgets[cat] || 0}" step="100" style="flex:1" /></div>`).join('')}
+    ${cats.map(cat => `<div class="form-group" style="display:flex;align-items:center;gap:12px"><label class="form-label" style="width:130px;margin:0;flex-shrink:0">${cat}</label><input class="form-input" type="text" inputmode="decimal" data-money id="budget-${cat.replace(/[^a-zA-Z]/g,'')}" value="${state.budgets[cat] || 0}" style="flex:1" /></div>`).join('')}
     <div class="modal-actions"><button class="btn-cancel" onclick="closeModal()">Cancelar</button><button class="btn-save" onclick="saveBudgets()">Salvar</button></div>`);
 }
 
 function saveBudgets() {
+  if (window.Money && Money.hasInvalid(Array.from(document.querySelectorAll('input[id^="budget-"]')).map(e => e.id), showToast)) return;
   const cats = getCatsExpense();
   let entered = [];
   cats.forEach(cat => {
@@ -5645,16 +5668,16 @@ function renderProjecao(c) {
 // ─── SAÚDE FINANCEIRA ───────────────────────────
 function renderSaude(c) { return renderSaude_core(c) + renderTrilhas(c); }
 function renderSaude_core(c) {
-  const worst = c.healthItems.reduce((a, b) => a.score < b.score ? a : b);
-  const msg = worst.score < 75 ? `Ponto de atenção: <strong>${worst.name.toLowerCase()}</strong>.` : 'Indicadores equilibrados.';
+  const _ok = c.healthItems.filter(i => !i.na), worst = _ok.length ? _ok.reduce((a, b) => a.score < b.score ? a : b) : null;
+  const msg = !worst ? 'Preciso da sua renda e dos seus gastos para calcular. Cadastre-os e a nota aparece aqui.' : worst.score < 75 ? `Ponto de atenção: <strong>${worst.name.toLowerCase()}</strong>.` : 'Indicadores equilibrados.';
   const actionsHtml = isPlusUser()
     ? '<div class="card mb-24 animate-in stagger-2"><div class="card-title" style="margin-bottom:14px">💡 Plano de ação por indicador</div>' +
       c.healthItems.map(function(item) {
-        return '<div style="padding:10px 14px;background:var(--card-alt);border-radius:var(--radius-sm);margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:12.5px;font-weight:600;margin-bottom:4px"><span>' + item.name + '</span><span style="color:' + scoreColor(item.score) + '">' + item.score + '/100</span></div><div style="font-size:12.5px;color:var(--ink-2)">' + healthActionFor(item, c) + '</div></div>';
+        return '<div style="padding:10px 14px;background:var(--card-alt);border-radius:var(--radius-sm);margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:12.5px;font-weight:600;margin-bottom:4px"><span>' + item.name + '</span><span style="color:' + (item.na ? 'var(--ink-3)' : scoreColor(item.score)) + '">' + (item.na ? 'sem dados' : item.score + '/100') + '</span></div><div style="font-size:12.5px;color:var(--ink-2)">' + healthActionFor(item, c) + '</div></div>';
       }).join('') + '</div>'
     : '<div class="card mb-24 animate-in stagger-2" style="text-align:center;padding:24px;border:1px dashed var(--border)"><div style="font-size:13.5px;color:var(--ink-2);margin-bottom:10px">🔒 Veja uma <strong>ação concreta</strong> para melhorar cada indicador. Recurso do plano <strong>Plus</strong>.</div><button class="btn-sm" onclick="switchTab(\'plano\')">Ver plano Plus</button></div>';
   return `<div class="section-header animate-in"><div><div class="section-title">Saúde Financeira</div><div class="section-desc">Diagnóstico calculado dos seus dados.</div></div></div>
-  <div class="card mb-24 animate-in stagger-1"><div class="score-ring-container">${renderScoreRing(c.healthTotal, 160)}<div class="score-details"><div style="font-family:var(--font-display);font-weight:700;font-size:18px;margin-bottom:4px">Sua nota: ${c.healthTotal}/100</div><div style="font-size:13px;color:var(--ink-2);margin-bottom:20px;line-height:1.6">${msg}</div>${c.healthItems.map(item=>`<div class="score-bar-row"><span class="score-bar-label">${fxEsc(item.name)}</span><div class="score-bar-track"><div class="score-bar-fill" style="width:${item.score}%;background:${scoreColor(item.score)}"></div></div><span class="score-bar-num">${item.score}</span></div>`).join('')}</div></div></div>
+  <div class="card mb-24 animate-in stagger-1"><div class="score-ring-container">${renderScoreRing(c.healthTotal, 160)}<div class="score-details"><div style="font-family:var(--font-display);font-weight:700;font-size:18px;margin-bottom:4px">Sua nota: ${c.healthTotal == null ? 'ainda sem dados suficientes' : c.healthTotal + '/100'}</div><div style="font-size:13px;color:var(--ink-2);margin-bottom:20px;line-height:1.6">${msg}</div>${c.healthItems.map(item=>`<div class="score-bar-row"><span class="score-bar-label">${fxEsc(item.name)}</span><div class="score-bar-track"><div class="score-bar-fill" style="width:${item.na ? 0 : item.score}%;background:${scoreColor(item.score)}"></div></div><span class="score-bar-num">${item.na ? '—' : item.score}</span></div>`).join('')}</div></div></div>
   ${actionsHtml}`;
 }
 
@@ -5701,7 +5724,7 @@ function renderCambio() {
   return `<div class="section-header animate-in"><div><div class="section-title">Centro de Câmbio</div><div class="section-desc">Cotações de referência de todas as moedas, atualizadas todo dia.</div></div></div>
   <div class="currency-grid mb-24">${currencies.map((c,i)=>`<div class="currency-card animate-in stagger-${i+1}"><div class="currency-flag">${c.flag}</div><div class="currency-pair">${c.pair}</div><div class="currency-rate">${c.rate<1?c.rate.toFixed(4):c.rate.toFixed(2)}</div>${c.delta==null?'<div class="currency-delta">—</div>':`<div class="currency-delta" style="color:${c.delta>=0?'var(--income)':'var(--expense)'}">${c.delta>=0?'▲':'▼'} ${Math.abs(c.delta).toFixed(1)}%</div>`}</div>`).join('')}</div>
   <div class="card mb-24 animate-in" id="cambio-fonte"><div class="occ-b-desc" style="font-size:12.5px">${fonte}<br>São taxas de <b>referência</b> (mercado), não a cotação de compra/venda de bancos e casas de câmbio, que inclui spread e IOF (para compras no exterior, o IOF no cartão é maior que o de câmbio comercial). Use como parâmetro, não como valor final.</div></div>
-  <div class="card animate-in stagger-5 mb-24"><div class="card-title" style="margin-bottom:16px">Conversor rápido</div><div style="display:flex;gap:12px;align-items:end;flex-wrap:wrap"><div><label style="font-size:12px;color:var(--ink-3);display:block;margin-bottom:4px">Valor</label><input id="conv-val" type="number" value="1000" class="form-input" style="width:140px" /></div><div><label style="font-size:12px;color:var(--ink-3);display:block;margin-bottom:4px">De</label>${sel('conv-from', 'BRL')}</div><div style="font-size:18px;color:var(--ink-3);padding-bottom:8px">→</div><div><label style="font-size:12px;color:var(--ink-3);display:block;margin-bottom:4px">Para</label>${sel('conv-to', 'USD')}</div><div id="conv-result" style="font-family:var(--font-display);font-weight:700;font-size:22px;padding-bottom:4px;color:var(--teal)"></div></div></div>
+  <div class="card animate-in stagger-5 mb-24"><div class="card-title" style="margin-bottom:16px">Conversor rápido</div><div style="display:flex;gap:12px;align-items:end;flex-wrap:wrap"><div><label style="font-size:12px;color:var(--ink-3);display:block;margin-bottom:4px">Valor</label><input id="conv-val" type="text" inputmode="decimal" data-money value="1000" class="form-input" style="width:140px" /></div><div><label style="font-size:12px;color:var(--ink-3);display:block;margin-bottom:4px">De</label>${sel('conv-from', 'BRL')}</div><div style="font-size:18px;color:var(--ink-3);padding-bottom:8px">→</div><div><label style="font-size:12px;color:var(--ink-3);display:block;margin-bottom:4px">Para</label>${sel('conv-to', 'USD')}</div><div id="conv-result" style="font-family:var(--font-display);font-weight:700;font-size:22px;padding-bottom:4px;color:var(--teal)"></div></div></div>
   ${nMoedas ? `<div class="card animate-in"><div class="card-title" style="margin-bottom:10px">Todas as moedas em reais</div><input id="cur-q" class="form-input" placeholder="Buscar moeda ou país (ex.: peso, dólar, AED)" style="margin-bottom:10px;max-width:360px"><div style="max-height:360px;overflow:auto"><table id="cur-tbl" style="width:100%;font-size:13.5px;border-collapse:collapse">${rows}</table></div><div class="occ-b-desc" style="font-size:12px;margin-top:8px">Valor de 1 unidade da moeda em reais. Fonte: ${src.name}, ${CAMBIO.date}.</div></div>` : ''}`;
 }
 function cambioBrl(code) { return cambioBrlOf(code); }
@@ -6424,7 +6447,7 @@ function openDocUploadModal() {
       <input class="form-input" type="text" id="m-docname" placeholder="Ex: Fatura Nubank Janeiro" /></div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">Valor</label>
-        <input class="form-input" type="number" id="m-docamount" placeholder="0.00" step="0.01" /></div>
+        <input class="form-input" type="text" inputmode="decimal" data-money id="m-docamount" placeholder="0.00" /></div>
       <div class="form-group"><label class="form-label">Data</label>
         <input class="form-input" type="text" id="m-docdate" placeholder="DD/MM" /></div>
     </div>
@@ -6440,6 +6463,7 @@ function pickDocType(el) {
 }
 
 function saveManualDoc() {
+  if (window.Money && Money.hasInvalid(['m-docamount'], showToast)) return;
   if (pfBlockedName((document.getElementById('m-docname') || {}).value)) { pfBlockModal([(document.getElementById('m-docname') || {}).value]); return; }
   if (!checkPlanLimit(countThisMonth(state.documents, 'date'), PLAN_LIMITS.maxDocumentsPerMonth, 'Plano ' + currentPlanLabel() + ' permite até ' + PLAN_LIMITS.maxDocumentsPerMonth + ' documentos por mês. Faça upgrade para enviar mais.')) return;
   const selectedType = document.querySelector('#doc-type-pick .doc-type-btn.selected')?.dataset.dtype || 'outro';
@@ -6691,7 +6715,7 @@ function openScanConfirmModal(parsed) {
         <input class="form-input" type="text" id="m-docname" value="${(parsed.desc || '').replace(/"/g, '&quot;')}" /></div>
       <div class="form-row">
         <div class="form-group"><label class="form-label">Valor</label>
-          <input class="form-input" type="number" id="m-docamount" value="${parsed.amount || ''}" step="0.01" /></div>
+          <input class="form-input" type="text" inputmode="decimal" data-money id="m-docamount" value="${parsed.amount || ''}" /></div>
         <div class="form-group"><label class="form-label">Vencimento</label>
           <input class="form-input" type="text" id="m-docdate" value="${parsed.dueDate || ''}" placeholder="DD/MM/AAAA" /></div>
       </div>
@@ -6703,6 +6727,7 @@ function openScanConfirmModal(parsed) {
 }
 
 function saveScannedDoc() {
+  if (window.Money && Money.hasInvalid(['m-docamount'], showToast)) return;
   if (!checkPlanLimit(countThisMonth(state.documents, 'date'), PLAN_LIMITS.maxDocumentsPerMonth, 'Plano ' + currentPlanLabel() + ' permite até ' + PLAN_LIMITS.maxDocumentsPerMonth + ' documentos por mês. Faça upgrade para enviar mais.')) return;
   const selectedType = document.querySelector('#doc-type-pick .doc-type-btn.selected')?.dataset.dtype || 'boleto';
   const doc = {
@@ -6772,7 +6797,7 @@ function renderLeakageRadar() {
 // ─── 2. SIMULADOR "E SE EU COMPRAR ISSO AGORA?" (Plus) ──
 function openBuySimulator() {
   if (!isPlusUser()) { requirePlusFeature('Simulador de decisão de compra', 'plus'); return; }
-  openModal('Simulador de compra', '<div class="form-group"><label class="form-label">Quanto custa essa compra?</label><input class="form-input" type="number" id="sim-buy-amount" placeholder="Ex: 2500" oninput="renderBuySimResult()" /></div><div id="sim-buy-result" style="margin-top:12px"></div>');
+  openModal('Simulador de compra', '<div class="form-group"><label class="form-label">Quanto custa essa compra?</label><input class="form-input" type="text" inputmode="decimal" data-money id="sim-buy-amount" placeholder="Ex: 2500" oninput="renderBuySimResult()" /></div><div id="sim-buy-result" style="margin-top:12px"></div>');
   setTimeout(renderBuySimResult, 50);
 }
 
@@ -6850,12 +6875,18 @@ function healthActionFor(item, c) {
 // ─── 7. MODO CRISE (Plus) ───────────────────────────────
 function renderCrisisBanner(c) {
   if (!isPlusUser()) return '';
-  const projectedNegative = (c.totalAssets - c.totalLiab) < 0 || (c.resultado < 0 && c.totalAssets < c.totalExpense);
-  const highRisk = c.debtPct > 50 || projectedNegative;
-  if (!highRisk) return '';
+  // Cada sinal só vale com base de cálculo: sem renda registrada não existe "gastou mais do que recebeu".
+  const negNet = (c.totalAssets - c.totalLiab) < 0;
+  const deficit = c.totalIncome > 0 && c.resultado < 0 && c.totalAssets < c.totalExpense;
+  const highDebt = c.totalIncome > 0 && c.debtPct > 50;
+  if (!(negNet || deficit || highDebt)) return '';
+  const why = [];   // os motivos aparecem com os números do próprio cliente
+  if (highDebt) why.push('as parcelas das dívidas comprometem ' + pct(c.debtPct) + ' da sua renda (o alerta começa acima de 50%)');
+  if (deficit) why.push('neste período você gastou ' + fmtD(c.totalExpense) + ' e recebeu ' + fmtD(c.totalIncome) + ', e sua reserva (' + fmtD(c.totalAssets) + ') não cobre a diferença');
+  if (negNet) why.push('o patrimônio líquido está negativo (' + fmtD(c.netWorth) + ' com sinal de menos)');
   return '<div class="card animate-in mb-24" style="border-left:3px solid var(--expense);background:var(--expense-light)">' +
     '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><span style="font-size:22px">🆘</span><div class="card-title" style="margin:0">Modo Crise ativado</div></div>' +
-    '<div style="font-size:13px;color:var(--ink-2);line-height:1.6">Detectamos sinais de risco financeiro elevado (endividamento alto ou reserva insuficiente). Recomendações imediatas: pause metas de longo prazo, corte assinaturas não essenciais (veja o Radar de Vazamento) e priorize quitar dívidas com juros mais altos.</div>' +
+    '<div style="font-size:13px;color:var(--ink-2);line-height:1.6">Por que apareceu: ' + why.join('; ') + '. Se algum valor estiver errado, corrija o lançamento e o aviso some. Recomendações imediatas: pause metas de longo prazo, corte assinaturas não essenciais (veja o Radar de Vazamento) e priorize quitar dívidas com juros mais altos.</div>' +
   '</div>';
 }
 
@@ -6930,7 +6961,7 @@ function renderInsights(c) {
     <div class="card" style="text-align:center;padding:28px">
       ${renderScoreRing(c.healthTotal, 120)}
       <div style="font-family:var(--font-display);font-weight:700;font-size:16px;margin-top:12px">Score Financeiro</div>
-      <div style="font-size:12px;color:var(--ink-3)">${c.healthTotal >= 80 ? 'Excelente' : c.healthTotal >= 60 ? 'Bom' : c.healthTotal >= 40 ? 'Regular' : 'Atenção'}</div>
+      <div style="font-size:12px;color:var(--ink-3)">${c.healthTotal == null ? 'Registre sua renda e seus gastos para calcular' : c.healthTotal >= 80 ? 'Excelente' : c.healthTotal >= 60 ? 'Bom' : c.healthTotal >= 40 ? 'Regular' : 'Atenção'}</div>
     </div>
     <div class="card" style="padding:28px">
       <div style="display:grid;gap:16px">
@@ -7984,8 +8015,8 @@ function renderPJPack(c) {
   }
   if (k === 'simples' || k === 'epp') {
     return '<div class="card mb-24 animate-in"><div class="card-title">Fator R (serviços)</div><div class="occ-b-desc" style="margin:6px 0 10px">Para algumas atividades de serviço, se a folha de pagamento (inclui pró-labore e encargos) for de pelo menos 28% da receita dos 12 meses, o imposto cai do Anexo V para o Anexo III.</div>' +
-      '<div class="form-row"><div class="form-group"><label class="form-label">Folha + pró-labore (12 meses)</label><input class="form-input" type="number" id="fr-folha" placeholder="0,00" oninput="fatorRCalc()" /></div>' +
-      '<div class="form-group"><label class="form-label">Receita bruta (12 meses)</label><input class="form-input" type="number" id="fr-rbt" value="' + Math.round(revenueLast12Months()) + '" oninput="fatorRCalc()" /></div></div>' +
+      '<div class="form-row"><div class="form-group"><label class="form-label">Folha + pró-labore (12 meses)</label><input class="form-input" type="text" inputmode="decimal" data-money id="fr-folha" placeholder="0,00" oninput="fatorRCalc()" /></div>' +
+      '<div class="form-group"><label class="form-label">Receita bruta (12 meses)</label><input class="form-input" type="text" inputmode="decimal" data-money id="fr-rbt" value="' + Math.round(revenueLast12Months()) + '" oninput="fatorRCalc()" /></div></div>' +
       '<div class="occ-b-desc" id="fr-out" style="font-size:13.5px">Informe a folha e a receita dos últimos 12 meses.</div>' + note + '</div>';
   }
   return '';
@@ -8024,7 +8055,7 @@ var TRILHAS = {
 };
 function renderTrilhas(c) {
   var keys = ['reserva', 'divida', 'economia', 'fixos', 'invest'];
-  var list = c.healthItems.map(function(it, i) { return { k: keys[i], score: it.score, name: it.name }; }).filter(function(x) { return x.score < 75; }).sort(function(a, b) { return a.score - b.score; }).slice(0, 2);
+  var list = c.healthItems.map(function(it, i) { return { k: keys[i], score: it.score, name: it.name, na: it.na }; }).filter(function(x) { return !x.na && x.score < 75; }).sort(function(a, b) { return a.score - b.score; }).slice(0, 2);
   if (!list.length) return '<div class="card mb-24 animate-in"><div class="card-title">🎓 Trilhas de educação financeira</div><div class="occ-b-desc" style="margin-top:6px">Seus indicadores estão equilibrados. Continue acompanhando todo mês.</div></div>';
   return '<div class="card mb-24 animate-in"><div class="card-title">🎓 Para subir a sua nota</div><div class="occ-b-desc" style="margin:6px 0 10px">Trilhas curtas para os seus pontos mais fracos.</div>' +
     list.map(function(x) {

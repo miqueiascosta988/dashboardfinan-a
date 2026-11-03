@@ -92,7 +92,7 @@ test('campos trocados no parcelamento (nº | faltam | valor parcelado | parcela)
   await set(rows[1], [['cp-parcela', '9'], ['cp-rest', '9'], ['cp-total', '4429.17'], ['cp-valor', '492.13']]);
   await page.evaluate(() => saveDebt(null)); await page.waitForFunction(() => state.debts.length === 1);
   const r = await page.evaluate(() => { const d = state.debts[0], c = cardsMap()[d.id]; return { mensal: d.mensal, parcelas: d.parcelas, plans: c.plans.map(p => [p.parcela, p.restantes, p.total, p.valor]) }; });
-  await page.evaluate(() => switchTab('dividas')); assert.match(await page.textContent('#main'), /2 parcelamentos da fatura: R\$\s?714\/mês \(faltam até 9x\)/);
+  await page.evaluate(() => switchTab('dividas')); assert.match(await page.textContent('#main'), /2 parcelamentos da fatura: R\$\s?714,32\/mês \(faltam até 9x\)/);
   assert.deepEqual(r.plans, [[222.19, 2, 6, 1333.14], [492.13, 9, 9, 4429.17]]);
   assert.deepEqual(errs, []); await ctx.close();
 });

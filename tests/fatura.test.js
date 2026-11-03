@@ -33,7 +33,7 @@ test('lançamento: cada compra vira despesa categorizada (data da compra), sem l
   }, e);
   assert.equal(r.n1, 9); assert.equal(r.n2, 9); assert.equal(r.soma, 821.4); assert.deepEqual(r.types, ['expense']);
   assert.equal(r.cats.Uber, 'Transporte'); assert.equal(r.cats.Supermercado, 'Alimentação'); assert.equal(r.cats.Drogaria, 'Saúde'); assert.equal(r.cats.Posto, 'Transporte');
-  assert.equal(r.datas[0], '2026-10-10'); assert.ok(r.group); assert.equal(r.hidden, 9); assert.match(r.html, /fatura fechada: <b>R\$ 821<\/b>/);
+  assert.equal(r.datas[0], '2026-10-10'); assert.ok(r.group); assert.equal(r.hidden, 9); assert.match(r.html, /fatura fechada: <b>R\$ 821,40<\/b>/);
   await page.close();
 });
 test('excluir o documento remove todas as compras da fatura', async () => {

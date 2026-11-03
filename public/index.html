@@ -738,7 +738,7 @@ body.pj-mode .btn-save:hover { background: var(--pj-accent-mid); }
 .bar:hover { opacity: 0.85; }
 .bar.income-bar { background: var(--income); }
 .bar.expense-bar { background: var(--expense); }
-.bar-label { position: absolute; bottom: -22px; left: 50%; transform: translateX(-50%); font-size: 11px; color: var(--ink-3); white-space: nowrap; width: calc(200% + 3px); text-align: center; }
+.bar-label { position: absolute; bottom: -22px; left: 50%; transform: translateX(-50%); font-size: 11px; color: var(--ink-3); white-space: nowrap; width: max-content; text-align: center; }
 .bar-chart-legend { display: flex; gap: 16px; justify-content: center; margin-top: 32px; font-size: 12px; color: var(--ink-2); }
 .bar-chart-legend span { display: flex; align-items: center; gap: 6px; }
 .bar-chart-legend .dot { width: 8px; height: 8px; border-radius: 2px; }
@@ -5287,6 +5287,18 @@ function dpPickTroca(id) {
   if (d) { T.saldo = d.saldo; T.parcela = d.mensal || d.min; T.restam = d.parcelas || T.restam; }
   fxSave('dpl'); renderCurrentTab();
 }
+// Renda do cadastro gravada errada por um erro antigo (3.200,50 virava 3,20): o app não corrige sozinho, pergunta.
+function rendaCadastroCard() {
+  const v = +state.monthlyIncome; if (!(v > 0 && v < 100) || (typeof DEMO !== 'undefined' && DEMO.on)) return '';
+  return '<div class="card mb-24 animate-in occ-banner" id="renda-fix"><div><div class="occ-b-title">⚠️ Confira a renda do seu cadastro</div><div class="occ-b-desc">Está registrada como <b>' + fmt(v) + '</b> por mês. Se isso não é a sua renda, foi um erro antigo do app. Digite o valor certo (ex.: 3.200,50):</div><div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><input class="form-input" id="renda-fix-v" type="text" inputmode="decimal" data-money placeholder="Renda mensal" style="max-width:180px" /><button class="btn-add" onclick="rendaCadastroSalvar()">Salvar renda</button></div></div></div>';
+}
+async function rendaCadastroSalvar() {
+  if (window.Money && Money.hasInvalid(['renda-fix-v'], showToast)) return;
+  const v = parseFloat(document.getElementById('renda-fix-v').value); if (!(v > 0)) { showToast('Digite um valor maior que zero.', 'error'); return; }
+  state.monthlyIncome = v;
+  if (sb && currentUser) { try { await sb.from('profiles').update({ monthly_income: v }).eq('id', currentUser.id); } catch (e) {} }
+  renderCurrentTab(); showToast('Renda atualizada.', 'success');
+}
 function renderDebtNudge(c) {
   var ds = dpDebts(); if (!ds.length) return '';
   var total = ds.reduce(function(t, d) { return t + d.saldo; }, 0), top = ds.slice().sort(function(a, b) { return b.i - a.i; })[0];
@@ -5460,7 +5472,7 @@ function renderDashboard(c) {
   const heroLabel = isPJ ? 'Patrimônio da empresa' : 'Saldo patrimonial';
   const greeting = state.name ? (isPJ ? `${fxEsc(state.name)} · Empresa` : `Olá, ${fxEsc(state.name)}`) : '';
   return `<div class="hero-card mb-24 animate-in"><div class="hero-label">${heroLabel}</div><div class="hero-value">${fmt(saldo)}</div><div class="hero-sub">${greeting} · Atualizado agora</div></div>
-  ${typeof guiaCard === 'function' ? guiaCard() : ''}${typeof parcelasCard === 'function' ? parcelasCard() : ''}${typeof jornadaCard === 'function' ? jornadaCard() : ''}${renderCrisisBanner(c)}
+  ${rendaCadastroCard()}${typeof guiaCard === 'function' ? guiaCard() : ''}${typeof parcelasCard === 'function' ? parcelasCard() : ''}${typeof jornadaCard === 'function' ? jornadaCard() : ''}${renderCrisisBanner(c)}
   ${renderReqBanner()}${renderDocBanner()}${renderDebtNudge(c)}${typeof weekPlanCard === 'function' ? weekPlanCard() : ''}${typeof agendaCard === 'function' ? agendaCard() : ''}${renderOccBanner(c)}
   <div class="card mb-24 animate-in" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><div><div class="card-title" style="margin:0">💭 Pensando em comprar algo?</div><div style="font-size:12px;color:var(--ink-3)">Simule o impacto na sua meta e no seu orçamento antes de decidir.</div></div><button class="btn-add" onclick="openBuySimulator()">${isPlusUser()?'Simular compra':'🔒 Simular compra'}</button></div>
   <div class="kpi-grid">${[
@@ -5485,7 +5497,7 @@ function renderTransactionList(type, c) {
   const total = items.reduce((s, t) => s + t.amount, 0);
   const recur = items.filter(t => t.recur).reduce((s, t) => s + t.amount, 0);
   const label = type === 'income' ? (isPJ ? 'Faturamento' : 'Renda') : (isPJ ? 'Custos operacionais' : 'Despesas');
-  return `<div class="section-header animate-in"><div><div class="section-title">${label}</div><div class="section-desc">${items.length} lançamentos este mês · perfil ${isPJ?'Empresa':'Pessoal'}</div></div><div style="display:flex;gap:8px"><button class="btn-sm btn-danger" ${items.length===0?'disabled':''} onclick="confirmBulkDelete('Excluir tudo?', 'Isso vai excluir TODOS os ${items.length} lançamentos de ${label.toLowerCase()} visíveis no perfil ${isPJ?'Empresa':'Pessoal'}. Essa ação não pode ser desfeita.', 'deleteAllTransactions', '${type}')">🗑️ Excluir tudo</button><button class="btn-add" onclick="openTransactionModal('${type}')">+ Novo</button></div></div>
+  return `<div class="section-header animate-in"><div><div class="section-title">${label}</div><div class="section-desc">${items.length} lançamentos este mês · perfil ${isPJ?'Empresa':'Pessoal'}</div></div><div style="display:flex;gap:8px"><button class="btn-sm btn-danger" ${items.length===0?'disabled':''} onclick="confirmBulkDelete('Excluir tudo?', 'Isso vai excluir ${items.length === 1 ? 'o único lançamento' : 'TODOS os ' + items.length + ' lançamentos'} de ${label.toLowerCase()} visíveis no perfil ${isPJ?'Empresa':'Pessoal'}. Essa ação não pode ser desfeita.', 'deleteAllTransactions', '${type}')">🗑️ Excluir tudo</button><button class="btn-add" onclick="openTransactionModal('${type}')">+ Novo</button></div></div>
   <div class="kpi-grid mb-24">${[
     { label: 'Total', value: fmt(total), cls: type==='income'?'income':'expense' },
     { label: 'Recorrentes', value: fmt(recur) },
@@ -6402,7 +6414,7 @@ function openPayslipReview(id) {
 function openFinReview(id) {
   const d = state.documents.find(x => x.id === id); if (!d || !d.extractedData || !d.extractedData.fin) return;
   const f = d.extractedData.fin, isDebt = f.direction === 'debt', ex = f.extra || {};
-  const fv = v => v == null ? '' : String(v).replace('.', ',');
+  const fv = v => v == null ? '' : String(v);
   const bad = (f.checks || []).filter(c => !c.ok).map(c => '<li>' + fxEsc(c.msg) + '</li>').concat(d.extractedData.ocr ? ['<li>Lido por OCR (foto/escaneado): confira cada valor com o papel.</li>'] : []).join(''), notes = (f.notes || []).map(n => '<li>' + fxEsc(n) + '</li>').join('');
   const inp = (lab, key, val, type) => '<div class="form-group"><label class="form-label">' + lab + '</label><input class="form-input" id="fr-' + key + '" ' + (type === 'date' ? 'type="date"' : 'type="text" inputmode="decimal"') + ' value="' + fxEsc(val == null ? '' : val) + '"></div>';
   const cats = (f.direction === 'in' ? getCatsIncome() : getCatsExpense()), curCat = finCategory(Object.assign({}, f), f.direction === 'in' ? 'in' : 'out');
@@ -6963,6 +6975,7 @@ function renderBenchmarkCard(c) {
       '<div style="font-size:13.5px;color:var(--ink-2);margin-bottom:10px">🔒 <strong>Comparativo de Mercado</strong> — veja como seus gastos por categoria se comparam à média de mercado. Recurso do plano <strong>Pro</strong>.</div>' +
       '<button class="btn-sm" onclick="switchTab(\'plano\')">Ver plano Pro</button></div>';
   }
+  if (!(c.totalExpense > 0)) return '<div class="card animate-in mb-24"><div class="card-title">📊 Comparativo de Mercado</div><div class="occ-b-desc">Registre seus gastos do mês para comparar com a referência de mercado.</div></div>';
   const total = c.totalExpense || 1;
   const benchmark = getMarketBenchmark();
   const rows = Object.keys(benchmark).map(function(cat) {
@@ -6980,7 +6993,7 @@ function renderInsights(c) {
   const isPJ = state.profile_type === 'PJ';
   const insights = generateInsights(c, isPJ);
   const savingsScore = Math.min(100, Math.round(c.taxaEconomia * 3));
-  const riskLevel = c.debtPct > 40 ? 'Alto' : c.debtPct > 20 ? 'Moderado' : 'Baixo';
+  const riskLevel = !(c.totalIncome > 0) ? 'Sem dados' : c.debtPct > 40 ? 'Alto' : c.debtPct > 20 ? 'Moderado' : 'Baixo';
   const riskColor = c.debtPct > 40 ? 'var(--expense)' : c.debtPct > 20 ? 'var(--amber)' : 'var(--income)';
 
   return `<div class="section-header animate-in"><div><div class="section-title">Insights Inteligentes</div><div class="section-desc">Análise automatizada baseada nos seus dados financeiros.</div></div></div>
@@ -7054,9 +7067,9 @@ function generateInsights(c, isPJ) {
     insights.push({ type: 'trend', icon: '📈', title: `Patrimônio líquido: ${fmt(c.netWorth)}`, sub: 'Evolução patrimonial', body: `${c.netWorth > 0 ? 'Seus bens e saldos superam as suas dívidas.' : 'Suas dívidas superam seus bens e saldos. Priorize reduzir dívidas e formar reserva.'} ${c.resultado > 0 ? `Com a sobra de ${fmt(c.resultado)} por mês, seu patrimônio tende a crescer.` : ''}` });
   }
   // 7. Emergency fund
-  const emergMonths = c.totalExpense > 0 ? (c.totalAssets / c.totalExpense) : 0;
-  if (emergMonths < 6 && c.totalExpense > 0) {
-    insights.push({ type: 'warn', icon: '🛡️', title: `Reserva de emergência: ${emergMonths.toFixed(1)} meses`, sub: 'Segurança financeira', body: `Sua reserva cobre <strong>${emergMonths.toFixed(1)} meses</strong> de ${isPJ ? 'custos' : 'gastos'}. O ideal é ter 6 meses. Faltam <strong>${fmt(Math.max(0, c.totalExpense * 6 - c.totalAssets))}</strong>.` });
+  const rmI = isPJ ? getPJReserveMonths() : getReserveMonths(), emergMonths = c.totalExpense > 0 ? (c.totalAssets / c.totalExpense) : 0;
+  if (emergMonths < rmI && c.totalExpense > 0) {
+    insights.push({ type: 'warn', icon: '🛡️', title: `Reserva de emergência: ${emergMonths.toFixed(1)} meses`, sub: 'Segurança financeira', body: `Sua reserva cobre <strong>${emergMonths.toFixed(1)} meses</strong> de ${isPJ ? 'custos' : 'gastos'}. O ideal é ter ${rmI} meses. Faltam <strong>${fmt(Math.max(0, c.totalExpense * rmI - c.totalAssets))}</strong>.` });
   }
   // 8. CTA de importação de extrato
   insights.push({ type: 'premium', icon: '📄', title: 'Importe seu extrato bancário', sub: 'Recurso Premium', body: `Importe o extrato do seu banco (OFX ou CSV) e as transações entram já categorizadas, sem digitar. <strong>Disponível no plano Plus ou superior.</strong>` });
@@ -7465,7 +7478,7 @@ function renderEstrategia(c) {
   ${typeof consultorCard === 'function' ? consultorCard(c) : ''}
 
   <div class="kpi-grid mb-24 animate-in stagger-1">${[
-    { label: 'Score financeiro', value: healthScore + '/100', cls: healthScore >= 70 ? 'income' : healthScore >= 40 ? '' : 'expense' },
+    { label: 'Score financeiro', value: (income <= 0 && expenses <= 0 && totalDebt <= 0 && netWorth === 0) ? '—' : healthScore + '/100', cls: healthScore >= 70 ? 'income' : healthScore >= 40 ? '' : 'expense' },
     { label: 'Capacidade de poupança', value: fmt(Math.max(0, surplus)) + '/mês', cls: surplus > 0 ? 'income' : 'expense' },
     { label: 'Reserva de emergência', value: emergencyTarget > 0 ? pct(emergencyCurrent / emergencyTarget * 100) : '—', cls: emergencyCurrent >= emergencyTarget ? 'income' : 'teal' },
     { label: 'Dívidas ativas', value: fmt(totalDebt), cls: totalDebt > 0 ? 'expense' : 'income' },
@@ -7514,7 +7527,8 @@ function renderEstrategia(c) {
 }
 
 function generatePlanSteps(c, isPJ, income, expenses, surplus, totalDebt, emergCurrent, emergTarget, goalsRem, subsTotal, savingsRate) {
-  const steps = [];
+  const steps = [], rm = isPJ ? getPJReserveMonths() : getReserveMonths();   // meses de reserva conforme o perfil (CLT, autônomo, PJ...), não um "6" fixo
+  if (!(income > 0) && !(expenses > 0) && !(totalDebt > 0)) return [{ phase: 'Fase 1 — Comece aqui', title: 'Registre sua renda e seus gastos', desc: 'Sem esses números eu não consigo montar o plano, a reserva nem a margem do mês. Use o guia de primeiros passos no Início.', value: 'Sem dados', color: 'var(--amber)', status: 'active' }];
   // Phase 1: Stabilize
   if (surplus < 0) {
     steps.push({ phase: 'Fase 1 — Emergência', title: 'Equilibrar receitas e despesas', desc: 'Você gasta ' + fmt(Math.abs(surplus)) + ' a mais do que recebe. Identifique e corte gastos não essenciais imediatamente.', value: 'Déficit: ' + fmt(Math.abs(surplus)) + '/mês', color: 'var(--expense)', status: 'active' });
@@ -7524,11 +7538,13 @@ function generatePlanSteps(c, isPJ, income, expenses, surplus, totalDebt, emergC
     steps.push({ phase: 'Fase 1 — Estabilização', title: 'Finanças equilibradas ✓', desc: 'Parabéns! Você tem uma margem saudável de ' + pct(savingsRate) + '. Mantenha esse padrão.', value: 'Sobra: ' + fmt(surplus) + '/mês', color: 'var(--income)', status: 'done' });
   }
   // Phase 2: Emergency fund
-  if (emergCurrent < emergTarget) {
+  if (!(emergTarget > 0)) {
+    steps.push({ phase: 'Fase 2 — Segurança', title: 'Reserva de emergência: registre seus gastos', desc: 'A meta da reserva é de 6 meses de despesas. Sem despesas registradas eu não consigo calcular.', value: 'Sem dados', color: 'var(--amber)', status: 'active' });
+  } else if (emergCurrent < emergTarget) {
     var months = surplus > 0 ? Math.ceil((emergTarget - emergCurrent) / surplus) : '∞';
-    steps.push({ phase: 'Fase 2 — Segurança', title: 'Construir reserva de emergência', desc: 'Meta: ' + fmt(emergTarget) + ' (6 meses de despesas). Faltam ' + fmt(emergTarget - emergCurrent) + '. ' + (months !== '∞' ? 'No ritmo atual, ' + months + ' meses para completar.' : 'Ajuste gastos para começar a poupar.'), value: pct(emergCurrent/emergTarget*100) + ' concluída', color: 'var(--teal)', status: emergCurrent > 0 ? 'active' : '' });
+    steps.push({ phase: 'Fase 2 — Segurança', title: 'Construir reserva de emergência', desc: 'Meta: ' + fmt(emergTarget) + ' (' + rm + ' meses de despesas). Faltam ' + fmt(emergTarget - emergCurrent) + '. ' + (months !== '∞' ? 'No ritmo atual, ' + months + ' meses para completar.' : 'Ajuste gastos para começar a poupar.'), value: pct(emergCurrent/emergTarget*100) + ' concluída', color: 'var(--teal)', status: emergCurrent > 0 ? 'active' : '' });
   } else {
-    steps.push({ phase: 'Fase 2 — Segurança', title: 'Reserva de emergência completa ✓', desc: 'Você tem ' + fmt(emergCurrent) + ' guardados, cobrindo 6+ meses de despesas.', value: fmt(emergCurrent), color: 'var(--income)', status: 'done' });
+    steps.push({ phase: 'Fase 2 — Segurança', title: 'Reserva de emergência completa ✓', desc: 'Você tem ' + fmt(emergCurrent) + ' guardados, cobrindo ' + rm + '+ meses de despesas.', value: fmt(emergCurrent), color: 'var(--income)', status: 'done' });
   }
   // Phase 3: Debt elimination
   if (totalDebt > 0) {
@@ -7537,7 +7553,7 @@ function generatePlanSteps(c, isPJ, income, expenses, surplus, totalDebt, emergC
     var topDebt = highInterest[0];
     steps.push({ phase: 'Fase 3 — Eliminar dívidas', title: topDebt ? 'Prioridade: ' + topDebt.name + ' (' + topDebt.juros + '% a.m.)' : 'Quitar dívidas pendentes', desc: 'Dívida total: ' + fmt(totalDebt) + '. Pagamento mensal: ' + fmt(debtMonthly) + '. ' + (topDebt ? 'Concentre pagamentos extras na dívida de maior juros (' + topDebt.name + ').' : 'Use o método avalanche: pague a de maior juros primeiro.'), value: fmt(totalDebt), color: 'var(--expense)', status: 'active' });
   } else {
-    steps.push({ phase: 'Fase 3 — Dívidas', title: 'Livre de dívidas ✓', desc: 'Você não possui dívidas registradas. Evite financiamentos com juros altos.', color: 'var(--income)', status: 'done' });
+    steps.push({ phase: 'Fase 3 — Dívidas', title: 'Nenhuma dívida registrada', desc: 'Você não possui dívidas registradas. Evite financiamentos com juros altos.', color: 'var(--income)', status: 'done' });
   }
   // Phase 4: Subscriptions optimization
   if (subsTotal > income * 0.05 && subsTotal > 0) {
@@ -7594,7 +7610,7 @@ function generateTips(c, isPJ, income, expenses, surplus, totalDebt, emergCurren
   // Tip: Emergency fund
   if (emergTarget > 0) {
     var pctComplete = emergCurrent / emergTarget * 100;
-    tips.push({ icon: '🛡️', iconType: pctComplete >= 100 ? 'saving' : 'info', title: 'Reserva: ' + pct(pctComplete) + ' do ideal', text: pctComplete >= 100 ? 'Sua reserva cobre 6+ meses. Considere investir o excedente em ativos com maior rentabilidade (CDB 100%+ CDI, LCI/LCA).' : 'Meta: ' + fmt(emergTarget) + ' (6 meses de gastos). Faltam ' + fmt(emergTarget - emergCurrent) + '. Automatize transferências todo dia de pagamento.', impact: pctComplete >= 100 ? 'low' : 'high', impactIcon: pctComplete >= 100 ? '🟢' : '🔴', impactText: pctComplete >= 100 ? 'Protegido' : 'Construa agora', action: "switchTab('patrimonio')", actionLabel: 'Ver patrimônio' });
+    tips.push({ icon: '🛡️', iconType: pctComplete >= 100 ? 'saving' : 'info', title: 'Reserva: ' + pct(pctComplete) + ' do ideal', text: pctComplete >= 100 ? 'Sua reserva cobre ' + (isPJ ? getPJReserveMonths() : getReserveMonths()) + '+ meses. Considere investir o excedente em ativos com maior rentabilidade (CDB 100%+ CDI, LCI/LCA).' : 'Meta: ' + fmt(emergTarget) + ' (6 meses de gastos). Faltam ' + fmt(emergTarget - emergCurrent) + '. Automatize transferências todo dia de pagamento.', impact: pctComplete >= 100 ? 'low' : 'high', impactIcon: pctComplete >= 100 ? '🟢' : '🔴', impactText: pctComplete >= 100 ? 'Protegido' : 'Construa agora', action: "switchTab('patrimonio')", actionLabel: 'Ver patrimônio' });
   }
 
   // Tip: Goals progress
@@ -7856,10 +7872,17 @@ function exportJSON() {
   dlBlob(JSON.stringify(out, null, 2), 'application/json', 'sm-financial-meus-dados.json');
   showToast('Todos os seus dados foram exportados (JSON)', 'success');
 }
+function exportDate(d) {   // sempre DD/MM/AAAA (o app guarda DD/MM sem ano até recarregar)
+  const s = String(d || '');
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(8, 10) + '/' + s.slice(5, 7) + '/' + s.slice(0, 4);
+  if (/^\d{2}\/\d{2}$/.test(s)) return s + '/' + currentYear();
+  return s;
+}
+const exportMoney = v => (Math.round((+v || 0) * 100) / 100).toFixed(2).replace('.', ',');   // 3000 -> 3000,00 (decimal brasileiro, sem milhar para a planilha ler como número)
 function exportRowsTx() {
   const incomeLabel = state.profile_type === 'PJ' ? 'Faturamento' : 'Renda';
   return state.transactions.slice().sort(function(a, b) { return String(b.date).localeCompare(String(a.date)); })
-    .map(function(t) { return [t.date, t.type === 'income' ? incomeLabel : 'Despesa', t.desc, t.cat, t.amount, t.recur ? 'Sim' : 'Não']; });
+    .map(function(t) { return [exportDate(t.date), t.type === 'income' ? incomeLabel : 'Despesa', t.desc, t.cat, exportMoney(t.amount), t.recur ? 'Sim' : 'Não']; });
 }
 
 // ───────── PJ: notas fiscais organizadas em planilha (todas as NFs enviadas, em PDF ou XML) ─────────

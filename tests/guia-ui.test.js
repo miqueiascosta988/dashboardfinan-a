@@ -60,18 +60,18 @@ test('sem renda não calcula: a etapa da renda só conclui com lançamento salvo
   assert.equal(await cur(page), 'gastos');
   await page.close();
 });
-test('3 gastos concluem; resultado só passa com "Entendi"; depois vem o passo da meta', async () => {
+test('5 gastos concluem; resultado só passa com "Entendi"; depois vem o passo da meta', async () => {
   const { page } = await open(); const m = String(new Date().getMonth() + 1).padStart(2, '0');
   await page.evaluate(() => { Guia.start(); });
   await page.evaluate(() => { const s = Guia._model; });
   await page.click('[data-gd="goal:dividas"]'); await page.waitForTimeout(500);
   await page.click('[data-gd="skip"]'); await page.click('[data-gd="skipok"]'); await page.waitForTimeout(800);
-  for (const [t, d, v] of [['income', 'Salário', '3000']].concat([['expense', 'Aluguel', '1000'], ['expense', 'Mercado', '500'], ['expense', 'Luz', '200']])) {
+  for (const [t, d, v] of [['income', 'Salário', '3000']].concat([['expense', 'Aluguel', '1000'], ['expense', 'Mercado', '500'], ['expense', 'Luz', '200'], ['expense', 'Internet', '100'], ['expense', 'Gás', '100']])) {
     await page.evaluate(x => openTransactionModal(x), t); await page.waitForSelector('#m-amount');
     await page.fill('#m-date', '05/' + m); await page.fill('#m-desc', d); await page.fill('#m-amount', v); await page.click('.btn-save'); await page.waitForTimeout(900);
   }
   assert.equal(await cur(page), 'resultado');
-  assert.match(await page.textContent('#gd-box'), /entraram .*3\.000,00.*saíram .*1\.700,00.*sobraram .*1\.300,00/);
+  assert.match(await page.textContent('#gd-box'), /entraram .*3\.000,00.*saíram .*1\.900,00.*sobraram .*1\.100,00/);
   await page.click('[data-gd="ack"]'); await page.waitForTimeout(800);
   assert.equal(await cur(page), 'proximo');
   assert.equal(await page.evaluate(() => currentTab), 'dividas');

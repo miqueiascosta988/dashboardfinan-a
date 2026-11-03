@@ -12,8 +12,8 @@ test('só avança quando a ação existe de verdade', () => {
   assert.equal(G.evaluate(ctx0, s).current, 'doc');
   assert.equal(G.evaluate({ ...ctx0, docs: 1 }, s).current, 'renda');
   assert.equal(G.evaluate({ ...ctx0, docs: 1, incomes: 1 }, s).current, 'gastos');
-  assert.equal(G.evaluate({ ...ctx0, docs: 1, incomes: 1, expenses: 2 }, s).current, 'gastos', '2 de 3 gastos não conclui');
-  assert.equal(G.evaluate({ ...ctx0, docs: 1, incomes: 1, expenses: 3 }, s).current, 'resultado');
+  assert.equal(G.evaluate({ ...ctx0, docs: 1, incomes: 1, expenses: 4 }, s).current, 'gastos', '4 de 5 gastos não conclui');
+  assert.equal(G.evaluate({ ...ctx0, docs: 1, incomes: 1, expenses: 5 }, s).current, 'resultado');
 });
 test('pular deixa a etapa pendente na lista e avança o guia; fazer depois conclui', () => {
   let s = G.markSkipped(G.setGoal(G.initial(), 'ver'), 'doc');
@@ -23,7 +23,7 @@ test('pular deixa a etapa pendente na lista e avança o guia; fazer depois concl
   assert.deepEqual(e.skipped, [], 'cumpriu depois: sai de "puladas"'); assert.equal(e.steps[1].status, 'done');
 });
 test('próximo passo depende da meta escolhida', () => {
-  const all = { ...ctx0, docs: 1, incomes: 1, expenses: 3 };
+  const all = { ...ctx0, docs: 1, incomes: 1, expenses: 5 };
   let s = G.markAck(G.setGoal(G.initial(), 'dividas'), 'resultado');
   assert.equal(G.evaluate(all, s).current, 'proximo');
   assert.ok(G.evaluate({ ...all, debts: 1 }, s).finished);

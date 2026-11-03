@@ -14,7 +14,7 @@ for (const vp of [{ width: 1366, height: 800 }, { width: 390, height: 844 }]) {
     await page.goto(base + '/?demo=clt'); await page.waitForSelector('#jr-card');
     assert.match(await page.textContent('#jr-card'), /Seu caminho em 3 passos/);
     assert.ok(await page.locator('#jr-card [data-jr-diag], #jr-card [data-jr]').count());
-    await page.evaluate(() => { state.transactions = []; state.debts = []; renderCurrentTab(); });
+    await page.evaluate(() => { state.transactions = []; state.debts = []; PREFS.data = { gd: { v: 1, goal: null, active: false, offered: true, finishedAt: '2026-01-01', steps: {} } }; Guia.stop(); renderCurrentTab(); });
     assert.match(await page.textContent('#jr-card'), /Passo 1 de 3/);
     await page.click('#jr-card [data-jr="dividas"] .jr-b.sec');
     assert.match(await page.textContent('#jr-card'), /Passo 1 de 3/);

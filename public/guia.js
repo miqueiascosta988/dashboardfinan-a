@@ -23,7 +23,7 @@
       text: 'Clique em "+ Novo" e preencha os campos que eu destacar. Pode digitar o valor do jeito brasileiro, por exemplo 3.200,50.',
       wait: 'Estou esperando você salvar a sua renda.',
       warn: 'Sem a renda eu não consigo calcular o que sobra no mês. A Visão Geral e a nota de saúde ficam sem dados.' },
-    { id: 'gastos', title: 'Registre 3 gastos', tab: 'despesas', need: 3, kind: 'expense',
+    { id: 'gastos', title: 'Registre 5 gastos', tab: 'despesas', need: 5, kind: 'expense',
       text: 'Pense no que você pagou esta semana: aluguel, mercado, transporte. Cada gasto salvo conta.',
       wait: 'Estou esperando você salvar os gastos.',
       warn: 'Sem gastos registrados eu não consigo mostrar para onde vai o seu dinheiro nem calcular a sua economia.' },
@@ -54,7 +54,7 @@
       case 'meta': return !!(saved && saved.goal);
       case 'doc': return (ctx.docs || 0) >= 1;
       case 'renda': return (ctx.incomes || 0) >= 1;
-      case 'gastos': return (ctx.expenses || 0) >= 3;
+      case 'gastos': return (ctx.expenses || 0) >= 5;
       case 'resultado': return !!(saved && saved.steps && saved.steps.resultado && saved.steps.resultado.ack);
       case 'proximo':
         var g = (saved && saved.goal) || 'ver';
@@ -91,7 +91,7 @@
   if (typeof module !== 'undefined' && module.exports) { module.exports = core; return; }
 
   // ───────── Parte 2: tela (só no navegador) ─────────
-  var G = { saved: null, timer: null, el: null, ring: null, activated: null, confirmSkip: null, lastDone: 0, mini: false };
+  var G = { html: null, saved: null, timer: null, el: null, ring: null, activated: null, confirmSkip: null, lastDone: 0, mini: false };
   var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
   function curTab() { try { return typeof currentTab !== 'undefined' ? currentTab : null; } catch (e) { return null; } }
   function key() { try { return typeof fxKey === 'function' ? fxKey('gd') : 'financa-gd'; } catch (e) { return 'financa-gd'; } }
@@ -186,7 +186,7 @@
   }
   function dim(on) { var d = document.getElementById('gd-dim'); if (on && !d) { d = document.createElement('div'); d.id = 'gd-dim'; document.body.appendChild(d); } else if (!on && d) d.remove(); }
   function progressText(id, c) {
-    if (id === 'gastos') return ' (' + Math.min(c.expenses, 3) + ' de 3)';
+    if (id === 'gastos') return ' (' + Math.min(c.expenses, 5) + ' de 5)';
     return '';
   }
   function resultHtml() {
@@ -223,8 +223,11 @@
       html += '<h4>' + esc(def.title) + progressText(id, c) + '</h4><p>' + esc(def.text) + '</p>' + (target.hint ? '<p><b>' + esc(target.hint) + '</b></p>' : '') + docNote
         + '<div class="gd-wait">' + esc(def.wait) + '</div><div class="gd-row">' + (off ? '<button data-gd="go">Levar até lá</button>' : '') + '<button class="sec" data-gd="skip">Pular esta etapa</button><button class="sec" data-gd="mini">Continuar depois</button></div>';
     }
-    G.el.innerHTML = html; G.el.style.display = 'block';
-    G.el.querySelectorAll('[data-gd]').forEach(function (b) { b.onclick = function () { act(b.getAttribute('data-gd')); }; });
+    G.el.style.display = 'block';
+    if (G.html !== html) {   // só redesenha o balão quando o conteúdo muda: refazer a cada tique "comia" cliques nos botões
+      G.html = html; G.el.innerHTML = html;
+      G.el.querySelectorAll('[data-gd]').forEach(function (b) { b.onclick = function () { act(b.getAttribute('data-gd')); }; });
+    }
     place(G.el, id === 'meta' || G.confirmSkip === id ? { el: null } : target);
   }
   function showMini() {
@@ -232,7 +235,7 @@
     var m = document.getElementById('gd-mini');
     if (!m) { m = document.createElement('button'); m.id = 'gd-mini'; m.textContent = 'Continuar o guia'; m.onclick = function () { G.mini = false; G.activated = null; render(); }; document.body.appendChild(m); }
   }
-  function hide() { dim(false); if (G.el) G.el.style.display = 'none'; if (G.ring) G.ring.style.display = 'none'; var m = document.getElementById('gd-mini'); if (m) m.remove(); }
+  function hide() { G.html = null; dim(false); if (G.el) G.el.style.display = 'none'; if (G.ring) G.ring.style.display = 'none'; var m = document.getElementById('gd-mini'); if (m) m.remove(); }
   function finish(e) {
     G.saved.active = false; G.saved.finishedAt = new Date().toISOString(); save(); hide(); stopTimer();
     if (e.skipped.length) toast('Guia encerrado. Faltam ' + e.skipped.length + ' etapa(s) puladas: retome pela Visão Geral.', 'info');
@@ -273,7 +276,7 @@
       save(); G.activated = null; G.mini = false; G.lastDone = ev().done; G.lastSeen = false; startTimer(); render();
     },
     resume: function () { this.start(); },
-    stop: function () { dim(false); stopTimer(); G.el && G.el.remove(); G.ring && G.ring.remove(); var m = document.getElementById('gd-mini'); if (m) m.remove(); G.el = null; G.ring = null; G.saved = null; G.activated = null; },
+    stop: function () { G.html = null; dim(false); stopTimer(); G.el && G.el.remove(); G.ring && G.ring.remove(); var m = document.getElementById('gd-mini'); if (m) m.remove(); G.el = null; G.ring = null; G.saved = null; G.activated = null; },
     // chamada depois do login e do carregamento dos dados: retoma de onde parou ou oferece o guia a conta nova
     boot: function () {
       this.stop(); load();
@@ -293,7 +296,7 @@
         if (e.skipped.length) {
           return '<div class="card mb-24 animate-in" id="gd-card"><div class="card-title">Retomar etapas puladas</div>' + e.skipped.map(function (id) { var d = stepDef(id, G.saved.goal); return '<div class="gd-skip"><span>' + esc(d.title) + '</span><button onclick="Guia.resumeAt(\'' + id + '\')">Retomar</button></div>'; }).join('') + '</div>';
         }
-        if (!e.allDone && !G.saved.finishedAt && !G.saved.offered) return '<div class="card mb-24 animate-in" id="gd-card"><div class="card-title">Primeiros passos guiados</div><p style="margin:6px 0 10px">Eu te levo campo por campo, em poucos minutos.</p><button onclick="Guia.start()">Começar</button></div>';
+        var cx = ctx(); if (!e.allDone && !G.saved.finishedAt && !G.saved.offered && cx.incomes + cx.expenses + cx.docs === 0) return   /* convite só para conta vazia; quem já tem dados vê a Jornada */ '<div class="card mb-24 animate-in" id="gd-card"><div class="card-title">Primeiros passos guiados</div><p style="margin:6px 0 10px">Eu te levo campo por campo, em poucos minutos.</p><button onclick="Guia.start()">Começar</button></div>';
         if (!e.allDone && !G.saved.active && G.saved.offered && !G.saved.finishedAt) return '<div class="card mb-24 animate-in" id="gd-card"><div class="card-title">Primeiros passos guiados</div><p style="margin:6px 0 10px">Faltam ' + (e.total - e.done) + ' etapas. Continue de onde parou.</p><button onclick="Guia.resume()">Continuar o guia</button></div>';
       } catch (er) { /* ignore */ }
       return '';

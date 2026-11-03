@@ -95,3 +95,12 @@ test('celular 390px: o balão fica ancorado embaixo e dentro da tela', async () 
   assert.ok(b.l >= 0 && b.r <= b.w && b.b <= b.h, JSON.stringify(b));
   await page.close();
 });
+test('modo escuro: tela escurecida e só o campo indicado fica claro (recorte no destaque)', async () => {
+  const { page } = await open();
+  assert.equal(await page.isVisible('#gd-dim'), true, 'sem campo alvo (meta): tela toda escura');
+  await page.click('[data-gd="goal:ver"]'); await page.waitForTimeout(900);
+  assert.equal(await page.locator('#gd-dim').count(), 0, 'com campo alvo: o recorte faz o escurecimento'); await page.waitForTimeout(1500);
+  const r = await page.evaluate(() => { const g = document.getElementById('gd-ring'), s = getComputedStyle(g), z = document.getElementById('upload-zone').getBoundingClientRect(), b = g.getBoundingClientRect(); return { sh: s.boxShadow, pe: s.pointerEvents, cobre: b.left <= z.left && b.top <= z.top && b.right >= z.right && b.bottom >= z.bottom }; });
+  assert.match(r.sh, /9999px/); assert.equal(r.pe, 'none'); assert.equal(r.cobre, true);
+  await page.close();
+});

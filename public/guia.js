@@ -119,8 +119,8 @@
   function css() {
     if (document.getElementById('gd-style')) return;
     var s = document.createElement('style'); s.id = 'gd-style';
-    s.textContent = '#gd-ring{position:fixed;z-index:9998;pointer-events:none;border:3px solid #D4AF4F;border-radius:12px;box-shadow:0 0 0 4px rgba(212,175,79,.25);animation:gdp 1.6s ease-in-out infinite;transition:all .25s}'
-      + '@keyframes gdp{0%,100%{box-shadow:0 0 0 3px rgba(212,175,79,.25)}50%{box-shadow:0 0 0 9px rgba(212,175,79,.12)}}'
+    s.textContent = '#gd-ring{position:fixed;z-index:9998;pointer-events:none;border:3px solid #D4AF4F;border-radius:12px;box-shadow:0 0 0 9999px rgba(6,12,24,.8);animation:gdr 1.6s ease-in-out infinite;transition:all .25s}#gd-dim{position:fixed;inset:0;z-index:9997;background:rgba(6,12,24,.8);pointer-events:none}'
+      + '@keyframes gdr{0%,100%{border-color:#D4AF4F}50%{border-color:#F3DA8C}}@keyframes gdp{0%,100%{opacity:1}50%{opacity:.4}}'
       + '#gd-box{position:fixed;z-index:9999;width:min(360px,calc(100vw - 24px));background:var(--card,#fff);color:var(--ink,#101B2D);border-radius:16px;box-shadow:0 12px 40px rgba(16,27,45,.28);border:1px solid var(--border,#E3E8EF);padding:16px 16px 12px;font-size:14px;line-height:1.5}'
       + '#gd-box.dock{left:12px;right:12px;bottom:12px;width:auto;top:auto}'
       + '#gd-box .gd-top{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--ink-3,#6B7A90);margin-bottom:6px}'
@@ -171,7 +171,7 @@
       var r = target.el.getBoundingClientRect();
       if (r.width > 0 && r.height > 0) {
         if (r.top < 60 || r.bottom > vh - 20) { try { target.el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) { /* ignore */ } }
-        G.ring.style.display = 'block'; G.ring.style.left = (r.left - 6) + 'px'; G.ring.style.top = (r.top - 6) + 'px'; G.ring.style.width = (r.width + 12) + 'px'; G.ring.style.height = (r.height + 12) + 'px';
+        dim(false); G.ring.style.display = 'block'; G.ring.style.left = (r.left - 6) + 'px'; G.ring.style.top = (r.top - 6) + 'px'; G.ring.style.width = (r.width + 12) + 'px'; G.ring.style.height = (r.height + 12) + 'px';
         if (!narrow) {
           var bw = 360, bh = box.offsetHeight || 220, left = clamp(r.left, 12, vw - bw - 12), top = r.bottom + 16;
           if (top + bh > vh - 12) top = r.top - bh - 16;
@@ -181,9 +181,10 @@
         return;
       }
     }
-    G.ring.style.display = 'none';
+    G.ring.style.display = 'none'; dim(true);
     if (!narrow) { box.style.left = 'auto'; box.style.right = '24px'; box.style.top = 'auto'; box.style.bottom = '24px'; }
   }
+  function dim(on) { var d = document.getElementById('gd-dim'); if (on && !d) { d = document.createElement('div'); d.id = 'gd-dim'; document.body.appendChild(d); } else if (!on && d) d.remove(); }
   function progressText(id, c) {
     if (id === 'gastos') return ' (' + Math.min(c.expenses, 3) + ' de 3)';
     return '';
@@ -227,11 +228,11 @@
     place(G.el, id === 'meta' || G.confirmSkip === id ? { el: null } : target);
   }
   function showMini() {
-    if (G.el) G.el.style.display = 'none'; if (G.ring) G.ring.style.display = 'none';
+    dim(false); if (G.el) G.el.style.display = 'none'; if (G.ring) G.ring.style.display = 'none';
     var m = document.getElementById('gd-mini');
     if (!m) { m = document.createElement('button'); m.id = 'gd-mini'; m.textContent = 'Continuar o guia'; m.onclick = function () { G.mini = false; G.activated = null; render(); }; document.body.appendChild(m); }
   }
-  function hide() { if (G.el) G.el.style.display = 'none'; if (G.ring) G.ring.style.display = 'none'; var m = document.getElementById('gd-mini'); if (m) m.remove(); }
+  function hide() { dim(false); if (G.el) G.el.style.display = 'none'; if (G.ring) G.ring.style.display = 'none'; var m = document.getElementById('gd-mini'); if (m) m.remove(); }
   function finish(e) {
     G.saved.active = false; G.saved.finishedAt = new Date().toISOString(); save(); hide(); stopTimer();
     if (e.skipped.length) toast('Guia encerrado. Faltam ' + e.skipped.length + ' etapa(s) puladas: retome pela Visão Geral.', 'info');
@@ -272,7 +273,7 @@
       save(); G.activated = null; G.mini = false; G.lastDone = ev().done; G.lastSeen = false; startTimer(); render();
     },
     resume: function () { this.start(); },
-    stop: function () { stopTimer(); G.el && G.el.remove(); G.ring && G.ring.remove(); var m = document.getElementById('gd-mini'); if (m) m.remove(); G.el = null; G.ring = null; G.saved = null; G.activated = null; },
+    stop: function () { dim(false); stopTimer(); G.el && G.el.remove(); G.ring && G.ring.remove(); var m = document.getElementById('gd-mini'); if (m) m.remove(); G.el = null; G.ring = null; G.saved = null; G.activated = null; },
     // chamada depois do login e do carregamento dos dados: retoma de onde parou ou oferece o guia a conta nova
     boot: function () {
       this.stop(); load();

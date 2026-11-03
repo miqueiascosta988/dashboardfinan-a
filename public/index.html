@@ -1383,7 +1383,7 @@ body.demo-on{padding-bottom:56px}
       <div class="onboard-title">Renda mensal estimada</div>
       <div class="onboard-desc">Isso ajuda a calibrar suas projeções.</div>
       <div class="form-group"><label class="form-label">Renda mensal</label>
-        <input class="form-input" type="text" inputmode="decimal" data-money id="onboard-income" placeholder="5000" /></div>
+        <input class="form-input" type="text" inputmode="decimal" data-money id="onboard-income" placeholder="Ex.: 3.500,00 (opcional)" /></div>
       <button class="btn-primary" onclick="finishOnboard()">Começar a usar</button>
     </div>
   </div>
@@ -1531,7 +1531,7 @@ async function initSupabase() {
 // STATE
 // ═══════════════════════════════════════════════════════
 let state = {
-  profile_type: 'PF', currency: 'BRL', name: '', monthlyIncome: 5000,
+  profile_type: 'PF', currency: 'BRL', name: '', monthlyIncome: 0,
   transactions: [], goals: [], debts: [], assets: [], liabilities: [], subscriptions: [],
   budgets: {},
   documents: [], // { id, name, type, category, amount, date, status, fileSize, mimeType, extractedData }
@@ -1599,7 +1599,7 @@ function getCatsIncome() {
 const fmt = (v) => SYMBOLS[state.currency] + ' ' + Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });   // sempre com centavos: soma dos itens = total mostrado
 const fmtS = (v) => (v < 0 ? '- ' : '') + fmt(v);   // com sinal: fmt() mostra só o módulo
 const fmtD = (v) => SYMBOLS[state.currency] + ' ' + Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const pct = (v) => v.toFixed(1) + '%';
+const pct = (v) => v < -100 ? 'abaixo de -100%' : v.toFixed(1) + '%';   // taxa muito negativa (renda ínfima perto do gasto) não vira número absurdo
 const genId = () => crypto.randomUUID();
 const currentMonth = () => new Date().getMonth();
 const currentYear = () => new Date().getFullYear();
@@ -3146,7 +3146,7 @@ document.getElementById('btn-logout').addEventListener('click', async () => {
   try { Guia.stop(); } catch (e) {}
   PREFS.data = {}; FX.inv = { has: '', tipos: [], total: 0, aporte: 0, obj: '', prazo: '', reacao: '', run: false }; FX.crd = { status: '', rows: [], renda: 0, obj: '', disp: 0, desc: 50, run: false }; FX.dpl = { extra: 0, lump: 0, fin: { valor: 0, entrada: 0, aTaxa: 1.2, aPrazo: 48, bTaxa: 2.5, bPrazo: 48 }, troca: { debt: '', saldo: 0, parcela: 0, restam: 0, taxa: 0, prazo: 0, custo: 0 } }; FX.loaded = false;
   currentUser = null; profile = null;
-  state = { profile_type: 'PF', currency: 'BRL', name: '', monthlyIncome: 5000, transactions: [], goals: [], debts: [], assets: [], liabilities: [], subscriptions: [], budgets: {}, documents: [], pj_faturamento_anual: 0, pj_regime: 'MEI' };
+  state = { profile_type: 'PF', currency: 'BRL', name: '', monthlyIncome: 0, transactions: [], goals: [], debts: [], assets: [], liabilities: [], subscriptions: [], budgets: {}, documents: [], pj_faturamento_anual: 0, pj_regime: 'MEI' };
   document.getElementById('app-screen').hidden = true; document.getElementById('auth-screen').hidden = false;
   document.body.classList.remove('pj-mode');
   showToast('Você saiu da sua conta', 'info');
@@ -3239,7 +3239,7 @@ function nextOnboard(step) {
 }
 async function finishOnboard() {
   if (window.Money && Money.hasInvalid(['onboard-income'], showToast)) return;
-  state.monthlyIncome = parseFloat(document.getElementById('onboard-income').value) || 5000;
+  state.monthlyIncome = parseFloat(document.getElementById('onboard-income').value) || 0;   // vazio = sem renda informada (nunca inventa valor)
   document.getElementById('onboarding-screen').hidden = true;
   if (sb && currentUser) {
     await sb.from('profiles').update({
@@ -3340,7 +3340,7 @@ async function loadProfile() {
   const { data } = await sb.from('profiles').select('*').eq('id', currentUser.id).single();
   if (data) {
     profile = data; state.name = data.name; state.profile_type = data.profile_type;
-    state.currency = data.currency; state.monthlyIncome = parseFloat(data.monthly_income) || 5000;
+    state.currency = data.currency; state.monthlyIncome = parseFloat(data.monthly_income) || 0;
     state.occupation = data.occupation || null; state.income_stability = data.income_stability || null;
     if (state.occupation === 'mei') {          // MEI agora é só do perfil Empresa
       state.occupation = 'autonomo'; state.income_stability = state.income_stability || 'variavel';

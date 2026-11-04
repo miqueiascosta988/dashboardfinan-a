@@ -7473,13 +7473,8 @@ function renderEstrategia(c) {
   const subsTotal = visibleList('subscriptions').filter(s => s.active !== false).reduce((s, sub) => s + sub.price, 0);
   const goalsRemaining = visibleList('goals').reduce((s, g) => s + (g.target - g.current), 0);
 
-  // Financial health score
-  const scores = [];
-  scores.push(savingsRate >= 20 ? 25 : savingsRate >= 10 ? 15 : savingsRate >= 0 ? 8 : 0);
-  scores.push(totalDebt === 0 ? 25 : totalDebt < income * 3 ? 15 : totalDebt < income * 6 ? 8 : 0);
-  scores.push(emergencyCurrent >= emergencyTarget ? 25 : emergencyCurrent >= emergencyTarget * 0.5 ? 15 : emergencyCurrent > 0 ? 8 : 0);
-  scores.push(netWorth > 0 ? 25 : netWorth === 0 ? 10 : 0);
-  const healthScore = scores.reduce((a, b) => a + b, 0);
+  // Nota única: a mesma do Início e dos Insights (c.healthTotal; null = sem dados suficientes).
+  const healthScore = c.healthTotal;
 
   return `
   <div class="strategy-hero animate-in">
@@ -7490,7 +7485,7 @@ function renderEstrategia(c) {
   ${typeof consultorCard === 'function' ? consultorCard(c) : ''}
 
   <div class="kpi-grid mb-24 animate-in stagger-1">${[
-    { label: 'Score financeiro', value: (income <= 0 && expenses <= 0 && totalDebt <= 0 && netWorth === 0) ? '—' : healthScore + '/100', cls: healthScore >= 70 ? 'income' : healthScore >= 40 ? '' : 'expense' },
+    { label: 'Score financeiro', value: healthScore == null ? '—' : healthScore + '/100', cls: healthScore == null ? '' : healthScore >= 70 ? 'income' : healthScore >= 40 ? '' : 'expense' },
     { label: 'Capacidade de poupança', value: fmt(Math.max(0, surplus)) + '/mês', cls: surplus > 0 ? 'income' : 'expense' },
     { label: 'Reserva de emergência', value: emergencyTarget > 0 ? pct(emergencyCurrent / emergencyTarget * 100) : '—', cls: emergencyCurrent >= emergencyTarget ? 'income' : 'teal' },
     { label: 'Dívidas ativas', value: fmt(totalDebt), cls: totalDebt > 0 ? 'expense' : 'income' },

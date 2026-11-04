@@ -1,4 +1,4 @@
-// Triagem do Instagram: 5 perguntas, resultado por nível e links certos (sem dados financeiros na URL)
+// Triagem do Instagram: 1 pergunta, resultado por nível e links certos (sem dados financeiros na URL)
 const test = require('node:test'), assert = require('node:assert');
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
@@ -13,30 +13,26 @@ test.before(async () => {
   await new Promise(r => srv.listen(0, r)); base = 'http://127.0.0.1:' + srv.address().port; browser = await chromium.launch();
 });
 test.after(async () => { await browser.close(); srv.close(); });
-async function run(picks) {
+async function run(pick) {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } }), errs = []; page.on('pageerror', e => errs.push(e.message));
   await page.goto(base + '/triagem'); await page.waitForSelector('.opt'); await page.waitForTimeout(150);
-  for (let n = 0; n < 5; n++) { assert.match(await page.textContent('.meta'), new RegExp('Pergunta ' + (n + 1) + ' de 5')); await page.click('.opt >> nth=' + picks[n]); await page.waitForTimeout(400); }
-  await page.waitForSelector('#cta');
-  const r = { tag: await page.textContent('.res-tag'), cta: await page.textContent('#cta'), href: await page.getAttribute('#cta', 'href'), alt: await page.getAttribute('#alt', 'href'), altTxt: await page.textContent('#alt'), page, errs };
-  return r;
+  assert.equal(await page.locator('.opt').count(), 4, 'uma única pergunta, 4 opções');
+  await page.click('.opt >> nth=' + pick); await page.waitForSelector('#cta');
+  return { tag: await page.textContent('.res-tag'), cta: await page.textContent('#cta'), href: await page.getAttribute('#cta', 'href'), alt: await page.getAttribute('#alt', 'href'), altTxt: await page.textContent('#alt'), page, errs };
 }
-test('aperto alto: oferece R$ 5/semana primeiro, grátis como alternativa', async () => {
-  const r = await run([1, 3, 2, 3, 1]);
-  assert.match(r.tag, /aliviar/); assert.equal(r.href, '/apresentacao?src=triagem'); assert.match(r.altTxt, /R\$ 5,00\/semana/);
-  assert.equal(r.alt, 'https://pay.hotmart.com/M1?off=abc&src=triagem');
-  assert.ok(!/nivel|obj=|perfil/.test(r.href + r.alt), 'nada sobre a situação financeira na URL');
+test('uma pergunta: aperto alto vai direto ao plano de entrada, grátis como alternativa, sem passar pela apresentação', async () => {
+  const r = await run(2);
+  assert.match(r.tag, /aliviar/); assert.match(r.cta, /R\$ 5,00\/semana/); assert.equal(r.href, 'https://pay.hotmart.com/M1?off=abc&src=triagem');
+  assert.equal(r.alt, '/?src=triagem'); assert.match(r.altTxt, /grátis/);
+  assert.ok(!/apresentacao/.test(r.href + r.alt) && !/nivel|mes=|perfil/.test(r.href + r.alt), 'sem apresentação e sem resposta na URL');
   await r.page.screenshot({ path: process.env.SHOT_ALTO || '/tmp/triagem_alto.png' }); assert.deepEqual(r.errs, []); await r.page.close();
 });
-test('mês no azul: também vai para a apresentação; atalho é entrar grátis', async () => {
-  const r = await run([3, 0, 0, 1, 0]);
-  assert.match(r.tag, /render/); assert.equal(r.href, '/apresentacao?src=triagem'); assert.equal(r.alt, '/?src=triagem'); assert.match(r.altTxt, /Entrar grátis/);
-  assert.deepEqual(r.errs, []); await r.page.close();
+test('mês no azul e meio-termo mapeiam os níveis certos', async () => {
+  const a = await run(0); assert.match(a.tag, /render/); await a.page.close();
+  const b = await run(1); assert.match(b.tag, /controle/); assert.deepEqual(b.errs, []); await b.page.close();
 });
-test('voltar mantém a escolha e a primeira pergunta não tem voltar', async () => {
-  const page = await browser.newPage({ viewport: { width: 390, height: 844 } }); await page.goto(base + '/triagem'); await page.waitForSelector('.opt');
-  assert.equal(await page.isVisible('#back'), false);
-  await page.click('.opt >> nth=2'); await page.waitForTimeout(400); await page.click('#back'); await page.waitForTimeout(200);
-  assert.match(await page.textContent('.meta'), /Pergunta 1 de 5/); assert.match(await page.getAttribute('.opt >> nth=2', 'class'), /sel/);
-  await page.screenshot({ path: process.env.SHOT_PERG || '/tmp/triagem_pergunta.png' }); await page.close();
+test('sem checkout configurado, o principal é entrar grátis', async () => {
+  const page = await browser.newPage(); await page.route('**/api/config', r => r.fulfill({ json: {} }));
+  await page.goto(base + '/triagem'); await page.waitForSelector('.opt'); await page.waitForTimeout(200); await page.click('.opt >> nth=3'); await page.waitForSelector('#cta');
+  assert.equal(await page.getAttribute('#cta', 'href'), '/?src=triagem'); assert.equal(await page.locator('#alt').count(), 0); await page.close();
 });

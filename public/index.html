@@ -1273,8 +1273,6 @@ body.demo-on{padding-bottom:56px}
         <button class="btn-primary" id="btn-reset">Salvar nova senha</button>
       </div>
       <div id="auth-form-signup" hidden>
-        <div class="form-group"><label class="form-label">Nome completo</label>
-          <input class="form-input" type="text" id="signup-name" placeholder="Seu nome" autocomplete="name" /></div>
         <div class="form-group"><label class="form-label">E-mail</label>
           <input class="form-input" type="email" id="signup-email" placeholder="seu@email.com" autocomplete="email" /></div>
         <div class="form-group"><label class="form-label">Senha</label>
@@ -1294,15 +1292,7 @@ body.demo-on{padding-bottom:56px}
             </ul>
           </div>
         </div>
-        <div class="form-group"><label class="form-label">Confirmar senha</label>
-          <div class="pass-wrap">
-            <input class="form-input pass-input" type="password" id="signup-pass2" placeholder="Digite a senha de novo" autocomplete="new-password" oninput="onPassMatchInput()" />
-            <button type="button" class="pass-eye" aria-label="Mostrar senha" onclick="togglePassEye('signup-pass2', this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
-          </div>
-          <div class="pass-match" id="pass-match"></div>
-        </div>
-        <label class="consent-row"><input type="checkbox" id="signup-terms" /> <span>Li e aceito os <a href="/termos.html" target="_blank" rel="noopener">Termos de Uso</a> e a <a href="/privacidade.html" target="_blank" rel="noopener">Política de Privacidade</a>.</span></label>
-        <label class="consent-row"><input type="checkbox" id="signup-age" /> <span>Declaro que tenho 18 anos ou mais.</span></label>
+        <label class="consent-row"><input type="checkbox" id="signup-terms" /> <span>Li e aceito os <a href="/termos.html" target="_blank" rel="noopener">Termos de Uso</a> e a <a href="/privacidade.html" target="_blank" rel="noopener">Política de Privacidade</a> e declaro ter 18 anos ou mais.</span></label>
         <button class="btn-primary" id="btn-signup">Criar minha conta</button>
       </div>
       <div class="auth-footer">Ao continuar, você concorda com nossos <a href="/termos.html" target="_blank" rel="noopener">Termos de Uso</a> e <a href="/privacidade.html" target="_blank" rel="noopener">Privacidade</a>. © 2026 SM Financial.</div>
@@ -1318,11 +1308,12 @@ body.demo-on{padding-bottom:56px}
       <div class="onboard-step" data-step-label>Passo 1 de 3</div>
       <div class="onboard-title">Qual é o seu perfil?</div>
       <div class="onboard-desc">Isso nos ajuda a personalizar seu dashboard.</div>
+      <div class="form-group"><label class="form-label" for="onboard-name">Como quer ser chamado(a)? (opcional)</label><input class="form-input" type="text" id="onboard-name" maxlength="60" autocomplete="given-name" placeholder="Seu nome" /></div>
       <div class="option-grid">
         <button class="option-btn selected" data-profile="PF" onclick="selectProfile(this)"><div class="opt-icon">👤</div><div class="opt-label">Pessoa Física</div><div class="opt-desc">Finanças pessoais</div></button>
         <button class="option-btn" data-profile="PJ" onclick="selectProfile(this)"><div class="opt-icon">🏢</div><div class="opt-label">Pessoa Jurídica</div><div class="opt-desc">MEI, ME, autônomo</div></button>
       </div>
-      <button class="btn-primary" onclick="nextOnboard(state.profile_type==='PF'?'occ':'pjtype')">Continuar</button>
+      <button class="btn-primary" onclick="onboardNomeSalvar();nextOnboard(state.profile_type==='PF'?'occ':'pjtype')">Continuar</button>
     </div>
     <div class="onboard-inner" id="onboard-step-doc" hidden>
       <div class="onboard-step" data-step-label>Passo 2</div>
@@ -3095,6 +3086,18 @@ function passIsStrong(pw) {
   return c.len && c.upper && c.lower && c.num && c.sym;
 }
 
+
+// ── Funil: eventos do app no mesmo rastreamento da triagem (anônimo; respeita "Não rastrear"). Cada evento sai uma vez por aparelho. ──
+function funilEvento(etapa) {
+  try {
+    if (navigator.doNotTrack === '1' || window.doNotTrack === '1') return;
+    const st = JSON.parse(localStorage.getItem('sm_funil') || 'null'); if (!st || !st.v) return;   // só quem veio da triagem tem código de visitante
+    const fk = 'sm_funil_ev_' + etapa; if (localStorage.getItem(fk)) return; localStorage.setItem(fk, '1');
+    const body = JSON.stringify({ etapa: etapa, visitor: st.v, campanha: st.c || null, src: st.s || null, medium: st.m || null, content: st.ct || null });
+    if (!(navigator.sendBeacon && navigator.sendBeacon('/api/funil/evento', new Blob([body], { type: 'application/json' })))) fetch('/api/funil/evento', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body, keepalive: true }).catch(function () {});
+  } catch (e) {}
+}
+function onboardNomeSalvar() { try { const v = (document.getElementById('onboard-name') || {}).value; if (v && v.trim()) state.name = v.trim().slice(0, 60); } catch (e) {} }
 function onPassInput() {
   const pw = document.getElementById('signup-pass').value;
   const checks = checkPassStrength(pw);
@@ -3108,10 +3111,11 @@ function onPassInput() {
     li.classList.toggle('ok', !!checks[li.dataset.req]);
   });
   // Reavalia também a confirmação se o campo já tem algo digitado
-  if (document.getElementById('signup-pass2').value) onPassMatchInput();
+  if (document.getElementById('signup-pass2') && document.getElementById('signup-pass2').value) onPassMatchInput();
 }
 
 function onPassMatchInput() {
+  if (!document.getElementById('signup-pass2') || !document.getElementById('pass-match')) return;
   const pw = document.getElementById('signup-pass').value;
   const pw2 = document.getElementById('signup-pass2').value;
   const el = document.getElementById('pass-match');
@@ -3121,22 +3125,19 @@ function onPassMatchInput() {
 }
 
 document.getElementById('btn-signup').addEventListener('click', async () => {
-  const name = document.getElementById('signup-name').value.trim();
   const email = document.getElementById('signup-email').value.trim();
+  const name = email.split('@')[0];   // o nome real é pedido depois, no primeiro passo (opcional)
   const pass = document.getElementById('signup-pass').value;
-  const pass2 = document.getElementById('signup-pass2').value;
-  if (!name || !email || !pass || !pass2) return showAuthError('Preencha todos os campos.');
+  if (!email || !pass) return showAuthError('Preencha e-mail e senha.');
   if (!passIsStrong(pass)) return showAuthError('A senha precisa ter 8+ caracteres, com letras maiúsculas, minúsculas, números e caracteres especiais.');
-  if (pass !== pass2) return showAuthError('As senhas não coincidem.');
-  if (!document.getElementById('signup-terms').checked) return showAuthError('Para criar a conta, aceite os Termos de Uso e a Política de Privacidade.');
-  if (!document.getElementById('signup-age').checked) return showAuthError('O serviço é destinado a maiores de 18 anos. Confirme a declaração para continuar.');
+  if (!document.getElementById('signup-terms').checked) return showAuthError('Para criar a conta, aceite os Termos de Uso e a Política de Privacidade e confirme que tem 18 anos ou mais.');
   try { localStorage.setItem('financa-consent-pending', JSON.stringify({ v: LEGAL_VERSION, ts: new Date().toISOString() })); } catch (e) {}
   if (!sb) { state.name = name; document.getElementById('auth-screen').hidden = true; showOnboarding(); return; }
   const btn = document.getElementById('btn-signup'); btn.disabled = true;
   const { data, error } = await sb.auth.signUp({ email, password: pass, options: { data: { name } } });
   btn.disabled = false;
   if (error) return showAuthError(error.message);
-  currentUser = data.user; state.name = name; consentSync(); showOnboarding();
+  currentUser = data.user; state.name = name; consentSync(); funilEvento('cadastro_concluido'); showOnboarding();
 });
 
 document.getElementById('btn-logout').addEventListener('click', async () => {

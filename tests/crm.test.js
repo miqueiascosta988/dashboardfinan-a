@@ -29,3 +29,12 @@ test('resposta da Meta vira linhas por dia/campanha', () => {
   const r = C.metaParse({ data: [{ campaign_name: 'X', date_start: '2026-10-15', spend: '12.30', impressions: '1000', inline_link_clicks: '40', clicks: '99' }, { date_start: '2026-10-15' }] });
   assert.deepEqual(r, [{ dia: '2026-10-15', campanha: 'X', investimento: 12.3, impressoes: 1000, cliques: 40 }]);
 });
+
+test('painel: eventos do app (conta criada e primeira ação) entram nos totais sem mexer no funil da triagem', () => {
+  const p = C.painel([
+    { visitor: 'v1abcdefgh', etapa: 'triagem_visita', campanha: 'x' }, { visitor: 'v1abcdefgh', etapa: 'cadastro_concluido', campanha: 'x' }, { visitor: 'v1abcdefgh', etapa: 'primeira_acao', campanha: 'x' },
+    { visitor: 'v2abcdefgh', etapa: 'triagem_visita', campanha: 'x' }, { visitor: 'v2abcdefgh', etapa: 'cadastro_concluido', campanha: 'x' },
+  ], [], []);
+  assert.equal(p.total.triagem_visita, 2); assert.equal(p.total.cadastro_concluido, 2); assert.equal(p.total.primeira_acao, 1);
+  assert.equal(p.funil.length, 5); assert.deepEqual(p.funil.map(f => f.etapa), ['triagem_visita', 'triagem_fim', 'apresentacao_visita', 'checkout_clique', 'compra']);
+});

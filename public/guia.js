@@ -112,7 +112,7 @@
     var budgets = 0; try { budgets = Object.keys(state.budgets || {}).filter(function (k) { return state.budgets[k] > 0; }).length; } catch (e) { /* ignore */ }
     return { incomes: tx.filter(function (t) { return t.type === 'income'; }).length, expenses: tx.filter(function (t) { return t.type === 'expense'; }).length, docs: docs.length, debts: L('debts').filter(function (d) { return (+d.saldo || 0) > 0; }).length, goals: L('goals').length, budgets: budgets, semDividas: !!jor.semDividas, tab: curTab() };
   }
-  function ev() { return evaluate(ctx(), G.saved || load()); }
+  function ev() { var r = evaluate(ctx(), G.saved || load()); if (r.done > 0) { try { if (typeof funilEvento === 'function') funilEvento('primeira_acao'); } catch (e) { /* ignore */ } } return r; }   // 1ª etapa concluída = 'primeira_acao' no funil (uma vez por aparelho)
   function isOn() { return !!(G.saved && G.saved.active); }
   function toast(m, t) { try { if (typeof showToast === 'function') showToast(m, t || 'success'); } catch (e) { /* ignore */ } }
 

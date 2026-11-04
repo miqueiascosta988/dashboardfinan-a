@@ -4606,7 +4606,7 @@ var PLAN_LIMITS_BY_PLAN = {
   // Free: porta de entrada sem prazo e sem cartão (bem menor que o Basic, para o upgrade fazer sentido).
   free: { maxTransactionsPerMonth: 15, maxActiveGoals: 1, maxBudgetCategories: 2, maxPatrimonioItems: 0, maxSubscriptions: 1, maxDocumentsPerMonth: 1, maxDebts: 1 },
   // Basic: plano de entrada pago (R$ 5/semana nos primeiros 7 dias, depois R$ 8/mês).
-  basic: { maxTransactionsPerMonth: 20, maxActiveGoals: 1, maxBudgetCategories: 2, maxPatrimonioItems: 2, maxSubscriptions: 2, maxDocumentsPerMonth: 3, maxDebts: 3 },
+  basic: { maxTransactionsPerMonth: 60, maxActiveGoals: 1, maxBudgetCategories: 2, maxPatrimonioItems: 2, maxSubscriptions: 2, maxDocumentsPerMonth: 3, maxDebts: 3 },
 };
 // Plano em vigor: o pago, se estiver ativo; senão (sem plano, teste vencido, cancelado) o Free.
 function planoEfetivo() {
@@ -5809,6 +5809,13 @@ function saveRegime() {
 // ═══════════════════════════════════════════════════════
 // NOTAS FISCAIS EM XML (NF-e / NFS-e) — leitura no navegador, só os campos extraídos são salvos
 // ═══════════════════════════════════════════════════════
+// Basic: 1 importação de extrato por mês (a data da última importação já fica salva em cada extrato).
+function basicImportouNoMes() { try { const mes = isoStr(new Date()).slice(0, 7); return ofGetAccounts().some(function(a) { return String(a.lastImport || '').slice(0, 7) === mes; }); } catch (e) { return false; } }
+function importLiberado() { return canImportFree() || (planoEfetivo() === 'basic' && !basicImportouNoMes()); }
+function importBloqueado() {
+  if (planoEfetivo() === 'basic') { showToast('🔒 O plano Basic inclui 1 importação de extrato por mês, e a deste mês já foi usada. A próxima libera no mês que vem. O Plus importa sem limite.', 'info'); switchTab('plano'); }
+  else requirePlusFeature('Importação de extrato');
+}
 function canImportFree() { return isPlusUser() || (PJ_OPEN_TO_ALL && state.profile_type === 'PJ'); }
 function nfEls(root, name) { try { return root.getElementsByTagNameNS('*', name); } catch (e) { return []; } }
 function nfFirst(root, names) { if (!root) return null; for (var i = 0; i < names.length; i++) { var el = nfEls(root, names[i])[0]; if (el) return el; } return null; }
@@ -7142,7 +7149,7 @@ function ofSaveAccounts(list) { try { localStorage.setItem(ofKey(), JSON.stringi
 let pendingStatementImport = null;
 
 function triggerStatementFileInput() {
-  if (!canImportFree()) { requirePlusFeature('Importação de extrato'); return; }
+  if (!importLiberado()) { importBloqueado(); return; }
   document.getElementById('stmt-file-input')?.click();
 }
 
@@ -7200,7 +7207,7 @@ function txDedupKey(t) {
 function importStatementFromDoc(id) {
   const d = state.documents.find(x => x.id === id), f = d && d.extractedData && d.extractedData.fin, ex = f && f.extra;
   if (!ex || !ex.movs || !ex.movs.length) { showToast('Não há movimentações lidas neste extrato. Use a importação por OFX ou CSV.', 'info'); return; }
-  if (!canImportFree()) { requirePlusFeature('Importação de extrato'); return; }
+  if (!importLiberado()) { importBloqueado(); return; }
   const parsed = ex.movs.map(function(m) { const p = String(m[0]).split('-'); return { date: new Date(+p[0], +p[1] - 1, +p[2]), desc: m[1], amount: m[2], type: m[3] ? 'income' : 'expense', incerto: !!m[4] }; });
   const per = ex.periodo ? ex.periodo[0].slice(5, 7) + '/' + ex.periodo[0].slice(0, 4) : '';
   openStatementPreviewFromParsed(parsed, 'PDF', ((ex.banco || 'Extrato') + (per ? ' · ' + per : '')).slice(0, 40), d.id);
@@ -7391,7 +7398,7 @@ function confirmStatementImport() {
   const accounts = ofGetAccounts();
   const isNewLabel = !accounts.find(function(a) { return a.label === label; });
   if (isNewLabel) {
-    const cap = tierLimit('maxOFAccounts');
+    const cap = isPlusUser() ? tierLimit('maxOFAccounts') : Infinity;
     if (accounts.length >= cap && cap !== Infinity && !(PJ_OPEN_TO_ALL && state.profile_type === 'PJ')) {
       showToast('🔒 Seu plano Plus permite até ' + cap + ' extrato(s) salvo(s). Faça upgrade para o Pro para importar quantos quiser.', 'info');
       setTimeout(function() { switchTab('plano'); }, 900);
@@ -7436,7 +7443,7 @@ function deleteStatementAccount(id) {
 
 function renderOpenFinance(c) {
   const isPJ = state.profile_type === 'PJ';
-  const isActive = canImportFree();
+  const isActive = importLiberado();
   const imported = ofGetAccounts();
   const totalTx = imported.reduce(function(s, a) { return s + (a.txCount || 0); }, 0);
 
@@ -7461,7 +7468,7 @@ function renderOpenFinance(c) {
       <div class="upload-zone-title">Clique para selecionar o arquivo do extrato</div>
       <div class="upload-zone-desc">A maioria dos bancos oferece exportação em OFX no app ou internet banking, em "Extrato" → "Exportar".</div>
     </div>
-    ${!isActive ? `<div class="premium-lock" onclick="switchTab('plano')">🔒 Upgrade para Plus — Desbloquear importação de extrato</div>` : ''}
+    ${!isActive ? `<div class="premium-lock" onclick="switchTab('plano')">🔒 ${planoEfetivo() === 'basic' ? 'Importação deste mês já usada. Plus importa sem limite' : 'Upgrade para Plus — Desbloquear importação de extrato'}</div>` : ''}
   </div>
 
   ${imported.length > 0 ? `<div class="card mb-24 animate-in stagger-3">
@@ -7791,6 +7798,7 @@ function renderPlano() {
       'Até ' + PLAN_LIMITS_BY_PLAN.basic.maxPatrimonioItems + ' itens em Patrimônio',
       'Até ' + PLAN_LIMITS_BY_PLAN.basic.maxSubscriptions + ' assinaturas monitoradas',
       'Até ' + PLAN_LIMITS_BY_PLAN.basic.maxDocumentsPerMonth + ' documentos/mês',
+      '1 importação de extrato por mês',
       'Perfil de Renda, reserva sob medida e MEI/Impostos',
       'Exportar dados (JSON/CSV, últimos 30 dias)',
     ], cta: 'Assinar Basic', priceId: null, tier: 'basic' },

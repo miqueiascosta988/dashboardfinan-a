@@ -10,7 +10,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.min.js" integrity="sha384-UagCvVPT5XXA0Hx+nJYUAGBFseHT9zBgpJMSebsAxl9lciTwbT+39j5VfRjdP5Tp" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js" integrity="sha384-BzBxP10ZE72aitqj5UMmUsbKFliP/DZqA8Wq+BNNhlIJDGoEd1tpkMYXOg9+n6sB" crossorigin="anonymous"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js" integrity="sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e" crossorigin="anonymous"></script>
+<script defer src="/pdfjs/pdf.min.js"></script>
 <script src="/docintel.js"></script>
 <script src="/debtlab.js"></script>
 <script src="/payroll.js"></script>
@@ -3449,7 +3449,7 @@ function openTransactionModal(type, existing = null) {
   openModal(title, `
     <div class="form-row">
       <div class="form-group"><label class="form-label">Data</label>
-        <input class="form-input" type="text" id="m-date" value="${txFieldDate(existing?.date)}" placeholder="DD/MM" /></div>
+        <input class="form-input" type="text" id="m-date" value="${existing ? txFieldDate(existing.date) : (()=>{const n=new Date();return String(n.getDate()).padStart(2,'0')+'/'+String(n.getMonth()+1).padStart(2,'0');})()}" placeholder="DD/MM" /></div>
       <div class="form-group"><label class="form-label">Categoria</label>
         <select class="form-select" id="m-cat">${cats.map(c => `<option ${existing?.cat === c ? 'selected' : ''}>${c}</option>`).join('')}</select></div>
     </div>
@@ -3470,6 +3470,7 @@ function openTransactionModal(type, existing = null) {
 }
 async function saveTransaction(type, editId) {
   if (window.Money && Money.hasInvalid(['m-amount'], showToast)) return;
+  { const av = parseFloat(document.getElementById('m-amount').value); if (!(av > 0)) { showToast('Informe um valor maior que zero.', 'error'); try { document.getElementById('m-amount').focus(); } catch (e) {} return; } }
   if (!editId && !checkPlanLimit(countThisMonth(state.transactions, 'date'), PLAN_LIMITS.maxTransactionsPerMonth, 'Plano ' + currentPlanLabel() + ' permite até ' + PLAN_LIMITS.maxTransactionsPerMonth + ' lançamentos por mês. Faça upgrade para lançamentos ilimitados.')) return;
   const dateStr = document.getElementById('m-date').value.trim();
   { const dm = /^(\d{1,2})\/(\d{1,2})$/.exec(dateStr), okD = dm && (() => { const dd0 = +dm[1], mm0 = +dm[2], dt = new Date(currentYear(), mm0 - 1, dd0); return mm0 >= 1 && mm0 <= 12 && dt.getMonth() === mm0 - 1 && dt.getDate() === dd0; })();
@@ -4416,7 +4417,7 @@ async function prevReadContract(fileList) {
   const f = Array.from(fileList || [])[0]; if (!f) return;
   const P = SIM.prev;
   if (!window.pdfjsLib) { P.msg = 'Leitor de PDF indisponível agora. Preencha os campos manualmente.'; return renderCurrentTab(); }
-  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+  pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdfjs/pdf.worker.min.js';
   try {
     const pdf = await pdfjsLib.getDocument({ data: await f.arrayBuffer() }).promise; let txt = '';
     for (let p = 1; p <= Math.min(pdf.numPages, 8); p++) txt += (await (await pdf.getPage(p)).getTextContent()).items.map(i => i.str).join(' ') + '\n';
@@ -6351,7 +6352,7 @@ async function ingestExtractPages(file, note) {
   if (/\.pdf$/.test(nm) || file.type === 'application/pdf') {
     for (let i = 0; i < 40 && !window.pdfjsLib; i++) await new Promise(r => setTimeout(r, 100));
     if (!window.pdfjsLib) throw new Error('Leitor de PDF indisponível agora. Tente novamente em instantes.');
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+    pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdfjs/pdf.worker.min.js';
     const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise, pages = [];
     for (let p = 1; p <= Math.min(pdf.numPages, 20); p++) {
       const tc = await (await pdf.getPage(p)).getTextContent();

@@ -19,6 +19,8 @@
 <script src="/money.js"></script>
 <script src="/guia.js"></script>
 <script src="/parcelas.js"></script>
+<script src="/recorrentes.js"></script>
+<script src="/bonus.js"></script>
 <script src="/agenda.js"></script>
 <script src="/trial.js"></script>
 <script src="/onboarding.js"></script>
@@ -4629,8 +4631,12 @@ function hasActivePlan() {
 }
 // Aviso do teste de 7 dias (faixa no topo + sino). Basic R$ 8/mês é a oferta para continuar.
 function trialAviso() { return window.Trial && !(typeof DEMO !== 'undefined' && DEMO.on) ? Trial.aviso(profile) : null; }
+function bonusBannerHtml() {
+  const a = window.Bonus ? Bonus.aviso(bonusInfo()) : null; if (!a) return '';
+  return '<div class="card mb-24 animate-in" id="bonus-banner" style="border-left:4px solid var(--teal)"><div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap"><div><div class="card-title" style="margin:0">🎁 ' + fxEsc(a.titulo) + '</div><div class="occ-b-desc" style="margin-top:4px">' + fxEsc(a.texto) + '</div></div><button class="btn-save" onclick="switchTab(\'documentos\')">Enviar documento</button></div></div>';
+}
 function trialBannerHtml() {
-  const a = trialAviso(); if (!a) return '';
+  const a = trialAviso(); if (!a) return bonusBannerHtml();
   const url = appConfig && appConfig.hotmartCheckoutBasic, email = currentUser && currentUser.email ? '?email=' + encodeURIComponent(currentUser.email) : '';
   const cor = a.nivel === 'normal' ? 'var(--teal)' : a.nivel === 'urgente' ? 'var(--gold)' : 'var(--expense)';
   return '<div class="card mb-24 animate-in" style="border-left:4px solid ' + cor + '"><div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap"><div><div class="card-title" style="margin:0">⏳ ' + fxEsc(a.titulo) + '</div><div class="occ-b-desc" style="margin-top:4px">' + fxEsc(a.texto) + '</div></div>' + (url ? '<a class="btn-save" style="text-decoration:none" href="' + url + email + '" target="_blank" rel="noopener noreferrer">Continuar por R$ 8,00/mês</a>' : '<button class="btn-save" onclick="switchTab(\'plano\')">Ver planos</button>') + '</div></div>';
@@ -4707,7 +4713,7 @@ async function prefsLoad() {
     if (r && r.error) { console.warn('user_prefs indisponível (rode a migração 011):', r.error.message); PREFS.ok = false; return; }
     cloud = (r && r.data && r.data.data) || {};
   } catch (e) { console.warn(e); return; }
-  const keyOf = { inv: fxKey('inv'), crd: fxKey('crd'), dpl: fxKey('dpl'), reforma: fxKey('reforma'), of: ofKey(), gtd: gtDoneKey(), agenda: fxKey('agenda'), cartoes: fxKey('cartoes'), wk: fxKey('wk'), estr: fxKey('estr'), jor: fxKey('jor'), tut: fxKey('tut'), gd: fxKey('gd'), pcl: fxKey('pcl') };
+  const keyOf = { inv: fxKey('inv'), crd: fxKey('crd'), dpl: fxKey('dpl'), reforma: fxKey('reforma'), of: ofKey(), gtd: gtDoneKey(), agenda: fxKey('agenda'), cartoes: fxKey('cartoes'), wk: fxKey('wk'), estr: fxKey('estr'), jor: fxKey('jor'), tut: fxKey('tut'), gd: fxKey('gd'), pcl: fxKey('pcl'), rec: fxKey('rec'), bonus: fxKey('bonus') };
   let needPush = false;
   Object.keys(keyOf).forEach(n => {
     if (cloud[n] != null) { try { localStorage.setItem(keyOf[n], JSON.stringify(cloud[n])); } catch (e) {} PREFS.data[n] = cloud[n]; }
@@ -5485,7 +5491,7 @@ function renderDashboard(c) {
   const heroLabel = isPJ ? 'Patrimônio da empresa' : 'Saldo patrimonial';
   const greeting = state.name ? (isPJ ? `${fxEsc(state.name)} · Empresa` : `Olá, ${fxEsc(state.name)}`) : '';
   return `<div class="hero-card mb-24 animate-in"><div class="hero-label">${heroLabel}</div><div class="hero-value">${fmtS(saldo)}</div><div class="hero-sub">${greeting} · Atualizado agora</div></div>
-  ${rendaCadastroCard()}${(() => { const g = typeof guiaCard === 'function' ? guiaCard() : ''; return g + (g ? '' : (typeof jornadaCard === 'function' ? jornadaCard() : '')); })()}${typeof parcelasCard === 'function' ? parcelasCard() : ''}${renderCrisisBanner(c)}
+  ${rendaCadastroCard()}${(() => { const g = typeof guiaCard === 'function' ? guiaCard() : ''; return g + (g ? '' : (typeof jornadaCard === 'function' ? jornadaCard() : '')); })()}${typeof parcelasCard === 'function' ? parcelasCard() : ''}${typeof recorrentesCard === 'function' ? recorrentesCard() : ''}${renderCrisisBanner(c)}
   ${renderReqBanner()}${renderDocBanner()}${renderDebtNudge(c)}${typeof weekPlanCard === 'function' ? weekPlanCard() : ''}${typeof agendaCard === 'function' ? agendaCard() : ''}${renderOccBanner(c)}
   <div class="card mb-24 animate-in" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><div><div class="card-title" style="margin:0">💭 Pensando em comprar algo?</div><div style="font-size:12px;color:var(--ink-3)">Simule o impacto na sua meta e no seu orçamento antes de decidir.</div></div><button class="btn-add" onclick="openBuySimulator()">${isPlusUser()?'Simular compra':'🔒 Simular compra'}</button></div>
   <div class="kpi-grid">${[
@@ -6210,6 +6216,36 @@ function parcelasCard() {
       + bancos.map(b => '<div style="margin-top:8px"><button class="btn-sm" onclick="pclDia(\'' + fxEsc(b).replace(/'/g, '') + '\')">Informar o dia do vencimento do ' + fxEsc(b) + '</button></div>').join('') + '</div>';
   } catch (e) { return ''; }
 }
+
+// ── Recorrentes previstos (12 meses). Previsto não é pago; cancelar vale só dos meses futuros. ──
+function recStore() { try { const s = (PREFS.data && PREFS.data.rec) || JSON.parse(localStorage.getItem(fxKey('rec')) || 'null'); return s && s.v === 1 ? s : Recorrentes.emptyStore(); } catch (e) { return Recorrentes.emptyStore(); } }
+function recSave(s) { try { localStorage.setItem(fxKey('rec'), JSON.stringify(s)); } catch (e) {} try { prefsPush('rec', s); } catch (e) {} }
+// Bônus de boas-vindas (Free): 3 documentos nas primeiras 48 h depois do cadastro.
+function bonusStore() { try { const s = (PREFS.data && PREFS.data.bonus) || JSON.parse(localStorage.getItem(fxKey('bonus')) || 'null'); return s && s.v === 1 ? s : Bonus.emptyStore(); } catch (e) { return Bonus.emptyStore(); } }
+function bonusSave(s) { try { localStorage.setItem(fxKey('bonus'), JSON.stringify(s)); } catch (e) {} try { prefsPush('bonus', s); } catch (e) {} }
+function bonusInfo() { try { if (!window.Bonus || !currentUser || (typeof DEMO !== 'undefined' && DEMO.on) || planoEfetivo() !== 'free') return null; return Bonus.info(currentUser.created_at, bonusStore().n, Date.now()); } catch (e) { return null; } }
+function bonusAtivo() { const i = bonusInfo(); return !!(i && i.ativo); }
+function bonusUsar() { try { if (!bonusAtivo()) return; const s = Bonus.usar(bonusStore()); bonusSave(s); funilEvento('bonus_usado'); if (s.n >= Bonus.DOCS) funilEvento('bonus_esgotado'); } catch (e) {} }
+function docLimitOk(msg) { return bonusAtivo() || checkPlanLimit(countThisMonth(state.documents, 'date'), PLAN_LIMITS.maxDocumentsPerMonth, msg); }
+function recHoje() { return isoStr(new Date()); }
+function recCancelar(k) {
+  const key = decodeURIComponent(k), sr = Recorrentes.series(visibleList('transactions'), recStore(), recHoje()).find(x => x.key === key); if (!sr) return;
+  openModal('Cancelar recorrência', '<div class="occ-b-desc" style="line-height:1.6">Parar de prever <b>' + fxEsc(sr.desc) + '</b> (' + fmt(sr.valor) + ' por mês) <b>daqui pra frente</b>?<br>Os lançamentos que já foram feitos continuam no seu histórico e não serão apagados.</div><div class="modal-actions"><button class="btn-cancel" onclick="closeModal()">Manter</button><button class="btn-save" onclick="recCancelarOk(\'' + k + '\')">Cancelar daqui pra frente</button></div>');
+}
+function recCancelarOk(k) { recSave(Recorrentes.cancel(recStore(), decodeURIComponent(k), recHoje())); closeModal(); renderCurrentTab(); showToast('Recorrência cancelada. O histórico foi mantido.', 'success'); }
+function recReativar(k) { recSave(Recorrentes.resume(recStore(), decodeURIComponent(k))); renderCurrentTab(); }
+function recorrentesCard() {
+  try {
+    const st = recStore(), hoje = recHoje(), txs = visibleList('transactions');
+    const ser = Recorrentes.series(txs, st, hoje), ativas = ser.filter(x => !x.cancelada), canc = ser.filter(x => x.cancelada); if (!ser.length) return '';
+    const pr = Recorrentes.project(txs, st, hoje), cnt = {}, tot = {}; pr.forEach(p => { cnt[p.key] = (cnt[p.key] || 0) + 1; tot[p.key] = (tot[p.key] || 0) + p.valor; });
+    const dm = iso => iso.slice(8, 10) + '/' + iso.slice(5, 7) + '/' + iso.slice(0, 4);
+    const totD = pr.filter(p => p.type !== 'income').reduce((a, p) => a + p.valor, 0), totR = pr.filter(p => p.type === 'income').reduce((a, p) => a + p.valor, 0);
+    return '<div class="card mb-24 animate-in" id="rec-card"><div class="card-title">🔁 Recorrentes previstos (próximos 12 meses)</div><div class="occ-b-desc" style="margin-bottom:8px">Gastos <b>' + fmt(totD) + '</b> e receitas <b>' + fmt(totR) + '</b> previstos. São <b>previstos</b>: só viram gasto pago quando você lançar. Cancelar vale só dos meses que ainda não chegaram.</div>'
+      + ativas.map(x => '<div style="padding:8px 0;border-top:1px solid var(--border)"><b>' + fxEsc(x.desc) + '</b> · ' + (x.type === 'income' ? 'receita' : 'gasto') + ' recorrente · ' + fmt(x.valor) + '<div class="occ-b-desc">Categoria ' + fxEsc(x.cat || '—') + ' · todo dia ' + x.dia + ' · baseado no lançamento de ' + dm(x.ultimaData) + ' · ' + (cnt[x.key] || 0) + ' mês(es) previsto(s), ' + fmt(tot[x.key] || 0) + ' no total (prevista, não paga)</div><button class="btn-sm" style="margin-top:6px" onclick="recCancelar(\'' + encodeURIComponent(x.key) + '\')">Cancelar daqui pra frente</button></div>').join('')
+      + (canc.length ? '<div class="occ-b-desc" style="margin-top:10px">Canceladas: ' + canc.map(x => fxEsc(x.desc) + ' (desde ' + dm(x.fim) + ') <button class="btn-sm" onclick="recReativar(\'' + encodeURIComponent(x.key) + '\')">Reativar</button>').join(' · ') + '</div>' : '') + '</div>';
+  } catch (e) { return ''; }
+}
 function invoiceGroups() {          // { txId → grupo } para agrupar as compras de cada fatura em Despesas
   const map = {}; (state.documents || []).forEach(d => { const x = d.extractedData, f = x && x.fin; if (!x || !(x.invTxIds || []).length) return;
     const g = { key: d.id, title: invoiceTitle({ banco: f && f.counterparty, venc: f && f.date }), fechado: f && f.amount, venc: f && f.date }; x.invTxIds.forEach(id => { map[id] = g; }); });
@@ -6358,10 +6394,10 @@ function ingestInit() {
       if (ch.op === 'add') {
         const e = ch.entity;
         if (pfLocked() && e.category === 'nf') { pfBlockModal([e.name]); return; }
-        if (!canImportFree() && countThisMonth(state.documents, 'date') >= PLAN_LIMITS.maxDocumentsPerMonth) {
+        if (!canImportFree() && !bonusAtivo() && countThisMonth(state.documents, 'date') >= PLAN_LIMITS.maxDocumentsPerMonth) {
           openModal('🔒 Limite de documentos do plano', '<div class="occ-b-desc">O plano ' + fxEsc(currentPlanLabel()) + ' permite até <b>' + PLAN_LIMITS.maxDocumentsPerMonth + ' documentos por mês</b>. O arquivo "' + fxEsc(e.name) + '" foi lido, mas <b>não foi salvo nem distribuído</b> para Renda, Despesas e Agenda.</div><div class="modal-actions"><button class="btn-cancel" onclick="closeModal()">Fechar</button><button class="btn-save" onclick="closeModal();switchTab(\'plano\')">Ver planos</button></div>'); return;
         }
-        state.documents.unshift(stampDocNew(e)); persistDoc(e); syncDocTransaction(e);
+        state.documents.unshift(stampDocNew(e)); persistDoc(e); syncDocTransaction(e); bonusUsar();
       } else if (ch.op === 'replace') {
         const i = state.documents.findIndex(d => d.id === ch.id);
         if (i >= 0) {
@@ -6518,7 +6554,7 @@ function pickDocType(el) {
 function saveManualDoc() {
   if (window.Money && Money.hasInvalid(['m-docamount'], showToast)) return;
   if (pfBlockedName((document.getElementById('m-docname') || {}).value)) { pfBlockModal([(document.getElementById('m-docname') || {}).value]); return; }
-  if (!checkPlanLimit(countThisMonth(state.documents, 'date'), PLAN_LIMITS.maxDocumentsPerMonth, 'Plano ' + currentPlanLabel() + ' permite até ' + PLAN_LIMITS.maxDocumentsPerMonth + ' documentos por mês. Faça upgrade para enviar mais.')) return;
+  if (!docLimitOk('Plano ' + currentPlanLabel() + ' permite até ' + PLAN_LIMITS.maxDocumentsPerMonth + ' documentos por mês. Faça upgrade para enviar mais.')) return;
   const selectedType = document.querySelector('#doc-type-pick .doc-type-btn.selected')?.dataset.dtype || 'outro';
   const doc = {
     id: genId(),
@@ -6532,7 +6568,7 @@ function saveManualDoc() {
     mimeType: 'manual',
     extractedData: {},
   };
-  state.documents.unshift(stampDocNew(doc));
+  state.documents.unshift(stampDocNew(doc)); bonusUsar();
   dbUpsert('documents', { id: doc.id, user_id: currentUser?.id, name: doc.name, type: doc.type, category: doc.category, amount: doc.amount, date: doc.date, status: doc.status, file_size: doc.fileSize, mime_type: doc.mimeType, extracted_data: doc.extractedData });
   closeModal();
   renderCurrentTab();
@@ -6781,7 +6817,7 @@ function openScanConfirmModal(parsed) {
 
 function saveScannedDoc() {
   if (window.Money && Money.hasInvalid(['m-docamount'], showToast)) return;
-  if (!checkPlanLimit(countThisMonth(state.documents, 'date'), PLAN_LIMITS.maxDocumentsPerMonth, 'Plano ' + currentPlanLabel() + ' permite até ' + PLAN_LIMITS.maxDocumentsPerMonth + ' documentos por mês. Faça upgrade para enviar mais.')) return;
+  if (!docLimitOk('Plano ' + currentPlanLabel() + ' permite até ' + PLAN_LIMITS.maxDocumentsPerMonth + ' documentos por mês. Faça upgrade para enviar mais.')) return;
   const selectedType = document.querySelector('#doc-type-pick .doc-type-btn.selected')?.dataset.dtype || 'boleto';
   const doc = {
     id: genId(),
@@ -6795,7 +6831,7 @@ function saveScannedDoc() {
     mimeType: 'scan',
     extractedData: lastScanParsed ? { kind: lastScanParsed.kind, raw: lastScanParsed.raw } : {},
   };
-  state.documents.unshift(stampDocNew(doc));
+  state.documents.unshift(stampDocNew(doc)); bonusUsar();
   dbUpsert('documents', { id: doc.id, user_id: currentUser?.id, name: doc.name, type: doc.type, category: doc.category, amount: doc.amount, date: doc.date, status: doc.status, file_size: doc.fileSize, mime_type: doc.mimeType, extracted_data: doc.extractedData });
   closeModal();
   renderCurrentTab();

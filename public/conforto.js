@@ -170,6 +170,7 @@
     if (contas.length) h += '<div class="card animate-in" style="margin-top:14px"><div class="card-title">Contas a vencer</div>' + contas.map(function (n) { return '<div style="margin-top:8px">' + n.icon + ' ' + n.desc + '</div>'; }).join('') + '</div>';
     if (meta) { var p = meta.target > 0 ? meta.current / meta.target * 100 : 0; h += '<div class="card animate-in" style="margin-top:14px"><div class="card-title">Sua meta: ' + esc(meta.name) + '</div><div style="margin:8px 0;color:var(--ink-3)">' + fmt(meta.current) + ' de ' + fmt(meta.target) + ' (' + Math.round(p) + '%)</div>' + barra(p, 'var(--income)') + '</div>'; }
     h += '<div class="card animate-in" style="margin-top:14px"><div class="card-title">Nota de saúde financeira</div><div style="font-size:26px;font-weight:800;margin-top:6px">' + (nota == null ? '—' : nota + '/100') + '</div><div style="color:var(--ink-3)">' + (nota == null ? 'Lance renda e gastos para calcular.' : 'Calculada com os seus números.') + '</div></div>';
+    h += (window.Jogo ? '<div style="margin-top:14px">' + Jogo.cardHtml(c) + '</div>' : '');
     h += '<div style="text-align:center;margin:18px 0"><button class="btn-secondary" onclick="Conforto.toggleSimples()">Ver o app completo</button></div>';
     return h;
   }
@@ -180,7 +181,9 @@
   }
 
   function aoEntrar() {
-    load(); atualizaBotoes();
+    load();
+    try { var nv = PREFS && PREFS.data && PREFS.data.conforto; if (nv && !ls(KEY)) { S.oculto = !!nv.oculto; S.simples = !!nv.simples; S.desafio = nv.desafio || null; ls(KEY, JSON.stringify(S)); } } catch (e) {}
+    atualizaBotoes();
     if (S.simples && currentTab !== 'simples') { currentTab = 'simples'; rerender(); }
     if (temPin()) trava();
   }

@@ -19,6 +19,7 @@
 <script src="/money.js"></script>
 <script defer src="/a11y.js"></script>
 <script defer src="/conforto.js"></script>
+<script defer src="/jogo.js"></script>
 <script src="/guia.js"></script>
 <script src="/parcelas.js"></script>
 <script src="/recorrentes.js"></script>
@@ -1661,7 +1662,7 @@ function inferDocProfile(d) {         // documentos antigos (sem carimbo): deduz
   return 'PF';
 }
 function docProfile(d) { const p = d && d.extractedData && d.extractedData.profile; return p === 'PF' || p === 'PJ' ? p : inferDocProfile(d); }
-function stampDocNew(d) { if (d) { d.extractedData = d.extractedData || {}; if (!d.extractedData.profile) d.extractedData.profile = state.profile_type; } return d; }
+function stampDocNew(d) { if (d) { try { if (window.Jogo) Jogo.registrar('doc'); } catch (e) {} d.extractedData = d.extractedData || {}; if (!d.extractedData.profile) d.extractedData.profile = state.profile_type; } return d; }
 function docsOf(profile) { return (state.documents || []).filter(d => docProfile(d) === profile); }
 function docsVisible() { return docsOf(state.profile_type); }
 function docsStampLegacy() { let n = 0; (state.documents || []).forEach(d => { const x = d.extractedData = d.extractedData || {}; if (x.profile !== 'PF' && x.profile !== 'PJ') { x.profile = inferDocProfile(d); persistDoc(d); n++; } }); return n; }
@@ -1962,6 +1963,7 @@ function generateNotifications() {
   openRequests().forEach(function(r) { notifs.push({ id: 'req-' + r.id, icon: '📎', title: 'Documentos pedidos pela equipe', desc: fxEsc(r.title), type: 'warning', time: 'Pendente', tab: 'documentos' }); });
 
   try { if (window.Conforto && !isPJ) Conforto.alertasLimites().forEach(function(n) { notifs.push(n); }); } catch (e) {}
+  try { if (window.Jogo && !isPJ) Jogo.notifs().forEach(function(n) { notifs.push(n); }); } catch (e) {}
 
   // ── Vínculo: MEI e reserva ──
   if (isPJ && getCompanyType() && meetsTier('basic')) {
@@ -3534,7 +3536,7 @@ async function saveTransaction(type, editId) {
   if (editId) { const old = (before && before.date) || ''; const om = /^(\d{4})-(\d{2})-(\d{2})/.exec(old); if (om && +om[2] === +mm && +om[3] === +dd) keepYear = +om[1]; }
   await dbUpsert('transactions', { id: t.id, user_id: currentUser?.id, type, description: t.desc, category: t.cat, amount: t.amount, date: `${keepYear}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}`, recurring: t.recur, profile });
   closeModal(); renderCurrentTab();
-  showToast(editId ? 'Lançamento atualizado' : 'Lançamento adicionado', 'success'); vitoriaChecar();
+  showToast(editId ? 'Lançamento atualizado' : 'Lançamento adicionado', 'success'); vitoriaChecar(); if (!editId) { try { if (window.Jogo) Jogo.registrar('lanc'); } catch (e) {} }
 }
 async function deleteTransaction(id) { state.documents.forEach(d => { if (d.extractedData && d.extractedData.txId === id) { d.extractedData.txDeleted = true; persistDoc(d); } }); state.transactions = state.transactions.filter(t => t.id !== id); await dbDelete('transactions', id); closeModal(); renderCurrentTab(); showToast('Lançamento excluído', 'info'); }
 function confirmBulkDelete(title, desc, onConfirmFnName, arg) {
@@ -5546,10 +5548,11 @@ function renderCurrentTab() {
     searchInput.value = searchQuery;
   }
 }
-function switchTab(id) { searchQuery = ''; currentTab = id; document.querySelectorAll('.nav-btn').forEach(b => { const on = (b.dataset.tabs || b.dataset.tab).split(' ').indexOf(id) >= 0; b.classList.toggle('active', on); if (on) { b.setAttribute('aria-current', 'page'); b.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' }); } else b.removeAttribute('aria-current'); }); renderCurrentTab(); }
+function switchTab(id) { try { if (window.Jogo) Jogo.visitou(id); } catch (e) {} searchQuery = ''; currentTab = id; document.querySelectorAll('.nav-btn').forEach(b => { const on = (b.dataset.tabs || b.dataset.tab).split(' ').indexOf(id) >= 0; b.classList.toggle('active', on); if (on) { b.setAttribute('aria-current', 'page'); b.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' }); } else b.removeAttribute('aria-current'); }); renderCurrentTab(); }
 
 // ─── DASHBOARD ──────────────────────────────────
-function renderDashboard(c) {
+function renderDashboard(c) { return (state.profile_type === 'PJ' || !window.Jogo ? '' : Jogo.cardHtml(c)) + renderDashboard_core(c); }
+function renderDashboard_core(c) {
   try { mktLoad(); } catch (e) {}
   const saldo = c.totalAssets - c.totalLiab;
   const isPJ = state.profile_type === 'PJ';
@@ -7491,7 +7494,7 @@ function confirmStatementImport() {
   pendingStatementImport = null;
   closeModal();
   renderCurrentTab();
-  showToast('✅ ' + imported + ' transação(ões) importada(s) de "' + label + '"', 'success'); vitoriaChecar();
+  showToast('✅ ' + imported + ' transação(ões) importada(s) de "' + label + '"', 'success'); vitoriaChecar(); try { if (window.Jogo) Jogo.registrar('lanc', imported); } catch (e) {}
   if (cortadas) setTimeout(function() { showToast('O plano ' + currentPlanLabel() + ' permite ' + PLAN_LIMITS.maxTransactionsPerMonth + ' lançamentos por mês: ' + cortadas + ' transação(ões) mais antigas ficaram de fora. O Plus importa o extrato inteiro.', 'info'); }, 1800);
   if (!isPlusUser()) { const usados = countThisMonth(state.transactions, 'date'), teto = PLAN_LIMITS.maxTransactionsPerMonth; if (usados >= teto) setTimeout(function() { showToast('Seu mês já está com ' + usados + ' lançamentos (plano ' + currentPlanLabel() + ': ' + teto + '). Novos lançamentos manuais só no próximo mês ou no Plus.', 'info'); }, 2600); }
 }
@@ -8379,6 +8382,7 @@ async function showApp() {
   document.getElementById('onboarding-screen').hidden = true;
   document.getElementById('app-screen').hidden = false;
   try { if (window.Conforto) Conforto.aoEntrar(); } catch (e) {}
+  try { if (window.Jogo) Jogo.aoEntrar(); } catch (e) {}
   renderFooter();
   const planNames = { free: 'Free', basic: 'Basic', plus: 'Plus', pro: 'Pro', business: 'Business' };
   const planKey = hasActivePlan() ? (profile?.plan || 'basic') : 'free';  // 'free' = sem plano pago

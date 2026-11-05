@@ -56,3 +56,25 @@ test('celular: a trava também vale e não cria rolagem horizontal', async () =>
   const { page } = await noPasso({ width: 390, height: 780 });
   assert.equal(await page.locator('.gd-sh').count(), 4); assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false); await page.close();
 });
+
+test('congelado de verdade: rolagem, teclado e Tab não saem da área liberada; o anel acompanha o alvo', async () => {
+  const { page, errs } = await noPasso();
+  await page.evaluate(() => { document.getElementById('main').style.minHeight = '3500px'; window.scrollTo(0, 0); }); await page.waitForTimeout(900);
+  const y0 = await page.evaluate(() => scrollY);
+  await page.mouse.move(60, 400); await page.mouse.wheel(0, 700); await page.waitForTimeout(200);
+  assert.equal(await page.evaluate(() => scrollY), y0, 'roda do mouse não rola a página');
+  await page.keyboard.press('PageDown'); await page.keyboard.press('Space'); await page.keyboard.press('End'); await page.waitForTimeout(200);
+  assert.equal(await page.evaluate(() => scrollY), y0, 'teclado não rola a página');
+  for (let i = 0; i < 12; i++) { await page.keyboard.press('Tab'); const ok = await page.evaluate(() => { const a = document.activeElement; return !a || a === document.body || !!a.closest('#gd-box') || (/^\s*\+\s*Novo\b/.test(a.textContent || '')); }); assert.ok(ok, 'Tab saiu da área liberada na volta ' + i); }
+  // a página é movida por código (como animações/ajustes de layout): o anel tem que seguir o botão
+  await page.evaluate(() => window.scrollBy(0, 150)); await page.waitForTimeout(250);
+  const d = await page.evaluate(() => { const b = [...document.querySelectorAll('#main button, #main a.btn-add')].find(x => /^\s*\+\s*Novo\b/.test(x.textContent)).getBoundingClientRect(), r = document.getElementById('gd-ring').getBoundingClientRect(); return Math.max(Math.abs(r.left - (b.left - 6 - 3)), Math.abs(r.top - (b.top - 6 - 3))); });
+  assert.ok(d <= 4, 'anel descolado do botão por ' + d + 'px');
+  assert.deepEqual(errs, []); await page.close();
+});
+test('sem briga de rolagem: alvo é levado à tela uma vez e a posição fica estável', async () => {
+  const { page } = await noPasso({ width: 406, height: 546 });
+  await page.waitForTimeout(1500);
+  const pos = []; for (let i = 0; i < 6; i++) { pos.push(await page.evaluate(() => Math.round(scrollY))); await page.waitForTimeout(300); }
+  assert.equal(new Set(pos).size, 1, 'rolagem oscilando: ' + pos.join(',')); await page.close();
+});

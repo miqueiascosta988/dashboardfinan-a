@@ -43,7 +43,7 @@ test('Persona Basic (endividado): importa CSV 1 vez no mês; a 2ª é barrada co
   });
   assert.equal(r.liberado1, true); assert.equal(r.preview, 6); assert.equal(r.apos, 6); assert.equal(r.liberado2, false); assert.match(r.msg2, /1 importação de extrato por mês/); assert.deepEqual(errs, []); await page.close();
 });
-test('Persona Basic: extrato grande (80 linhas) importa inteiro — mede o efeito no teto de 60', async () => {
+test('Persona Basic: extrato grande (80 linhas) importa só até o teto de 60 e avisa o que ficou de fora', async () => {
   const { page } = await abrir();
   const r = await page.evaluate(async () => {
     window.planoEfetivo = () => 'basic'; window.canImportFree = () => false; state.transactions = []; const out = { toasts: [] }; window.showToast = m => { out.toasts.push(m); (window.__t = window.__t || []).push(m); }; window.switchTab = () => {};
@@ -54,7 +54,7 @@ test('Persona Basic: extrato grande (80 linhas) importa inteiro — mede o efeit
     openTransactionModal('expense'); document.getElementById('m-amount').value = '25'; document.getElementById('m-desc').value = 'Manual'; await saveTransaction('expense');
     out.depoisManual = state.transactions.length; out.toast = out.toasts[out.toasts.length - 1]; return out;
   });
-  await page.waitForTimeout(3000); const msgs = await page.evaluate(() => window.__t || []); assert.equal(r.importadas, 80); assert.ok(msgs.some(m => /já está com 80 lançamentos/.test(m)), 'aviso após importar acima do teto'); await page.close();
+  await page.waitForTimeout(3000); const msgs = await page.evaluate(() => window.__t || []); assert.equal(r.importadas, 60); assert.ok(msgs.some(m => /20 transação\(ões\) mais antigas ficaram de fora/.test(m)), 'aviso do que ficou de fora'); await page.close();
 });
 test('Persona nova no Free: bônus de 3 documentos nas primeiras 48 h aparece no painel', async () => {
   const { page } = await abrir();

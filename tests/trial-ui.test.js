@@ -44,7 +44,7 @@ test('plano Free: sem plano pago usa o Free (limites menores, abas livres, cart�
   assert.equal(r.free.alivioBloq, true); assert.equal(r.free.label, 'Free');
   assert.match(r.free.html, /Sem prazo, sem cartão/); assert.match(r.free.html, /Você está no plano Free/); assert.match(r.free.html, /Plano atual/);
   assert.deepEqual([r.canc.ef, r.canc.tx], ['free', 15]);
-  assert.deepEqual([r.basic.ef, r.basic.tx, r.basic.debts, r.basic.alivioBloq], ['basic', 20, 3, false]);
+  assert.deepEqual([r.basic.ef, r.basic.tx, r.basic.debts, r.basic.alivioBloq], ['basic', 60, 3, false]);
   assert.deepEqual([r.plus.ef, r.plus.ok], ['plus', true]);
   assert.deepEqual(errs, []); await page.close();
 });

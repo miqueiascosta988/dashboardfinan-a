@@ -78,3 +78,22 @@ test('Alertas: categoria perto/acima do limite aparece no sino', async () => {
     return generateNotifications().filter(n => n.id.startsWith('limite-')).map(n => n.title); });
   assert.deepEqual(r.sort(), ['Limite de Lazer quase no fim', 'Limite de Transporte estourado']); await page.close();
 });
+test('tela de PIN é legível (contraste do título sobre o fundo) e os botões secundários têm estilo', async () => {
+  const { page } = await app();
+  await page.evaluate(() => { localStorage.setItem('sm_pin', JSON.stringify({ s: 'x', h: 'y' })); Conforto.trava(); });
+  const r = await page.evaluate(() => {
+    const lum = c => { const m = c.match(/\d+(\.\d+)?/g).map(Number).slice(0, 3).map(v => { v /= 255; return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); }); return .2126 * m[0] + .7152 * m[1] + .0722 * m[2]; };
+    const bg = getComputedStyle(document.getElementById('pin-lock')).backgroundColor, fg = getComputedStyle(document.querySelector('#pin-lock h2')).color;
+    const a = lum(bg), b = lum(fg), ratio = (Math.max(a, b) + .05) / (Math.min(a, b) + .05);
+    const sec = getComputedStyle(document.getElementById('pin-out'));
+    return { ratio, secBorder: sec.borderTopWidth, secRadius: sec.borderTopLeftRadius };
+  });
+  assert.ok(r.ratio >= 4.5, 'contraste ' + r.ratio.toFixed(2)); assert.equal(r.secBorder, '1px'); assert.notEqual(r.secRadius, '0px'); await page.close();
+});
+test('celular: o sino de notificações abre dentro da tela, mesmo com o cabeçalho em duas linhas', async () => {
+  const page = await browser.newPage({ viewport: { width: 390, height: 800 } });
+  await page.goto(base + '/?demo=clt'); await page.waitForTimeout(1500);
+  await page.evaluate(() => { state.profile_type = 'PF'; toggleNotifications(); }); await page.waitForTimeout(400);
+  const r = await page.evaluate(() => { const b = document.getElementById('notif-dropdown').getBoundingClientRect(); return { l: b.left, r: b.right, w: innerWidth }; });
+  assert.ok(r.l >= 0 && r.r <= r.w, JSON.stringify(r)); await page.close();
+});

@@ -41,8 +41,8 @@
   function atualizaBotoes() {
     var o = document.getElementById('btn-oculto'), m = document.getElementById('btn-simples'), p = document.getElementById('btn-pin');
     if (o) { o.setAttribute('aria-pressed', String(S.oculto)); o.textContent = S.oculto ? '🙈' : '👁'; o.title = S.oculto ? 'Mostrar valores' : 'Ocultar valores'; o.setAttribute('aria-label', o.title); }
-    if (m) { m.setAttribute('aria-pressed', String(S.simples)); m.textContent = S.simples ? '🧩 Modo completo' : '🧩 Simples'; }
-    if (p) p.textContent = temPin() ? '🔒 PIN ativo' : '🔒 PIN';
+    if (m) { m.setAttribute('aria-pressed', String(S.simples)); var ml = S.simples ? 'Modo completo' : 'Simples'; m.innerHTML = '🧩<span class="lbl"> ' + ml + '</span>'; m.title = ml; m.setAttribute('aria-label', 'Modo ' + (S.simples ? 'completo' : 'simples')); }
+    if (p) { var pl = temPin() ? 'PIN ativo' : 'PIN'; p.innerHTML = '🔒<span class="lbl"> ' + pl + '</span>'; p.title = 'Bloqueio por ' + pl; p.setAttribute('aria-label', 'Bloqueio por PIN'); }
   }
   function rerender() { try { renderNav(); renderCurrentTab(); renderNotifications(); updateNotifBadge(); } catch (e) {} }
 
@@ -57,7 +57,7 @@
   function trava() {
     if (!temPin() || document.getElementById('pin-lock')) return;
     var d = document.createElement('div'); d.id = 'pin-lock'; d.setAttribute('role', 'dialog'); d.setAttribute('aria-modal', 'true'); d.setAttribute('aria-label', 'Aplicativo bloqueado');
-    d.style.cssText = 'position:fixed;inset:0;z-index:99999;background:var(--bg,#0b1220);display:flex;align-items:center;justify-content:center;padding:24px';
+    d.style.cssText = 'position:fixed;inset:0;z-index:99999;background:var(--surface,#F3F6FA);color:var(--ink,#101B2D);display:flex;align-items:center;justify-content:center;padding:24px';
     d.innerHTML = '<div style="max-width:320px;width:100%;text-align:center"><div style="font-size:40px" aria-hidden="true">🔒</div>'
       + '<h2 style="margin:8px 0 4px">Aplicativo bloqueado</h2><div style="color:var(--ink-3);margin-bottom:14px">Digite seu PIN para ver seus dados.</div>'
       + '<label class="form-label" for="pin-in" style="display:block;text-align:left">PIN</label>'

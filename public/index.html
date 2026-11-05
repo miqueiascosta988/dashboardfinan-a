@@ -18,6 +18,7 @@
 <script src="/finplan.js"></script>
 <script src="/money.js"></script>
 <script defer src="/a11y.js"></script>
+<script defer src="/conforto.js"></script>
 <script src="/guia.js"></script>
 <script src="/parcelas.js"></script>
 <script src="/recorrentes.js"></script>
@@ -1438,6 +1439,9 @@ body.demo-on{padding-bottom:56px}
               <button class="dropdown-item" onclick="openPrivacyModal()">🛡️ Privacidade e meus dados</button>
             </div>
           </div>
+          <button class="btn-sm" id="btn-oculto" title="Ocultar valores" aria-label="Ocultar valores" aria-pressed="false" onclick="Conforto.toggleOculto()">👁</button>
+          <button class="btn-sm" id="btn-simples" aria-pressed="false" onclick="Conforto.toggleSimples()">🧩 Simples</button>
+          <button class="btn-sm" id="btn-pin" onclick="Conforto.abrirPin()">🔒 PIN</button>
           <button class="btn-sm" id="btn-install" title="Instalar o aplicativo" onclick="installApp()">📲 <span data-i18n="Instalar">Instalar</span></button>
           <button class="gt-btn" id="gt-btn" title="Tutoriais em vídeo" onclick="Tutor.open()">🎓 <span data-i18n="Tutorial">Tutorial</span></button>
           <button class="help-btn" id="help-btn" title="Ajuda & Tutorial" onclick="openHelpPanel()">?</button>
@@ -1600,9 +1604,9 @@ function getCatsIncome() {
   return o ? o.cats : CATS_INCOME_PF;
 }
 
-const fmt = (v) => SYMBOLS[state.currency] + ' ' + Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });   // sempre com centavos: soma dos itens = total mostrado
+const fmt = (v) => (window.Conforto && Conforto.oculto()) ? SYMBOLS[state.currency] + ' ••••' : SYMBOLS[state.currency] + ' ' + Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });   // sempre com centavos: soma dos itens = total mostrado
 const fmtS = (v) => (v < 0 ? '- ' : '') + fmt(v);   // com sinal: fmt() mostra só o módulo
-const fmtD = (v) => SYMBOLS[state.currency] + ' ' + Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtD = (v) => (window.Conforto && Conforto.oculto()) ? SYMBOLS[state.currency] + ' ••••' : SYMBOLS[state.currency] + ' ' + Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const pct = (v) => v < -100 ? 'abaixo de -100%' : v.toFixed(1) + '%';   // taxa muito negativa (renda ínfima perto do gasto) não vira número absurdo
 const genId = () => crypto.randomUUID();
 const currentMonth = () => new Date().getMonth();
@@ -1956,6 +1960,8 @@ function generateNotifications() {
   { const ta = trialAviso(); if (ta) notifs.push({ id: 'trial-' + ta.nivel + '-' + ta.titulo, icon: '⏳', title: ta.titulo, desc: ta.texto, type: ta.nivel === 'normal' ? 'info' : 'warning', time: 'Teste', tab: 'plano' }); }
   if (typeof agendaNotifs === 'function') agendaNotifs().forEach(function(n) { notifs.push(n); });
   openRequests().forEach(function(r) { notifs.push({ id: 'req-' + r.id, icon: '📎', title: 'Documentos pedidos pela equipe', desc: fxEsc(r.title), type: 'warning', time: 'Pendente', tab: 'documentos' }); });
+
+  try { if (window.Conforto && !isPJ) Conforto.alertasLimites().forEach(function(n) { notifs.push(n); }); } catch (e) {}
 
   // ── Vínculo: MEI e reserva ──
   if (isPJ && getCompanyType() && meetsTier('basic')) {
@@ -4623,6 +4629,7 @@ const NAV_GROUPS = [
 const NAV_LAST = {};
 function navBuild() {
   const avail = getAvailableTabs(), byId = {}; avail.forEach(t => { byId[t.id] = t; });
+  if (window.Conforto && Conforto.simples() && state.profile_type !== 'PJ') return Conforto.navSimples(byId);
   const used = {}, out = [];
   NAV_GROUPS.forEach(g => {
     const kids = g.tabs.filter(id => byId[id]).map(id => { used[id] = 1; return byId[id]; });
@@ -5488,6 +5495,7 @@ function renderCurrentTab() {
   const main = document.getElementById('main');
   const renderers = {
     dashboard: () => renderDashboard(c),
+    simples: () => Conforto.renderSimples(c),
     receitas: () => renderTransactionList('income', c),
     despesas: () => renderTransactionList('expense', c),
     orcamento: () => renderOrcamento(c),
@@ -5684,7 +5692,8 @@ function saveBudgets() {
 }
 
 // ─── METAS ──────────────────────────────────────
-function renderMetas() {
+function renderMetas() { return renderMetas_core() + (state.profile_type === 'PJ' || !window.Conforto ? '' : Conforto.desafioHtml()); }
+function renderMetas_core() {
   const isPJ = state.profile_type === 'PJ';
   const title = isPJ ? 'Metas da Empresa' : 'Metas Financeiras';
   const desc = isPJ ? 'Reserva de capital de giro, equipamentos, expansão e outros objetivos do negócio.' : 'Acompanhe e gerencie seus objetivos.';
@@ -8369,6 +8378,7 @@ async function showApp() {
   document.getElementById('auth-screen').hidden = true;
   document.getElementById('onboarding-screen').hidden = true;
   document.getElementById('app-screen').hidden = false;
+  try { if (window.Conforto) Conforto.aoEntrar(); } catch (e) {}
   renderFooter();
   const planNames = { free: 'Free', basic: 'Basic', plus: 'Plus', pro: 'Pro', business: 'Business' };
   const planKey = hasActivePlan() ? (profile?.plan || 'basic') : 'free';  // 'free' = sem plano pago

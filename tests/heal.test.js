@@ -6,7 +6,7 @@ const PDFJS = process.env.PDFJS_DIR || '/home/claude/.npm-global/lib/node_module
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.png': 'image/png', '.webmanifest': 'application/json', '.mjs': 'text/javascript' };
 let server, base, browser;
 test.before(async () => {
-  server = http.createServer((q, r) => { const u = decodeURIComponent(q.url.split('?')[0]); const f = u.startsWith('/__pdfjs/') ? path.join(PDFJS, 'legacy/build', u.slice(9)) : path.join(ROOT, u === '/' ? 'index.html' : u); fs.readFile(f, (e, d) => { if (e) { r.statusCode = 404; return r.end(); } r.setHeader('content-type', MIME[path.extname(f)] || 'application/octet-stream'); r.end(d); }); });
+  server = http.createServer((q, r) => { const u = decodeURIComponent(q.url.split('?')[0]); const f = u === '/pdfjs/pdf.worker.min.js' ? path.join(PDFJS, 'legacy/build/pdf.worker.mjs') : u.startsWith('/__pdfjs/') ? path.join(PDFJS, 'legacy/build', u.slice(9)) : path.join(ROOT, u === '/' ? 'index.html' : u); fs.readFile(f, (e, d) => { if (e) { r.statusCode = 404; return r.end(); } r.setHeader('content-type', MIME[path.extname(f)] || 'application/octet-stream'); r.end(d); }); });
   await new Promise(r => server.listen(0, r)); base = 'http://127.0.0.1:' + server.address().port; browser = await chromium.launch();
 });
 test.after(async () => { await browser.close(); server.close(); });
@@ -14,8 +14,8 @@ async function openApp() {
   const ctx = await browser.newContext(), page = await ctx.newPage(), errs = [];
   page.on('pageerror', e => errs.push(String(e)));
   await page.route(/cdn\.jsdelivr\.net|fonts\.g/, r => r.abort());
-  await page.route('**/pdfjs-dist@3.11.174/build/pdf.min.js', r => r.fulfill({ contentType: 'text/javascript', body: '' }));
-  await page.route('**/pdfjs-dist@3.11.174/build/pdf.worker.min.js', r => r.fulfill({ contentType: 'text/javascript', headers: { 'access-control-allow-origin': '*' }, body: fs.readFileSync(path.join(PDFJS, 'legacy/build/pdf.worker.mjs')) }));
+  await page.route('**/pdfjs/pdf.min.js', r => r.fulfill({ contentType: 'text/javascript', body: '' }));
+  await page.route('**/pdfjs/pdf.worker.min.js', r => r.fulfill({ contentType: 'text/javascript', headers: { 'access-control-allow-origin': '*' }, body: fs.readFileSync(path.join(PDFJS, 'legacy/build/pdf.worker.mjs')) }));
   await page.addInitScript(() => { window.AG_TODAY = '2026-10-12'; });
   await page.goto(base + '/index.html?demo=clt'); await page.waitForFunction(() => typeof startDemo === 'function' && typeof docsHeal === 'function' && document.getElementById('app-screen') && !document.getElementById('app-screen').hidden, null, { timeout: 20000 });
   await page.evaluate(async b => { const m = await import(b + '/__pdfjs/pdf.mjs'); window.pdfjsLib = m; }, base);

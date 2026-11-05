@@ -7424,6 +7424,7 @@ function confirmStatementImport() {
   closeModal();
   renderCurrentTab();
   showToast('✅ ' + imported + ' transação(ões) importada(s) de "' + label + '"', 'success');
+  if (!isPlusUser()) { const usados = countThisMonth(state.transactions, 'date'), teto = PLAN_LIMITS.maxTransactionsPerMonth; if (usados >= teto) setTimeout(function() { showToast('Seu mês já está com ' + usados + ' lançamentos (plano ' + currentPlanLabel() + ': ' + teto + '). Novos lançamentos manuais só no próximo mês ou no Plus.', 'info'); }, 2600); }
 }
 
 function confirmDeleteStatementAccount(id) {

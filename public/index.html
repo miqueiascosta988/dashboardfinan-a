@@ -1360,7 +1360,7 @@ body.demo-on{padding-bottom:56px}
       <div class="onboard-title">Qual é o seu vínculo de trabalho?</div>
       <div class="onboard-desc">Seu painel e seu menu se adaptam ao jeito como você recebe.</div>
       <div class="option-grid"><button class="option-btn" data-occ="clt" onclick="selectOccupation(this)"><div class="opt-icon">💼</div><div class="opt-label">CLT</div><div class="opt-desc">Carteira assinada</div></button><button class="option-btn" data-occ="servidor" onclick="selectOccupation(this)"><div class="opt-icon">🏛️</div><div class="opt-label">Servidor público</div><div class="opt-desc">Concursado / estatutário</div></button><button class="option-btn" data-occ="autonomo" onclick="selectOccupation(this)"><div class="opt-icon">🧰</div><div class="opt-label">Autônomo</div><div class="opt-desc">Freelancer, prestador</div></button><button class="option-btn" data-occ="empresario" onclick="selectOccupation(this)"><div class="opt-icon">🏢</div><div class="opt-label">Empresário</div><div class="opt-desc">Sócio / dono de negócio</div></button><button class="option-btn" data-occ="aposentado" onclick="selectOccupation(this)"><div class="opt-icon">🌿</div><div class="opt-label">Aposentado</div><div class="opt-desc">Aposentadoria / pensão</div></button><button class="option-btn" data-occ="estudante" onclick="selectOccupation(this)"><div class="opt-icon">🎓</div><div class="opt-label">Estudante</div><div class="opt-desc">Mesada, estágio, bolsa</div></button><button class="option-btn" data-occ="mista" onclick="selectOccupation(this)"><div class="opt-icon">🔀</div><div class="opt-label">Renda mista</div><div class="opt-desc">CLT + extras / várias fontes</div></button><button class="option-btn" data-occ="sem_renda" onclick="selectOccupation(this)"><div class="opt-icon">🌱</div><div class="opt-label">Sem renda</div><div class="opt-desc">No momento</div></button></div>
-      <button class="btn-primary" onclick="nextOnboard('stab')">Continuar</button>
+      <button class="btn-primary" onclick="nextOnboard(3)">Continuar</button>
     </div>
     <div class="onboard-inner" id="onboard-step-stab" hidden>
       <div class="onboard-step" data-step-label>Passo 3 de 5</div>
@@ -1387,7 +1387,8 @@ body.demo-on{padding-bottom:56px}
       <div class="onboard-desc">Isso ajuda a calibrar suas projeções.</div>
       <div class="form-group"><label class="form-label">Renda mensal</label>
         <input class="form-input" type="text" inputmode="decimal" data-money id="onboard-income" placeholder="Ex.: 3.500,00 (opcional)" /></div>
-      <button class="btn-primary" onclick="finishOnboard()">Começar a usar</button>
+      <button class="btn-primary" onclick="finishOnboard()">Continuar</button>
+      <div class="onboard-desc" style="margin-top:10px">Pode pular: deixe em branco e siga. Nunca inventamos um valor para você.</div>
     </div>
   </div>
 </div>
@@ -2755,13 +2756,13 @@ function chatFlowFinish() {
   if (!visibleList('transactions').length) falta.push('registrar <b>renda e despesas</b> do mês (é a base de toda análise)');
   if (!visibleList('assets').length) falta.push('cadastrar seu <b>patrimônio</b> e o dinheiro guardado (para calcular a reserva de emergência)');
   if (FX.crd.status === 'sujo' && !visibleList('debts').length) falta.push('cadastrar suas <b>dívidas</b> com juros e parcelas');
-  if (!state.doc_number) falta.push('informar seu <b>CPF ou CNPJ</b> para personalizar a leitura de perfil');
+  if (!state.doc_number && state.profile_type === 'PJ') falta.push('informar seu <b>CPF ou CNPJ</b> para personalizar a leitura de perfil');
   if (!visibleList('goals').length) falta.push('criar ao menos uma <b>meta</b>');
   var chips = [];
   if (!visibleList('transactions').length) chips.push('➡️ Registrar renda');
   if (!visibleList('assets').length) chips.push('➡️ Cadastrar patrimônio');
   if (FX.crd.status === 'sujo') chips.push('➡️ Abrir Crédito & Nome Sujo');
-  if (!state.doc_number) chips.unshift('➡️ Informar CPF/CNPJ');
+  if (!state.doc_number && state.profile_type === 'PJ') chips.unshift('➡️ Informar CPF/CNPJ');
   chips.push('➡️ Abrir Investimentos');
   chSay('Pronto, perfil montado ✅ Já deixei suas respostas nas abas <b>Investimentos</b> e <b>Crédito & Nome Sujo</b> — falta só clicar em “Analisar”.' + (falta.length ? '<br><br>Para a análise ficar mais precisa, vale ainda:<ul><li>' + falta.join('</li><li>') + '</li></ul>' : '<br><br>Seus dados principais já estão cadastrados. 👏') + '<br>Posso te levar direto para cada passo:', chips);
 }
@@ -3241,11 +3242,11 @@ function selectCurrency(el) {
   el.classList.add('selected'); state.currency = el.dataset.cur;
 }
 function nextOnboard(step) {
-  if ((step === 'occ' || step === 'pjtype') && !state._docDone && !state.doc_number) { state._docNext = step; step = 'doc'; }
+  if (step === 'pjtype' && !state._docDone && !state.doc_number) { state._docNext = step; step = 'doc'; }
   if (step === 'doc') { state.doc_type = docDefaultType(); document.getElementById('onboard-doc-body').innerHTML = docBody('onboard-doc'); }
   document.querySelectorAll('[id^="onboard-step-"]').forEach(s => s.hidden = true);
   const el = document.getElementById('onboard-step-' + step); el.hidden = false;
-  const seq = state.profile_type === 'PF' ? [1, 'doc', 'occ', 'stab', 2, 3] : [1, 'doc', 'pjtype', 'pjact', 'pjbill', 2, 3];
+  const seq = state.profile_type === 'PF' ? [1, 'occ', 3] : [1, 'doc', 'pjtype', 'pjact', 'pjbill', 2, 3];
   const lbl = el.querySelector('[data-step-label]');
   if (lbl) lbl.textContent = 'Passo ' + (seq.indexOf(step) + 1) + ' de ' + seq.length;
   docApplyHighlights();
@@ -3265,6 +3266,26 @@ async function finishOnboard() {
     if (state.profile_type === 'PJ' && getCompanyType()) await persistCompany();
   }
   showApp();
+  if (state.profile_type === 'PF') setTimeout(vitoriaOferecer, 400);
+}
+// PRIMEIRA VITÓRIA: logo após o cadastro, leva o cliente a ver algo DELE calculado (documento ou 3 lançamentos).
+// Só conclui quando a ação real acontece (vitoriaChecar); "Agora não" não conta como vitória.
+function vitoriaOferecer() {
+  try { if (localStorage.getItem('sm_vitoria_ok') || visibleList('transactions').length) return; localStorage.setItem('sm_vitoria_pend', '1'); } catch (e) {}
+  openModal('Sua primeira vitória', '<div class="onboard-desc">Em 2 minutos você vê a sua nota de saúde financeira, calculada com os seus números. Escolha como começar:</div>'
+    + '<button class="btn-primary" id="vit-doc" style="margin-top:12px" onclick="closeModal();openDocUploadModal()">📄 Enviar um documento (extrato, holerite ou fatura)</button>'
+    + '<button class="btn-secondary" id="vit-man" style="margin-top:10px;width:100%" onclick="closeModal();openTransactionModal(\'income\')">✍️ Lançar à mão: comece pela sua renda</button>'
+    + '<div class="onboard-desc" style="margin-top:12px">Com poucos lançamentos a nota é só uma primeira leitura: ela fica mais precisa conforme você registra o mês.</div>'
+    + '<button class="btn-secondary" id="vit-skip" style="margin-top:6px;width:100%" onclick="closeModal()">Agora não</button>');
+}
+function vitoriaChecar() {
+  try {
+    if (!localStorage.getItem('sm_vitoria_pend') || localStorage.getItem('sm_vitoria_ok')) return;
+    if (!visibleList('transactions').length) return;
+    localStorage.setItem('sm_vitoria_ok', '1'); localStorage.removeItem('sm_vitoria_pend');
+    funilEvento('primeira_vitoria');
+    setTimeout(function () { showToast('Primeira vitória ✔ Veja a sua nota de saúde financeira.', 'success'); switchTab('saude'); }, 350);
+  } catch (e) {}
 }
 
 function seedSampleData() {
@@ -3507,7 +3528,7 @@ async function saveTransaction(type, editId) {
   if (editId) { const old = (before && before.date) || ''; const om = /^(\d{4})-(\d{2})-(\d{2})/.exec(old); if (om && +om[2] === +mm && +om[3] === +dd) keepYear = +om[1]; }
   await dbUpsert('transactions', { id: t.id, user_id: currentUser?.id, type, description: t.desc, category: t.cat, amount: t.amount, date: `${keepYear}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}`, recurring: t.recur, profile });
   closeModal(); renderCurrentTab();
-  showToast(editId ? 'Lançamento atualizado' : 'Lançamento adicionado', 'success');
+  showToast(editId ? 'Lançamento atualizado' : 'Lançamento adicionado', 'success'); vitoriaChecar();
 }
 async function deleteTransaction(id) { state.documents.forEach(d => { if (d.extractedData && d.extractedData.txId === id) { d.extractedData.txDeleted = true; persistDoc(d); } }); state.transactions = state.transactions.filter(t => t.id !== id); await dbDelete('transactions', id); closeModal(); renderCurrentTab(); showToast('Lançamento excluído', 'info'); }
 function confirmBulkDelete(title, desc, onConfirmFnName, arg) {
@@ -5113,7 +5134,7 @@ async function saveDocModal() {
 }
 function docModalRow() { return '<div class="occ-b-desc" style="margin-top:14px">🪪 ' + (state.doc_number ? (state.doc_type || '').toUpperCase() + ' ' + docShow() : 'CPF/CNPJ não informado') + ' · <a href="#" onclick="openDocModal();return false">' + (state.doc_number ? 'alterar' : 'informar') + '</a></div>'; }
 function renderDocBanner() {
-  if (state.doc_number) return '';
+  if (state.doc_number || state.profile_type !== 'PJ') return '';
   return '<div class="card mb-24 animate-in occ-banner"><div><div class="occ-b-title">🪪 Complete seu cadastro</div><div class="occ-b-desc">Informe seu CPF ou o CNPJ da empresa para personalizar a leitura de perfil e as análises.</div></div><button class="btn-add" onclick="openDocModal()">Informar</button></div>';
 }
 
@@ -7461,7 +7482,7 @@ function confirmStatementImport() {
   pendingStatementImport = null;
   closeModal();
   renderCurrentTab();
-  showToast('✅ ' + imported + ' transação(ões) importada(s) de "' + label + '"', 'success');
+  showToast('✅ ' + imported + ' transação(ões) importada(s) de "' + label + '"', 'success'); vitoriaChecar();
   if (cortadas) setTimeout(function() { showToast('O plano ' + currentPlanLabel() + ' permite ' + PLAN_LIMITS.maxTransactionsPerMonth + ' lançamentos por mês: ' + cortadas + ' transação(ões) mais antigas ficaram de fora. O Plus importa o extrato inteiro.', 'info'); }, 1800);
   if (!isPlusUser()) { const usados = countThisMonth(state.transactions, 'date'), teto = PLAN_LIMITS.maxTransactionsPerMonth; if (usados >= teto) setTimeout(function() { showToast('Seu mês já está com ' + usados + ' lançamentos (plano ' + currentPlanLabel() + ': ' + teto + '). Novos lançamentos manuais só no próximo mês ou no Plus.', 'info'); }, 2600); }
 }

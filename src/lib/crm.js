@@ -1,6 +1,6 @@
 // CRM / funil / tráfego pago: contas puras (sem rede, sem banco). Tudo sai dos eventos, leads e anúncios informados.
 // As 4 primeiras formam o funil da triagem (não mudar a ordem). 'cadastro_concluido' e 'primeira_acao' vêm do app e são contadas à parte.
-const ETAPAS = ['triagem_visita', 'triagem_fim', 'apresentacao_visita', 'checkout_clique', 'compra', 'cadastro_concluido', 'primeira_acao', 'bonus_usado', 'bonus_esgotado'];
+const ETAPAS = ['triagem_visita', 'triagem_fim', 'apresentacao_visita', 'checkout_clique', 'compra', 'cadastro_concluido', 'primeira_acao', 'bonus_usado', 'bonus_esgotado', 'primeira_vitoria'];
 const r2 = (v) => Math.round(v * 100) / 100;
 const div = (a, b) => (b > 0 ? r2(a / b) : null);
 // Chave de junção entre a campanha do anúncio e a do link (utm_campaign): minúscula, sem acento, sem espaços extras.
@@ -20,12 +20,12 @@ function painel(events, ads, leads) {
   const rows = Object.values(by).map((c) => {
     const v = (e) => c.visitors[e] || 0;
     return { campanha: c.campanha, invest: r2(c.invest), impressoes: c.impressoes, cliques: c.cliques,
-      triagem_visita: v('triagem_visita'), triagem_fim: v('triagem_fim'), apresentacao_visita: v('apresentacao_visita'), checkout_clique: v('checkout_clique'), cadastro_concluido: v('cadastro_concluido'), primeira_acao: v('primeira_acao'), bonus_usado: v('bonus_usado'), bonus_esgotado: v('bonus_esgotado'),
+      triagem_visita: v('triagem_visita'), triagem_fim: v('triagem_fim'), apresentacao_visita: v('apresentacao_visita'), checkout_clique: v('checkout_clique'), cadastro_concluido: v('cadastro_concluido'), primeira_acao: v('primeira_acao'), bonus_usado: v('bonus_usado'), bonus_esgotado: v('bonus_esgotado'), primeira_vitoria: v('primeira_vitoria'),
       compras: c.compras, receita: r2(c.receita),
       ctr: div(c.cliques * 100, c.impressoes), cpc: div(c.invest, c.cliques), custoVisita: div(c.invest, v('triagem_visita')), custoCheckout: div(c.invest, v('checkout_clique')), cpa: div(c.invest, c.compras), roas: div(c.receita, c.invest) };
   }).sort((a, b) => b.invest - a.invest || b.triagem_visita - a.triagem_visita);
   const sum = (f) => rows.reduce((t, r) => t + (r[f] || 0), 0);
-  const tot = { invest: r2(sum('invest')), impressoes: sum('impressoes'), cliques: sum('cliques'), triagem_visita: sum('triagem_visita'), triagem_fim: sum('triagem_fim'), apresentacao_visita: sum('apresentacao_visita'), checkout_clique: sum('checkout_clique'), cadastro_concluido: sum('cadastro_concluido'), primeira_acao: sum('primeira_acao'), bonus_usado: sum('bonus_usado'), bonus_esgotado: sum('bonus_esgotado'), compras: sum('compras'), receita: r2(sum('receita')) };
+  const tot = { invest: r2(sum('invest')), impressoes: sum('impressoes'), cliques: sum('cliques'), triagem_visita: sum('triagem_visita'), triagem_fim: sum('triagem_fim'), apresentacao_visita: sum('apresentacao_visita'), checkout_clique: sum('checkout_clique'), cadastro_concluido: sum('cadastro_concluido'), primeira_acao: sum('primeira_acao'), bonus_usado: sum('bonus_usado'), bonus_esgotado: sum('bonus_esgotado'), primeira_vitoria: sum('primeira_vitoria'), compras: sum('compras'), receita: r2(sum('receita')) };
   tot.ctr = div(tot.cliques * 100, tot.impressoes); tot.cpc = div(tot.invest, tot.cliques); tot.cpa = div(tot.invest, tot.compras); tot.roas = div(tot.receita, tot.invest);
   const funil = ETAPAS.slice(0, 4).map((e) => ({ etapa: e, n: tot[e] }));
   funil.push({ etapa: 'compra', n: tot.compras });

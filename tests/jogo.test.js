@@ -38,8 +38,9 @@ async function app(notif) {
 test('registrar: sequência, missão de 5 lançamentos e selos aparecem no painel', async () => {
   const { page, errs } = await app();
   await page.evaluate(() => { switchTab('dashboard'); });
+  assert.match(await page.textContent('#main'), /Aceita um desafio\?/); await page.click('#jg-abrir');
   assert.match(await page.textContent('#main'), /Comece a sua sequência/);
-  const r = await page.evaluate(() => { for (let i = 0; i < 5; i++) Jogo.registrar('lanc'); Jogo.registrar('doc'); switchTab('saude'); switchTab('dashboard'); const e = Jogo.estado(); return { dias: e.dias.length, selos: Object.keys(e.selos), feitas: e.sem.feitas }; });
+  const r = await page.evaluate(() => { for (let i = 0; i < 5; i++) Jogo.registrar('lanc'); Jogo.registrar('doc'); switchTab('saude'); switchTab('dashboard'); Jogo.estado().aberto = true; renderCurrentTab(); const e = Jogo.estado(); return { dias: e.dias.length, selos: Object.keys(e.selos), feitas: e.sem.feitas }; });
   assert.equal(r.dias, 1); assert.ok(r.selos.includes('primeiro-lancamento') && r.selos.includes('primeiro-doc')); assert.ok(r.feitas.includes('lanc5'));
   const t = await page.textContent('#main'); assert.match(t, /1 dia seguido/); assert.match(t, /hoje já conta/); assert.match(t, /Missões desta semana/);
   assert.deepEqual(errs, []); await page.close();
@@ -64,7 +65,21 @@ test('lembrete diário: dispara 1 vez ao dia, só se passou da hora e não regis
 });
 test('modo simples mostra o progresso; PJ não vê o jogo', async () => {
   const { page, errs } = await app();
-  await page.click('#btn-simples'); await page.waitForTimeout(300); assert.match(await page.textContent('#main'), /Seu progresso/);
+  await page.click('#btn-simples'); await page.waitForTimeout(300); assert.match(await page.textContent('#main'), /Aceita um desafio\?/);
   await page.click('text=Ver o app completo'); await page.waitForTimeout(300);
   assert.equal(await page.evaluate(() => { state.profile_type = 'PJ'; return renderDashboard(compute()).includes('Seu progresso'); }), false); assert.deepEqual(errs, []); await page.close();
+});
+
+test('Saldo patrimonial fica sempre em cima; o jogo começa fechado, abre com a explicação e minimiza', async () => {
+  const { page, errs } = await app();
+  await page.evaluate(() => { localStorage.removeItem('sm_jogo'); Jogo.estado().aberto = false; switchTab('dashboard'); });
+  const ordem = await page.evaluate(() => { const m = document.getElementById('main'), h = m.querySelector('.hero-card'), g = document.getElementById('jg-wrap'); return { hero: !!h, g: !!g, heroAntes: !!(h && g && (h.compareDocumentPosition(g) & Node.DOCUMENT_POSITION_FOLLOWING)) }; });
+  assert.deepEqual(ordem, { hero: true, g: true, heroAntes: true });
+  assert.ok(!/Como funciona/.test(await page.textContent('#jg-wrap')), 'fechado: sem explicação');
+  assert.equal(await page.getAttribute('#jg-abrir', 'aria-expanded'), 'false');
+  await page.click('#jg-abrir'); const t = await page.textContent('#jg-wrap');
+  assert.match(t, /Como funciona/); assert.match(t, /Missões desta semana/); assert.equal(await page.getAttribute('#jg-min', 'aria-expanded'), 'true');
+  assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('sm_jogo')).aberto), true, 'lembra que abriu');
+  await page.click('#jg-min'); assert.ok(await page.locator('#jg-abrir').isVisible()); assert.ok(!/Como funciona/.test(await page.textContent('#jg-wrap')));
+  assert.deepEqual(errs, []); await page.close();
 });

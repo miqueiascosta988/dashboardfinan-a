@@ -59,10 +59,10 @@
   if (typeof document === 'undefined') return;
 
   // ───────── Parte 2: estado, tela e lembrete ─────────
-  var S = { dias: [], sem: null, selos: {}, lembrete: { on: false, hora: 20 }, lembrouEm: null };
+  var S = { dias: [], sem: null, selos: {}, lembrete: { on: false, hora: 20 }, lembrouEm: null, aberto: false };
   function ls(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) {} return null; }
   function hojeK() { return dkey(new Date()); }
-  function load() { try { var j = JSON.parse(ls(KEY) || 'null'); if (j) { S.dias = j.dias || []; S.sem = j.sem || null; S.selos = j.selos || {}; S.lembrete = j.lembrete || S.lembrete; S.lembrouEm = j.lembrouEm || null; } } catch (e) {} }
+  function load() { try { var j = JSON.parse(ls(KEY) || 'null'); if (j) { S.dias = j.dias || []; S.sem = j.sem || null; S.selos = j.selos || {}; S.lembrete = j.lembrete || S.lembrete; S.lembrouEm = j.lembrouEm || null; S.aberto = !!j.aberto; } } catch (e) {} }
   function save() { S.dias = S.dias.slice(-400); ls(KEY, JSON.stringify(S)); try { if (typeof prefsPush === 'function') prefsPush('jogo', S); } catch (e) {} }
   function nuvem() {   // junta com o que veio da conta (outro aparelho): une dias e selos, mantém a semana mais nova
     try {
@@ -108,7 +108,14 @@
     var w = semana(); avaliar(c); save();
     var seq = sequencia(S.dias, hojeK()), nv = nivel(c ? c.healthTotal : null), ms = missoesDaSemana(w.k);
     var linhaSeq = seq.n > 0 ? '🔥 <b>' + seq.n + ' dia' + (seq.n > 1 ? 's' : '') + ' seguido' + (seq.n > 1 ? 's' : '') + '</b>' + (seq.hoje ? ' · hoje já conta ✔' : ' · registre algo hoje para manter a sequência') : '🔥 Comece a sua sequência: registre um lançamento hoje.';
-    var h = '<div class="card animate-in" style="margin-bottom:16px"><div class="card-title">🎮 Seu progresso</div>'
+    if (!S.aberto) {
+      return '<div id="jg-wrap" class="card mb-24 animate-in" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div><div class="card-title" style="margin:0">🎮 Desafios</div>'
+        + '<div class="card-subtitle">' + (seq.n > 0 ? '🔥 ' + seq.n + ' dia' + (seq.n > 1 ? 's' : '') + ' seguido' + (seq.n > 1 ? 's' : '') : 'Transforme o controle do dinheiro em um jogo.') + '</div></div>'
+        + '<button class="btn-primary" id="jg-abrir" style="width:auto;padding-left:22px;padding-right:22px" aria-expanded="false" aria-controls="jg-wrap" onclick="Jogo.alternar()">Aceita um desafio?</button></div>';
+    }
+    var h = '<div id="jg-wrap" class="card mb-24 animate-in"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div class="card-title" style="margin:0">🎮 Seu progresso</div>'
+      + '<button class="btn-sm" id="jg-min" aria-expanded="true" aria-controls="jg-wrap" onclick="Jogo.alternar()">Minimizar</button></div>'
+      + '<div class="onboard-desc" style="margin:10px 0">Como funciona: todo dia em que você registra um lançamento, envia um documento ou importa um extrato, sua <b>sequência</b> cresce (1 dia perdido por semana é perdoado). Toda semana tem <b>3 missões</b> novas, você ganha <b>selos</b> e seu <b>nível</b> acompanha a nota de saúde financeira. Não vale dinheiro nem ranking: o prêmio é ter o mês sob controle.</div>'
       + '<div style="margin:8px 0">' + linhaSeq + '</div><div style="color:var(--ink-3);font-size:13px;margin-bottom:10px">Nível: <b>' + esc(nv.nome) + '</b> · ' + esc(nv.dica) + '</div>'
       + '<div class="card-subtitle" style="margin-bottom:6px">Missões desta semana</div>'
       + ms.map(function (id) { var ok = w.feitas.indexOf(id) >= 0; return '<div style="display:flex;gap:8px;align-items:flex-start;margin:6px 0"><span aria-hidden="true">' + (ok ? '✅' : '⬜') + '</span><div><div style="' + (ok ? 'text-decoration:line-through;color:var(--ink-3)' : '') + '">' + MISSOES[id].titulo + '</div><div style="font-size:12px;color:var(--ink-3)">' + MISSOES[id].dica + '</div></div></div>'; }).join('');
@@ -120,6 +127,11 @@
     return h;
   }
 
+  function alternar() {
+    S.aberto = !S.aberto; save();
+    var w = document.getElementById('jg-wrap'), c = null; try { c = compute(); } catch (e) {}
+    if (w) { w.outerHTML = cardHtml(c); var b = document.getElementById(S.aberto ? 'jg-min' : 'jg-abrir'); if (b) b.focus(); }
+  }
   // ───── Lembrete ─────
   function notificar(titulo, corpo) {
     function plano() { try { new Notification(titulo, { body: corpo, icon: '/icons/icon-192.png', tag: 'sm-lembrete' }); } catch (e) {} }
@@ -152,6 +164,6 @@
   document.addEventListener('visibilitychange', function () { if (!document.hidden) checarLembrete(); });
   setInterval(checarLembrete, 5 * 60 * 1000);
 
-  root.Jogo = Object.assign({}, API, { registrar: registrar, visitou: visitou, cardHtml: cardHtml, lembrete: lembrete, checarLembrete: checarLembrete, notifs: notifs, aoEntrar: aoEntrar, estado: function () { return S; } });
+  root.Jogo = Object.assign({}, API, { registrar: registrar, visitou: visitou, cardHtml: cardHtml, alternar: alternar, lembrete: lembrete, checarLembrete: checarLembrete, notifs: notifs, aoEntrar: aoEntrar, estado: function () { return S; } });
   load();
 })(typeof window !== 'undefined' ? window : globalThis);

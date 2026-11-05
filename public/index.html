@@ -5551,15 +5551,14 @@ function renderCurrentTab() {
 function switchTab(id) { try { if (window.Jogo) Jogo.visitou(id); } catch (e) {} searchQuery = ''; currentTab = id; document.querySelectorAll('.nav-btn').forEach(b => { const on = (b.dataset.tabs || b.dataset.tab).split(' ').indexOf(id) >= 0; b.classList.toggle('active', on); if (on) { b.setAttribute('aria-current', 'page'); b.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' }); } else b.removeAttribute('aria-current'); }); renderCurrentTab(); }
 
 // ─── DASHBOARD ──────────────────────────────────
-function renderDashboard(c) { return (state.profile_type === 'PJ' || !window.Jogo ? '' : Jogo.cardHtml(c)) + renderDashboard_core(c); }
-function renderDashboard_core(c) {
+function renderDashboard(c) {
   try { mktLoad(); } catch (e) {}
   const saldo = c.totalAssets - c.totalLiab;
   const isPJ = state.profile_type === 'PJ';
   const heroLabel = isPJ ? 'Patrimônio da empresa' : 'Saldo patrimonial';
   const greeting = state.name ? (isPJ ? `${fxEsc(state.name)} · Empresa` : `Olá, ${fxEsc(state.name)}`) : '';
   return `<div class="hero-card mb-24 animate-in"><div class="hero-label">${heroLabel}</div><div class="hero-value">${fmtS(saldo)}</div><div class="hero-sub">${greeting} · Atualizado agora</div></div>
-  ${rendaCadastroCard()}${(() => { const g = typeof guiaCard === 'function' ? guiaCard() : ''; return g + (g ? '' : (typeof jornadaCard === 'function' ? jornadaCard() : '')); })()}${typeof parcelasCard === 'function' ? parcelasCard() : ''}${typeof recorrentesCard === 'function' ? recorrentesCard() : ''}${renderCrisisBanner(c)}
+  ${(!isPJ && window.Jogo) ? Jogo.cardHtml(c) : ''}${rendaCadastroCard()}${(() => { const g = typeof guiaCard === 'function' ? guiaCard() : ''; return g + (g ? '' : (typeof jornadaCard === 'function' ? jornadaCard() : '')); })()}${typeof parcelasCard === 'function' ? parcelasCard() : ''}${typeof recorrentesCard === 'function' ? recorrentesCard() : ''}${renderCrisisBanner(c)}
   ${renderReqBanner()}${renderDocBanner()}${renderDebtNudge(c)}${typeof weekPlanCard === 'function' ? weekPlanCard() : ''}${typeof agendaCard === 'function' ? agendaCard() : ''}${renderOccBanner(c)}
   <div class="card mb-24 animate-in" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><div><div class="card-title" style="margin:0">💭 Pensando em comprar algo?</div><div style="font-size:12px;color:var(--ink-3)">Simule o impacto na sua meta e no seu orçamento antes de decidir.</div></div><button class="btn-add" onclick="openBuySimulator()">${isPlusUser()?'Simular compra':'🔒 Simular compra'}</button></div>
   <div class="kpi-grid">${[

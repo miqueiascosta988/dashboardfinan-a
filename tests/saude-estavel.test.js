@@ -38,3 +38,12 @@ test('modal de ativo mostra a pergunta de liquidez e grava a escolha', async () 
     document.getElementById('m-aname').value = 'Poupança'; document.getElementById('m-aval').value = '1000'; document.getElementById('m-aliq').value = 'sim'; await saveAsset('assets'); return { ok, cat: window.__row.category, liq: state.assets[state.assets.length - 1].liquid }; });
   assert.equal(r.ok, true); assert.equal(r.cat, 'Líquido'); assert.equal(r.liq, true); await page.close();
 });
+test('AUD-07 e AUD-08: descrição limitada a 120 caracteres e somas exatas em centavos', async () => {
+  const page = await abrir();
+  const r = await page.evaluate(() => { openTransactionModal('expense'); const max = document.getElementById('m-desc').maxLength; closeModal();
+    const now = new Date(), ds = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-05'; state.transactions = [];
+    for (let i = 0; i < 10; i++) state.transactions.push({ id: 'x' + i, type: 'expense', amount: 0.1, date: ds, desc: 'c', cat: 'Outros', recur: false, profile: state.profile_type });
+    state.transactions.push({ id: 'r', type: 'income', amount: 1000.10, date: ds, desc: 'r', cat: 'Salário', recur: false, profile: state.profile_type });
+    selectedPeriod = { month: now.getMonth(), year: now.getFullYear(), startDate: null, endDate: null, mode: 'month' }; const c = compute(); return { max, exp: c.totalExpense, res: c.resultado }; });
+  assert.equal(r.max, 120); assert.equal(r.exp, 1); assert.equal(r.res, 999.1); await page.close();
+});

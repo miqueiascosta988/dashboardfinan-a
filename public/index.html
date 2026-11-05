@@ -3464,7 +3464,7 @@ function openTransactionModal(type, existing = null) {
         <select class="form-select" id="m-cat">${cats.map(c => `<option ${existing?.cat === c ? 'selected' : ''}>${c}</option>`).join('')}</select></div>
     </div>
     <div class="form-group"><label class="form-label">Descrição</label>
-      <input class="form-input" type="text" id="m-desc" value="${existing?.desc || ''}" placeholder="Ex: ${type==='income'?'Salário':'Aluguel'}" /></div>
+      <input class="form-input" type="text" id="m-desc" maxlength="120" value="${existing?.desc || ''}" placeholder="Ex: ${type==='income'?'Salário':'Aluguel'}" /></div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">Valor</label>
         <input class="form-input" type="text" inputmode="decimal" data-money id="m-amount" value="${existing?.amount || ''}" placeholder="0" /></div>
@@ -3847,9 +3847,10 @@ function compute() {
   const filtered = filterByPeriod(visibleList('transactions'), 'date');
   const incomes = filtered.filter(t => t.type === 'income');
   const expenses = filtered.filter(t => t.type === 'expense');
-  const totalIncome = incomes.reduce((s, t) => s + t.amount, 0);
-  const totalExpense = expenses.reduce((s, t) => s + t.amount, 0);
-  const resultado = totalIncome - totalExpense;
+  const cents = (v) => Math.round(v * 100) / 100;   // soma em ponto flutuante: 10 x 0,10 dava 0,9999999999999999 (AUD-08)
+  const totalIncome = cents(incomes.reduce((s, t) => s + t.amount, 0));
+  const totalExpense = cents(expenses.reduce((s, t) => s + t.amount, 0));
+  const resultado = cents(totalIncome - totalExpense);
   const taxaEconomia = totalIncome > 0 ? (resultado / totalIncome * 100) : 0;
   const _cx = cardsExtra();
   const totalDebt = visibleList('debts').reduce((s, d) => s + d.saldo, 0) + _cx.debt;

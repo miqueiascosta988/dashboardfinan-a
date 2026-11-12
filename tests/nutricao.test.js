@@ -86,3 +86,17 @@ test('sair: só com link assinado', async () => {
     const ok = await t.call('get', '/nutricao/sair', { query: { i: id, t: tok } }); assert.equal(ok.c, 200); assert.equal(db.nutricao[0].opt_out, true);
   } finally { t.restore(); }
 });
+
+test('triagem: pedido de teste grátis vira lead no CRM com e-mail e @ do Instagram, só com autorização', async () => {
+  const db = {}; const t = load(db);
+  try {
+    assert.equal((await t.call('post', '/funil/interesse', { body: { email: 'a@b.com', instagram: 'ana' } })).c, 400);
+    assert.equal((await t.call('post', '/funil/interesse', { body: { email: 'a@b.com', consentimento: true, instagram: 'ana silva!' } })).c, 400);
+    assert.equal(db.crm_leads, undefined);
+    const ok = await t.call('post', '/funil/interesse', { body: { email: ' Ana@B.com ', consentimento: true, instagram: '@ana.silva', nivel: 'alto', campanha: 'Bio' } });
+    assert.equal(ok.c, 200); assert.equal(db.crm_leads.length, 1);
+    const l = db.crm_leads[0]; assert.equal(l.email, 'ana@b.com'); assert.equal(l.contato, '@ana.silva'); assert.equal(l.origem, 'triagem'); assert.equal(l.etapa, 'novo'); assert.equal(l.campanha, 'Bio'); assert.match(l.notas, /teste grátis.*aperto alto/);
+    await t.call('post', '/funil/interesse', { body: { email: 'ana@b.com', consentimento: true } });
+    assert.equal(db.crm_leads.length, 1); assert.equal(db.crm_leads[0].contato, '@ana.silva'); assert.equal(db.crm_leads[0].notas.split('\n').length, 2);
+  } finally { t.restore(); }
+});

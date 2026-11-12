@@ -23,7 +23,7 @@ async function run(pick) {
 test('uma pergunta: aperto alto vai direto ao plano de entrada, grátis como alternativa, sem passar pela apresentação', async () => {
   const r = await run(2);
   assert.match(r.tag, /aliviar/); assert.match(r.cta, /R\$ 5,00\/semana/); assert.equal(r.href, 'https://pay.hotmart.com/M1?off=abc&src=triagem');
-  assert.equal(r.alt, '/?src=triagem'); assert.match(r.altTxt, /grátis/);
+  assert.equal(r.alt, '/?cadastro=1&src=triagem'); assert.match(r.altTxt, /grátis/);
   assert.ok(!/apresentacao/.test(r.href + r.alt) && !/nivel|mes=|perfil/.test(r.href + r.alt), 'sem apresentação e sem resposta na URL');
   await r.page.screenshot({ path: process.env.SHOT_ALTO || '/tmp/triagem_alto.png' }); assert.deepEqual(r.errs, []); await r.page.close();
 });
@@ -34,5 +34,5 @@ test('mês no azul e meio-termo mapeiam os níveis certos', async () => {
 test('sem checkout configurado, o principal é entrar grátis', async () => {
   const page = await browser.newPage(); await page.route('**/api/config', r => r.fulfill({ json: {} }));
   await page.goto(base + '/triagem'); await page.waitForSelector('.opt'); await page.waitForTimeout(200); await page.click('.opt >> nth=3'); await page.waitForSelector('#cta');
-  assert.equal(await page.getAttribute('#cta', 'href'), '/?src=triagem'); assert.equal(await page.locator('#alt').count(), 0); await page.close();
+  assert.equal(await page.getAttribute('#cta', 'href'), '/?cadastro=1&src=triagem'); assert.equal(await page.locator('#alt').count(), 0); await page.close();
 });

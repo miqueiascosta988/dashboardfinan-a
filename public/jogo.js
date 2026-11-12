@@ -92,7 +92,7 @@
     if (seq.n >= 3) ganha('seq-3'); if (seq.n >= 7) ganha('seq-7'); if (seq.n >= 30) ganha('seq-30');
     try {
       if (visibleList('goals').some(function (g) { return g.target > 0 && g.current / g.target >= 0.5; })) ganha('meta-50');
-      if (c) { var tx = filterByPeriod(visibleList('transactions'), 'date'); if (tx.length >= 5 && c.totalIncome > c.totalExpense) ganha('no-azul'); }
+      if (c) { var tx = filterByPeriod(visibleList('transactions'), 'date'); if (tx.length >= 5 && (c.sobra != null ? c.sobra > 0 : c.totalIncome > c.totalExpense)) ganha('no-azul'); /* mesma sobra do painel, com as parcelas não lançadas */ }
     } catch (e) {}
   }
   function registrar(tipo, n) {

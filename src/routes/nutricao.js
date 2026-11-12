@@ -58,6 +58,31 @@ router.post('/funil/inscrever', limiter(5, 3600000, { persistent: true }), expre
   } catch (e) { res.status(500).json({ error: 'Não foi possível concluir agora.' }); }
 });
 
+// Pedido de contato para o teste grátis (triagem). Vai para o CRM como lead "novo" com o e-mail e, se informado, o @ do Instagram.
+// Só com consentimento marcado. As respostas da triagem não são enviadas; só o nível (alto/médio/ok) para priorizar o contato.
+router.post('/funil/interesse', limiter(5, 3600000, { persistent: true }), express.json({ limit: '2kb' }), async (req, res) => {
+  const b = req.body || {}, email = String(b.email || '').trim().toLowerCase();
+  const ig = String(b.instagram || '').trim().replace(/^@+/, '');
+  if (b.consentimento !== true || !validEmail(email)) return res.status(400).json({ error: 'Informe um e-mail válido e marque a autorização.' });
+  if (ig && !/^[A-Za-z0-9._]{1,30}$/.test(ig)) return res.status(400).json({ error: '@ do Instagram inválido.' });
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ error: 'Serviço indisponível.' });
+  const nivel = ({ alto: 'aperto alto', medio: 'mês no limite', ok: 'mês no azul' })[b.nivel] || null;
+  const nota = 'Pediu contato para o teste grátis pela triagem' + (nivel ? ' (' + nivel + ')' : '') + ' em ' + new Date().toISOString().slice(0, 10) + '.';
+  try {
+    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+    const ex = await supabase.from('crm_leads').select('id,contato,notas').eq('email', email);
+    const cur = ex.data && ex.data[0];
+    if (cur) {
+      const upd = { updated_at: new Date().toISOString(), notas: ((cur.notas ? cur.notas + '\n' : '') + nota).slice(0, 4000) };
+      if (ig) upd.contato = '@' + ig;
+      await supabase.from('crm_leads').update(upd).eq('id', cur.id);
+    } else {
+      await supabase.from('crm_leads').insert({ email, contato: ig ? '@' + ig : null, origem: 'triagem', campanha: cleanStr(b.campanha, 100), etapa: 'novo', notas: nota });
+    }
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'Não foi possível concluir agora.' }); }
+});
+
 async function confirmar(req, res) {
   const id = String((req.query && req.query.i) || ''), tok = String((req.query && req.query.t) || '');
   const page = (t, p) => '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SM Financial</title><body style="font-family:system-ui,sans-serif;max-width:480px;margin:12vh auto;padding:0 20px;color:#101B2D;line-height:1.5"><h2>' + t + '</h2><p>' + p + '</p><p style="color:#8A94A6;font-size:14px"><i>Do aperto ao plano, do plano ao alívio.</i></p></body>';

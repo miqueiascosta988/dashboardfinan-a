@@ -36,11 +36,16 @@
     return Math.ceil(-Math.log(1 - (s * r) / p) / Math.log(1 + r));
   }
   var FIXED = /moradia|aluguel|imposto|d[ií]vida|folha|sal[aá]rio/i;   // despesas fixas não entram como "corte da semana"
+  var DEBT_DESC = /parcela|emprestimo|financiamento|fatura|cartao|cheque especial|consignado|juros|acordo|boleto da divida/;
+  var semAcento = function (s) { return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); };
 
   function build(input) {
     var o = input || {}, today = o.today, wk = weekRange(today);
-    var tx = (o.transactions || []).map(function (t) { return { d: txISO(t.date, today), cat: t.cat || t.category || 'Outros', amount: +t.amount || 0, type: t.type }; }).filter(function (t) { return t.d; });
+    var tx = (o.transactions || []).map(function (t) { return { d: txISO(t.date, today), cat: t.cat || t.category || 'Outros', amount: +t.amount || 0, type: t.type, recur: !!t.recur, desc: t.desc || t.description || '' }; }).filter(function (t) { return t.d; });
     var debts = (o.debts || []).filter(function (d) { return (+d.saldo || 0) > 0; });
+    // Não vira "corte da semana": conta fixa/recorrente (aluguel, plano de saúde, mensalidade) e pagamento de dívida.
+    var debtWords = []; debts.forEach(function (d) { semAcento(d.name).split(/[^a-z0-9]+/).forEach(function (w) { if (w.length >= 5 && debtWords.indexOf(w) < 0 && !/pessoal|credito|parcela|compras/.test(w)) debtWords.push(w); }); });
+    var naoCortavel = function (t) { var x = semAcento(t.desc); return t.recur || DEBT_DESC.test(x) || debtWords.some(function (w) { return x.indexOf(w) >= 0; }); };
     var missions = [];
 
     // 0) Plano montado no Consultor de estratégia: o valor do mês vira a primeira missão.
@@ -64,7 +69,7 @@
     // 2) Gasto da semana: 10% abaixo da média semanal das 4 semanas anteriores, na categoria variável que mais pesa.
     var prevStart = iso(new Date(parse(wk.start).getTime() - 28 * DAY)), base = {}, now = {};
     tx.forEach(function (t) {
-      if (t.type !== 'expense' || FIXED.test(t.cat)) return;
+      if (t.type !== 'expense' || FIXED.test(t.cat) || naoCortavel(t)) return;
       if (t.d >= prevStart && t.d < wk.start) base[t.cat] = (base[t.cat] || 0) + t.amount;
       else if (t.d >= wk.start && t.d <= wk.end) now[t.cat] = (now[t.cat] || 0) + t.amount;
     });

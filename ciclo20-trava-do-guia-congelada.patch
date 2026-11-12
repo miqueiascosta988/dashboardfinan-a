@@ -1,0 +1,117 @@
+diff --git a/public/guia.js b/public/guia.js
+index e5cf676..d45df36 100644
+--- a/public/guia.js
++++ b/public/guia.js
+@@ -119,7 +119,7 @@
+   function css() {
+     if (document.getElementById('gd-style')) return;
+     var s = document.createElement('style'); s.id = 'gd-style';
+-    s.textContent = '#gd-ring{position:fixed;z-index:9998;pointer-events:none;border:3px solid #D4AF4F;border-radius:12px;box-shadow:0 0 0 9999px rgba(6,12,24,.8);animation:gdr 1.6s ease-in-out infinite;transition:all .25s}#gd-dim{position:fixed;inset:0;z-index:9997;background:rgba(6,12,24,.8);pointer-events:none}'
++    s.textContent = '#gd-ring{position:fixed;z-index:9998;pointer-events:none;border:3px solid #D4AF4F;border-radius:12px;box-shadow:0 0 0 9999px rgba(6,12,24,.8);animation:gdr 1.6s ease-in-out infinite;transition:none}#gd-dim{position:fixed;inset:0;z-index:9997;background:rgba(6,12,24,.8);pointer-events:none}'
+       + '.gd-sh{position:fixed;z-index:9997;background:transparent;cursor:not-allowed}#gd-box.gd-nudge{animation:gdn .45s}@keyframes gdn{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}@keyframes gdr{0%,100%{border-color:#D4AF4F}50%{border-color:#F3DA8C}}@keyframes gdp{0%,100%{opacity:1}50%{opacity:.4}}'
+       + '#gd-box{position:fixed;z-index:9999;width:min(360px,calc(100vw - 24px));background:var(--card,#fff);color:var(--ink,#101B2D);border-radius:16px;box-shadow:0 12px 40px rgba(16,27,45,.28);border:1px solid var(--border,#E3E8EF);padding:16px 16px 12px;font-size:14px;line-height:1.5}'
+       + '#gd-box.dock{left:12px;right:12px;bottom:12px;width:auto;top:auto}'
+@@ -170,10 +170,11 @@
+     if (target && target.el && target.el.getBoundingClientRect) {
+       var r = target.el.getBoundingClientRect();
+       if (r.width > 0 && r.height > 0) {
+-        if (r.top < 60 || r.bottom > vh - 20) { try { target.el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) { /* ignore */ } }
+-        var mdl = document.querySelector('#modal-overlay.open .modal'), mr = mdl && mdl.getBoundingClientRect();
+-        if (mr && mr.width > 0) shield({ l: mr.left, t: mr.top, r: mr.right, b: mr.bottom }); else shield({ l: r.left - 6, t: r.top - 6, r: r.right + 6, b: r.bottom + 6 });
+-        dim(false); G.ring.style.display = 'block'; G.ring.style.left = (r.left - 6) + 'px'; G.ring.style.top = (r.top - 6) + 'px'; G.ring.style.width = (r.width + 12) + 'px'; G.ring.style.height = (r.height + 12) + 'px';
++        if (G.scrolledEl !== target.el) {   // leva o alvo para a tela UMA vez e sem animação (evita briga de rolagem)
++          G.scrolledEl = target.el;
++          if (r.top < 60 || r.bottom > vh - 20) { try { target.el.scrollIntoView({ block: 'center', behavior: 'auto' }); } catch (e) { /* ignore */ } r = target.el.getBoundingClientRect(); }
++        }
++        G.tgtEl = target.el; dim(false); G.ring.style.display = 'block'; geo(); lockOn(); follow();
+         if (!narrow) {
+           var bw = 360, bh = box.offsetHeight || 220, left = clamp(r.left, 12, vw - bw - 12), top = r.bottom + 16;
+           if (top + bh > vh - 12) top = r.top - bh - 16;
+@@ -189,7 +190,44 @@
+   // TRAVA: enquanto há um alvo na tela, só o alvo (ou o formulário aberto) e o balão respondem a clique.
+   // Quatro painéis transparentes cobrem o resto da tela; o "buraco" é a área liberada.
+   var SH = ['t', 'b', 'l', 'r'];
+-  function unshield() { SH.forEach(function (k) { var e = document.getElementById('gd-sh-' + k); if (e) e.remove(); }); }
++  function unshield() { SH.forEach(function (k) { var e = document.getElementById('gd-sh-' + k); if (e) e.remove(); }); if (G.raf) { cancelAnimationFrame(G.raf); G.raf = 0; } G.tgtEl = null; G.geoKey = ''; lockOff(); }
++  // O anel e a trava acompanham o alvo QUADRO A QUADRO (rolagem, redimensionar, animações da página).
++  function geo() {
++    var el = G.tgtEl; if (!el || !G.ring) return;
++    var r = el.getBoundingClientRect(); if (!(r.width > 0 && r.height > 0)) return;
++    var mdl = document.querySelector('#modal-overlay.open .modal'), mr = mdl && mdl.getBoundingClientRect();
++    var a = (mr && mr.width > 0) ? { l: mr.left, t: mr.top, r: mr.right, b: mr.bottom } : { l: r.left - 6, t: r.top - 6, r: r.right + 6, b: r.bottom + 6 };
++    var key = [r.left, r.top, r.width, r.height, a.l, a.t, a.r, a.b, window.innerWidth, window.innerHeight].join('|'); if (key === G.geoKey) return; G.geoKey = key;
++    shield(a); G.ring.style.left = (r.left - 6) + 'px'; G.ring.style.top = (r.top - 6) + 'px'; G.ring.style.width = (r.width + 12) + 'px'; G.ring.style.height = (r.height + 12) + 'px';
++  }
++  function follow() { if (G.raf) return; var loop = function () { if (!G.tgtEl || !document.body.contains(G.tgtEl)) { G.raf = 0; return; } geo(); G.raf = requestAnimationFrame(loop); }; G.raf = requestAnimationFrame(loop); }
++  // Congela rolagem e teclado fora da área liberada (alvo, formulário aberto e balão).
++  function allowed(el) { if (!el || !el.closest) return false; if (el.closest('#gd-box') || el.closest('#modal-overlay.open .modal')) return true; var t = G.tgtEl; return !!(t && (t === el || t.contains(el))); }
++  function onWheel(e) {
++    var el = e.target; if (!allowed(el)) { e.preventDefault(); return; }
++    var box = el.closest('#gd-box') || el.closest('#modal-overlay.open .modal');
++    if (!box) { e.preventDefault(); return; }   // alvo na página: nunca rola
++    for (var n = el; n && n.nodeType === 1; n = n.parentElement) { if (n.scrollHeight > n.clientHeight + 1 && /(auto|scroll)/.test(getComputedStyle(n).overflowY)) return; if (n === box) break; }
++    e.preventDefault();
++  }
++  var SK = { ' ': 1, PageDown: 1, PageUp: 1, Home: 1, End: 1, ArrowDown: 1, ArrowUp: 1 };
++  function onKey(e) { if (!SK[e.key]) return; var el = e.target; if (el && (/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || el.isContentEditable)) return; if (!allowed(el)) e.preventDefault(); }
++  function onFocusIn(e) {
++    if (allowed(e.target)) return;
++    var f = (G.tgtEl && G.tgtEl.tabIndex >= 0) ? G.tgtEl : (G.el && G.el.querySelector('button'));
++    try { if (f) f.focus(); else if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); } catch (er) { /* ignore */ }
++  }
++  function lockOn() {
++    if (G.locked) return; G.locked = true;
++    document.addEventListener('wheel', onWheel, { capture: true, passive: false }); document.addEventListener('touchmove', onWheel, { capture: true, passive: false });
++    document.addEventListener('keydown', onKey, true); document.addEventListener('focusin', onFocusIn, true);
++    try { if (document.activeElement && !allowed(document.activeElement)) document.activeElement.blur(); } catch (er) { /* ignore */ }
++  }
++  function lockOff() {
++    if (!G.locked) return; G.locked = false;
++    document.removeEventListener('wheel', onWheel, true); document.removeEventListener('touchmove', onWheel, true);
++    document.removeEventListener('keydown', onKey, true); document.removeEventListener('focusin', onFocusIn, true);
++  }
+   function nudge() { if (!G.el) return; G.el.classList.remove('gd-nudge'); void G.el.offsetWidth; G.el.classList.add('gd-nudge'); setTimeout(function () { if (G.el) G.el.classList.remove('gd-nudge'); }, 500); }
+   function shield(a) {   // a = {l,t,r,b} em pixels da janela
+     var vw = window.innerWidth, vh = window.innerHeight;
+@@ -279,9 +317,8 @@
+     }
+     G.lastSeen = true; render();
+   }
+-  var rafS = 0; function onScroll() { if (rafS) return; rafS = requestAnimationFrame(function () { rafS = 0; if (isOn() && !G.mini) render(); }); }
+-  function startTimer() { stopTimer(); G.timer = setInterval(tick, 700); window.addEventListener('resize', onResize); window.addEventListener('scroll', onScroll, true); }
+-  function stopTimer() { if (G.timer) clearInterval(G.timer); G.timer = null; window.removeEventListener('resize', onResize); window.removeEventListener('scroll', onScroll, true); }
++  function startTimer() { stopTimer(); G.timer = setInterval(tick, 700); window.addEventListener('resize', onResize); }
++  function stopTimer() { if (G.timer) clearInterval(G.timer); G.timer = null; window.removeEventListener('resize', onResize); }
+   function onResize() { render(); }
+ 
+   var Guia = {
+diff --git a/tests/guia-trava.test.js b/tests/guia-trava.test.js
+index abcbb18..c925dce 100644
+--- a/tests/guia-trava.test.js
++++ b/tests/guia-trava.test.js
+@@ -56,3 +56,25 @@ test('celular: a trava também vale e não cria rolagem horizontal', async () =>
+   const { page } = await noPasso({ width: 390, height: 780 });
+   assert.equal(await page.locator('.gd-sh').count(), 4); assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false); await page.close();
+ });
++
++test('congelado de verdade: rolagem, teclado e Tab não saem da área liberada; o anel acompanha o alvo', async () => {
++  const { page, errs } = await noPasso();
++  await page.evaluate(() => { document.getElementById('main').style.minHeight = '3500px'; window.scrollTo(0, 0); }); await page.waitForTimeout(900);
++  const y0 = await page.evaluate(() => scrollY);
++  await page.mouse.move(60, 400); await page.mouse.wheel(0, 700); await page.waitForTimeout(200);
++  assert.equal(await page.evaluate(() => scrollY), y0, 'roda do mouse não rola a página');
++  await page.keyboard.press('PageDown'); await page.keyboard.press('Space'); await page.keyboard.press('End'); await page.waitForTimeout(200);
++  assert.equal(await page.evaluate(() => scrollY), y0, 'teclado não rola a página');
++  for (let i = 0; i < 12; i++) { await page.keyboard.press('Tab'); const ok = await page.evaluate(() => { const a = document.activeElement; return !a || a === document.body || !!a.closest('#gd-box') || (/^\s*\+\s*Novo\b/.test(a.textContent || '')); }); assert.ok(ok, 'Tab saiu da área liberada na volta ' + i); }
++  // a página é movida por código (como animações/ajustes de layout): o anel tem que seguir o botão
++  await page.evaluate(() => window.scrollBy(0, 150)); await page.waitForTimeout(250);
++  const d = await page.evaluate(() => { const b = [...document.querySelectorAll('#main button, #main a.btn-add')].find(x => /^\s*\+\s*Novo\b/.test(x.textContent)).getBoundingClientRect(), r = document.getElementById('gd-ring').getBoundingClientRect(); return Math.max(Math.abs(r.left - (b.left - 6 - 3)), Math.abs(r.top - (b.top - 6 - 3))); });
++  assert.ok(d <= 4, 'anel descolado do botão por ' + d + 'px');
++  assert.deepEqual(errs, []); await page.close();
++});
++test('sem briga de rolagem: alvo é levado à tela uma vez e a posição fica estável', async () => {
++  const { page } = await noPasso({ width: 406, height: 546 });
++  await page.waitForTimeout(1500);
++  const pos = []; for (let i = 0; i < 6; i++) { pos.push(await page.evaluate(() => Math.round(scrollY))); await page.waitForTimeout(300); }
++  assert.equal(new Set(pos).size, 1, 'rolagem oscilando: ' + pos.join(',')); await page.close();
++});

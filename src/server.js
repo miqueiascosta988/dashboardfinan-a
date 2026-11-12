@@ -68,7 +68,7 @@ app.get('/api/health', (req, res) => {
 const siteVar = (k) => { const v = (process.env[k] || '').trim().slice(0, 200); return v || null; };
 app.get('/api/config', (req, res) => {
   res.json({
-    contact: { email: siteVar('SITE_EMAIL'), phone: siteVar('SITE_PHONE'), address: siteVar('SITE_ADDRESS'), hours: siteVar('SITE_HOURS'), legalName: siteVar('SITE_LEGAL_NAME'), cnpj: siteVar('SITE_CNPJ') },
+    contact: { email: siteVar('SITE_EMAIL'), phone: siteVar('SITE_PHONE'), address: siteVar('SITE_ADDRESS'), hours: siteVar('SITE_HOURS'), legalName: siteVar('SITE_LEGAL_NAME'), cnpj: siteVar('SITE_CNPJ'), dpoName: siteVar('SITE_DPO_NAME'), dpoEmail: siteVar('SITE_DPO_EMAIL'), foro: siteVar('SITE_FORO'), dbRegion: siteVar('SITE_DB_REGION') },
     onboardingVideoUrl: /^https:\/\//.test(process.env.ONBOARDING_VIDEO_URL || '') ? process.env.ONBOARDING_VIDEO_URL.trim() : null,   // vídeo de onboarding (balão do tutorial)
     supabaseUrl: process.env.SUPABASE_URL,
     supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
@@ -105,6 +105,8 @@ app.use(express.static(PUBLIC_DIR, { setHeaders: (res, file) => { if (/[\\/]sw\.
 app.get('/triagem', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'triagem.html')));
 
 // Página de apresentação (depois da triagem): /apresentacao
+app.get(['/privacidade', '/privacidade/'], (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'privacidade.html')));
+app.get(['/termos', '/termos/'], (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'termos.html')));
 app.get('/apresentacao', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'apresentacao.html')));
 
 // SPA fallback

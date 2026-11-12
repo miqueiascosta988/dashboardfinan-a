@@ -38,7 +38,7 @@ test('desktop: percorre o app inteiro com balões, campo por campo, e fecha tudo
   const r = await walk({ width: 1366, height: 800 }, process.env.OB_SHOTS);
   assert.deepEqual(r.errs, []); assert.deepEqual(r.bad, []);
   assert.ok(r.seen.length >= 60, 'passos: ' + r.seen.length);
-  ['Saldo patrimonial', 'Valor', 'Recorrente?', 'Juros ao mês', 'Saldo devedor', 'Aporte mensal', 'Tour concluído'].forEach(t => { if (t !== 'Tour concluído') assert.ok(r.seen.some(x => x.indexOf(t) === 0), 'falta passo: ' + t); });
+  ['Patrimônio líquido', 'Valor', 'Recorrente?', 'Juros ao mês', 'Saldo devedor', 'Aporte mensal', 'Tour concluído'].forEach(t => { if (t !== 'Tour concluído') assert.ok(r.seen.some(x => x.indexOf(t) === 0), 'falta passo: ' + t); });
   assert.ok(r.seen.some(x => /\[form\]$/.test(x)), 'passos dentro dos formulários');
   assert.deepEqual(r.end, { root: false, modal: false, tab: 'dashboard', tx: r.end.tx });
 });

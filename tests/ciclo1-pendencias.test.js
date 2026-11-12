@@ -19,7 +19,7 @@ test('taxa de economia absurda não vira número gigante; valores normais seguem
   const page = await browser.newPage(), errs = []; page.on('pageerror', e => errs.push(e.message));
   await page.goto(base + '/?demo=clt'); await page.waitForTimeout(1500);
   const r = await page.evaluate(() => [pct(-46791), pct(-100), pct(-99.95), pct(0), pct(35.25)]);
-  assert.deepEqual(r, ['abaixo de -100%', '-100.0%', '-100.0%', '0.0%', '35.3%']);
+  assert.deepEqual(r, ['abaixo de -100%', '-100,0%', '-100,0%', '0,0%', '35,3%']);
   assert.deepEqual(errs, []); await page.close();
 });
 test('câmbio: com cotação de reserva a tela avisa que não atualizou e mostra a data', async () => {

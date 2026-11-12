@@ -132,7 +132,7 @@
         if (r != null && mensal && mensal <= d.saldo * r + 0.01) how.push('Atenção: a parcela de ' + brl(mensal) + ' NÃO cobre os juros do mês (cerca de ' + brl(d.saldo * r) + '): a dívida está crescendo, não diminuindo.');
         how.push('Pague à vista o que puder (13º, restituição, reserva) e NÃO deixe o restante no rotativo.');
         how.push('Se não couber, parcele UMA vez no menor prazo que a parcela caiba no mês (veja o plano do cartão logo abaixo) e pare de usar o cartão.');
-        if (extra > 0 && r != null) { var nE = nper(d.saldo, r, (mensal || 0) + extra); if (isFinite(nE)) how.push('Com ' + brl(extra) + ' por mês a mais nesta dívida, você a quita em cerca de ' + nE + ' mês(es).'); }
+        if (extra > 0 && r != null) { var nE = nper(d.saldo, r, (mensal || 0) + extra); if (isFinite(nE)) how.push('Com ' + brl(extra) + ' por mês a mais nesta dívida, você a quita em cerca de ' + nE + (nE === 1 ? ' mês.' : ' meses.')); }
       } else if (isCheque) {
         how.push('Troque por uma dívida de taxa menor (empréstimo pessoal ou consignado, se for CLT) e zere o cheque especial: compare o custo efetivo total (CET) antes.');
         how.push('Se trocar, a nova parcela precisa caber no mês; depois peça ao banco para reduzir ou cancelar o limite, para não voltar.');
@@ -140,16 +140,16 @@
         how.push('Mantenha em dia. Só antecipe se sobrar dinheiro depois de quitar as dívidas mais caras: ao antecipar, o banco deve descontar os juros proporcionais (art. 52, § 2º, do CDC).');
       } else if (isConsig) {
         how.push('Mantenha o desconto em folha normalmente: ele não atrasa e tem juros menores que o cartão. Quite primeiro as dívidas de juros mais altos.');
-        if (r != null && mensal) { if (isFinite(n0)) how.push('No ritmo atual (' + brl(mensal) + '/mês) você quita em ' + n0 + ' mês(es).'); if (extra > 0) { var nC = nper(d.saldo, r, mensal + extra); if (isFinite(nC) && isFinite(n0)) how.push('Só depois das dívidas mais caras: com ' + brl(extra) + ' a mais por mês, quitaria em ' + nC + ' mês(es) e economizaria cerca de ' + brl(interestTotal(d.saldo, r, mensal) - interestTotal(d.saldo, r, mensal + extra)) + ' de juros.'); } }
+        if (r != null && mensal) { if (isFinite(n0)) how.push('No ritmo atual (' + brl(mensal) + '/mês) você quita em ' + n0 + (n0 === 1 ? ' mês' : ' meses') + '.'); if (extra > 0) { var nC = nper(d.saldo, r, mensal + extra); if (isFinite(nC) && isFinite(n0)) how.push('Só depois das dívidas mais caras: com ' + brl(extra) + ' a mais por mês, quitaria em ' + nC + (nC === 1 ? ' mês' : ' meses') + ' e economizaria cerca de ' + brl(interestTotal(d.saldo, r, mensal) - interestTotal(d.saldo, r, mensal + extra)) + ' de juros.'); } }
         how.push('Se a taxa estiver acima da de mercado, peça portabilidade para outro banco (sem custo para você) e compare o custo efetivo total. Atenção: se sair do emprego, o saldo pode ser cobrado das verbas rescisórias.');
       } else if (isFin) {
         how.push('Em geral é a menos urgente: juros menores e há garantia no bem. Mantenha em dia, porque atraso pode levar à perda do bem, e foque nas dívidas de juros altos primeiro.');
-        if (r != null && mensal && extra > 0) { var nF = nper(d.saldo, r, mensal + extra); if (isFinite(nF) && isFinite(n0)) how.push('Quando as dívidas caras acabarem: ao antecipar parcelas, peça para amortizar as ÚLTIMAS do contrato. Com ' + brl(extra) + ' a mais por mês, quitaria em ' + nF + ' mês(es) e economizaria cerca de ' + brl(interestTotal(d.saldo, r, mensal) - interestTotal(d.saldo, r, mensal + extra)) + ' de juros.'); }
+        if (r != null && mensal && extra > 0) { var nF = nper(d.saldo, r, mensal + extra); if (isFinite(nF) && isFinite(n0)) how.push('Quando as dívidas caras acabarem: ao antecipar parcelas, peça para amortizar as ÚLTIMAS do contrato. Com ' + brl(extra) + ' a mais por mês, quitaria em ' + nF + (nF === 1 ? ' mês' : ' meses') + ' e economizaria cerca de ' + brl(interestTotal(d.saldo, r, mensal) - interestTotal(d.saldo, r, mensal + extra)) + ' de juros.'); }
       } else {
         if (r != null && mensal) {
           if (!isFinite(n0)) how.push('A parcela de ' + brl(mensal) + ' não cobre os juros: a dívida não diminui. Renegocie ou aumente o valor pago.');
-          else how.push('No ritmo atual (' + brl(mensal) + '/mês) você quita em ' + n0 + ' mês(es).');
-          if (extra > 0) { var nX = nper(d.saldo, r, mensal + extra); if (isFinite(nX) && isFinite(n0)) { var eco = interestTotal(d.saldo, r, mensal) - interestTotal(d.saldo, r, mensal + extra); how.push('Colocando ' + brl(extra) + ' a mais por mês, quita em ' + nX + ' mês(es) e economiza cerca de ' + brl(eco) + ' de juros.'); } }
+          else how.push('No ritmo atual (' + brl(mensal) + '/mês) você quita em ' + n0 + (n0 === 1 ? ' mês' : ' meses') + '.');
+          if (extra > 0) { var nX = nper(d.saldo, r, mensal + extra); if (isFinite(nX) && isFinite(n0)) { var eco = interestTotal(d.saldo, r, mensal) - interestTotal(d.saldo, r, mensal + extra); how.push('Colocando ' + brl(extra) + ' a mais por mês, quita em ' + nX + (nX === 1 ? ' mês' : ' meses') + ' e economiza cerca de ' + brl(eco) + ' de juros.'); } }
         } else how.push('Informe taxa e parcela para eu calcular o melhor caminho de quitação.');
         how.push('Se estiver atrasada, procure a renegociação direta com o credor antes de pagar: pedir desconto no saldo costuma funcionar.');
       }

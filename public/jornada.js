@@ -23,7 +23,10 @@
     var rec = round(m.filter(function (t) { return t.type === 'income'; }).reduce(function (a, t) { return a + (+t.amount || 0); }, 0));
     var gas = round(m.filter(function (t) { return t.type === 'expense'; }).reduce(function (a, t) { return a + (+t.amount || 0); }, 0));
     var parc = round(debts.reduce(function (a, d) { return a + (+d.mensal || 0); }, 0)), total = round(debts.reduce(function (a, d) { return a + (+d.saldo || 0); }, 0));
-    var sobra = round(rec - gas - parc), comp = rec > 0 ? round(parc / rec) : 0, level = null, msg = null;
+    // Parcela que o cliente já lançou como gasto não é descontada de novo (mesma regra do painel: Resumo.sobra).
+    var R = root.Resumo || (typeof require === 'function' ? require('./resumo.js') : null);
+    var fora = R ? R.parcelasFora(debts.map(function (d) { return { id: d.id, name: d.name, mensal: d.mensal, folha: d.folha }; }), m.filter(function (t) { return t.type === 'expense'; })).fora : parc;
+    var sobra = round(rec - gas - fora), comp = rec > 0 ? round(parc / rec) : 0, level = null, msg = null;
     if (step1) {
       if (rec <= 0) { level = 'atencao'; msg = 'Sem renda registrada neste período, o diagnóstico fica incompleto.'; }
       else if (sobra < 0 || comp > 0.4) { level = 'aperto'; msg = sobra < 0 ? 'Você está gastando mais do que ganha.' : 'As parcelas das dívidas pesam demais na sua renda.'; }
@@ -36,7 +39,7 @@
       else plan = { done: false, cta: level === 'ok' ? 'Montar meu plano com o consultor' : 'Montar meu plano de saída com o consultor', tab: 'estrategia' };
     }
     var current = !step1 ? 1 : !hasPlan ? 3 : 3;
-    return { step1: step1, progress: got, of: req.length, items: items, next: nextItem, diag: step1 ? { level: level, msg: msg, receita: rec, gastos: gas, parcelas: parc, sobra: sobra, comprometimento: comp, dividaTotal: total } : null, plan: plan, current: current, finished: step1 && hasPlan };
+    return { step1: step1, progress: got, of: req.length, items: items, next: nextItem, diag: step1 ? { level: level, msg: msg, receita: rec, gastos: gas, parcelas: parc, parcelasFora: fora, sobra: sobra, comprometimento: comp, dividaTotal: total } : null, plan: plan, current: current, finished: step1 && hasPlan };
   }
   var api = { build: build };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.Jornada = api;

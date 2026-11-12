@@ -47,6 +47,14 @@
       "dest": "/public/triagem.html"
     },
     {
+      "src": "/privacidade/?",
+      "dest": "/public/privacidade.html"
+    },
+    {
+      "src": "/termos/?",
+      "dest": "/public/termos.html"
+    },
+    {
       "src": "/apresentacao",
       "dest": "/public/apresentacao.html"
     },

@@ -112,7 +112,7 @@
   var ESSENTIAL_CATS = ['Moradia', 'Alimentação', 'Saúde', 'Transporte', 'Educação', 'Aluguel/Sede', 'Folha de pagamento', 'Impostos'];
   function buildContext(inp) {
     var today = inp.today, events = (inp.events || []).filter(function (e) { return e && valid(e.dueDate); });
-    var debts = (inp.debts || []).map(function (d) { return { id: d.id, name: d.name, saldo: Number(d.saldo) || 0, juros: d.juros == null ? null : Number(d.juros), mensal: Number(d.mensal) || 0, parcelas: d.parcelas || 0, folha: !!d.folha }; });
+    var debts = (inp.debts || []).map(function (d) { return { id: d.id, name: d.name, saldo: Number(d.saldo) || 0, juros: d.juros == null ? null : Number(d.juros), mensal: Number(d.mensal) || 0, parcelas: d.parcelas || 0, folha: !!d.folha, lancada: !!d.lancada }; });
     var horizonEnd = addDays(today, inp.horizonDays || 90), mStart = monthStart(today), mEnd = monthEnd(today);
     var pend = function (e) { return e.status === 'pending' || e.status === 'awaiting'; };
     var incomeEv = events.filter(function (e) { return e.kind === 'income' && e.status !== 'cancelled'; });
@@ -122,6 +122,7 @@
     var income = { amount: 0, source: 'nenhuma', confirmed: 0, expected: 0 };
     incMonth.forEach(function (e) { if (e.status === 'paid') income.confirmed += cents(e.paidAmount != null ? e.paidAmount : e.amount); else income.expected += cents(e.amount); });
     if (incMonth.length) { income.amount = money(income.confirmed + income.expected); income.source = 'calendário'; }
+    else if (inp.monthIncome > 0) { income.amount = r2(inp.monthIncome); income.confirmed = cents(inp.monthIncome); income.source = 'renda lançada no mês'; }
     else if (inp.avgIncome > 0) { income.amount = r2(inp.avgIncome); income.source = 'média dos lançamentos'; }
     else if (inp.monthlyIncome > 0) { income.amount = r2(inp.monthlyIncome); income.source = 'renda informada no cadastro'; }
     income.confirmed = money(income.confirmed); income.expected = money(income.expected);
@@ -131,7 +132,7 @@
     var upcoming = pending.filter(function (e) { return e.dueDate >= today && e.dueDate <= horizonEnd; }).sort(function (a, b) { return a.dueDate < b.dueDate ? -1 : (a.dueDate > b.dueDate ? 1 : b.amount - a.amount); });
     // dívidas sem nenhum compromisso pendente no calendário: parcela estimada, sem data (não entra na linha do tempo)
     var covered = {}; pending.forEach(function (e) { if (e.sourceRef) covered[e.sourceRef] = true; });
-    var undated = debts.filter(function (d) { return d.saldo > 0 && d.mensal > 0 && !covered[d.id] && !d.folha; });   // descontado em folha: não é compromisso de caixa
+    var undated = debts.filter(function (d) { return d.saldo > 0 && d.mensal > 0 && !covered[d.id] && !d.folha && !d.lancada; });   // parcela já lançada como gasto no mês: não conta de novo   // descontado em folha: não é compromisso de caixa
     return { today: today, events: events, debts: debts, income: income, nextIncome: nextIncome, incomeEvents: incomeEv, pending: pending, overdue: overdue, upcoming: upcoming, undatedDebts: undated, openingBalance: inp.openingBalance == null ? null : Number(inp.openingBalance), reserveMonthly: inp.reserveMonthly == null ? null : Number(inp.reserveMonthly), horizonEnd: horizonEnd, avgEssential: Number(inp.avgEssential) || 0, spend: inp.spend || null };
   }
 

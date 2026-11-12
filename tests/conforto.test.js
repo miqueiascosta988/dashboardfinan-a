@@ -59,7 +59,7 @@ test('Modo simples: menu enxuto e resumo claro; volta ao completo', async () => 
   const antes = await page.locator('#nav .nav-btn').count();
   await page.click('#btn-simples'); await page.waitForTimeout(300);
   const depois = await page.locator('#nav .nav-btn').count(); assert.ok(depois <= 5 && depois < antes, antes + ' -> ' + depois);
-  const t = await page.textContent('#main'); assert.match(t, /Sobrou neste período/); assert.match(t, /4\.100,00/); assert.match(t, /Alimentação: 90%/); assert.match(t, /Nota de saúde/);
+  const t = await page.textContent('#main'); assert.match(t, /Sobrou neste período/); assert.match(t, /3\.780,00/); assert.match(t, /Parcelas ainda não lançadas R\$ 320,00/); assert.match(t, /Alimentação: 90%/); assert.match(t, /Nota de saúde/);
   assert.equal(await page.evaluate(() => currentTab), 'simples');
   await page.click('text=Ver o app completo'); await page.waitForTimeout(300);
   assert.equal(await page.locator('#nav .nav-btn').count(), antes); assert.notEqual(await page.evaluate(() => currentTab), 'simples'); assert.deepEqual(errs, []); await page.close();

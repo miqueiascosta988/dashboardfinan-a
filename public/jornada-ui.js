@@ -54,7 +54,7 @@
     } else {
       var d = j.diag, p = j.plan;
       body = '<div class="jr-d ' + d.level + '" data-jr-diag="' + d.level + '"><b>Sua situação hoje:</b> ' + esc(d.msg) + '</div>'
-        + '<div class="jr-m"><span>Entra: <b>' + brl(d.receita) + '</b></span><span>Gastos: <b>' + brl(d.gastos) + '</b></span><span>Parcelas: <b>' + brl(d.parcelas) + '</b></span><span>Sobra: <b>' + brl(d.sobra) + '</b></span>' + (d.dividaTotal ? '<span>Dívidas: <b>' + brl(d.dividaTotal) + '</b></span>' : '') + '</div>'
+        + '<div class="jr-m"><span>Entra: <b>' + brl(d.receita) + '</b></span><span>Gastos: <b>' + brl(d.gastos) + '</b></span><span>Parcelas: <b>' + brl(d.parcelas) + '</b>' + (d.parcelasFora != null && d.parcelasFora < d.parcelas ? ' <small>(' + brl(d.parcelas - d.parcelasFora) + ' já estão nos gastos)</small>' : '') + '</span><span>Sobra: <b>' + brl(d.sobra) + '</b></span>' + (d.dividaTotal ? '<span>Dívidas: <b>' + brl(d.dividaTotal) + '</b></span>' : '') + '</div>'
         + '<div class="jr-i" style="margin-top:12px"><span>' + (p.done ? '✓ Plano de ação montado. Siga as missões da semana.' : 'Agora falta o plano de ação: o consultor monta com você, passo a passo.') + '</span><button class="jr-b" onclick="jrGo(\'' + p.tab + '\')">' + esc(p.cta) + '</button></div>'
         + '<div style="margin-top:8px"><button class="jr-b sec" onclick="jrGo(\'receitas\')">Atualizar meus dados</button></div>';
     }

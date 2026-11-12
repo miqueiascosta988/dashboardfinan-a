@@ -69,6 +69,12 @@
   window.agPref = function (name, el) { setPref(name, el.value === '' ? null : parseFloat(el.value)); renderCurrentTab(); };
 
   // ───────── contexto ─────────
+  function recPrev() { try { return typeof contasRecorrentesPrevistas === 'function' ? contasRecorrentesPrevistas(null) : []; } catch (e) { return []; } }
+  function monthIncome() {          // renda já lançada no mês atual
+    var ymN = today().slice(0, 7), tot = 0;
+    visibleList('transactions').forEach(function (t) { if (t.type === 'income' && String(t.date).slice(0, 7) === ymN) tot += Number(t.amount) || 0; });
+    return Math.round(tot * 100) / 100;
+  }
   function avgIncome() {
     var by = {}; visibleList('transactions').forEach(function (t) { if (t.type === 'income' && /^\d{4}-\d{2}/.test(String(t.date))) { var m = String(t.date).slice(0, 7); by[m] = (by[m] || 0) + t.amount; } });
     var k = Object.keys(by); return k.length ? k.reduce(function (s, m) { return s + by[m]; }, 0) / k.length : 0;
@@ -85,8 +91,13 @@
   }
   function inputs() {
     var s = S(), P = prefs();
-    return { today: today(), events: evs(), spend: monthSpend(), monthlyIncome: s.monthlyIncome, avgIncome: avgIncome(), openingBalance: P.opening == null ? null : P.opening, reserveMonthly: P.reserve == null ? null : P.reserve, avgEssential: P.essential || 0,
-      debts: (typeof debtsExpanded === 'function' ? debtsExpanded() : visibleList('debts')).filter(function (d) { return d.saldo > 0; }).map(function (d) { return { id: d.id, name: d.name, saldo: d.saldo, juros: d.juros > 0 ? d.juros : null, mensal: d.mensal, parcelas: d.parcelas, folha: (typeof DebtLab !== 'undefined' && DebtLab.descontoFolha(d)) }; }) };
+    return { today: today(), events: evs(), spend: monthSpend(), monthlyIncome: s.monthlyIncome, avgIncome: avgIncome(), monthIncome: monthIncome(), openingBalance: P.opening == null ? null : P.opening, reserveMonthly: P.reserve == null ? null : P.reserve, avgEssential: P.essential || 0,
+      debts: (function () {
+        var ds = (typeof debtsExpanded === 'function' ? debtsExpanded() : visibleList('debts')).filter(function (d) { return d.saldo > 0; });
+        var ymN = today().slice(0, 7), lanc = {};
+        try { if (window.Resumo) Resumo.parcelasFora(ds.map(function (d) { return { id: d.id, name: d.name, mensal: d.mensal }; }), visibleList('transactions').filter(function (t) { return t.type === 'expense' && String(t.date).slice(0, 7) === ymN; })).itens.forEach(function (i) { if (i.lancada) lanc[i.id] = true; }); } catch (e) {}
+        return ds.map(function (d) { return { id: d.id, name: d.name, saldo: d.saldo, juros: d.juros > 0 ? d.juros : null, mensal: d.mensal, parcelas: d.parcelas, folha: (typeof DebtLab !== 'undefined' && DebtLab.descontoFolha(d)), lancada: !!lanc[d.id] }; });
+      })() };
   }
   function ctx() { return FP.buildContext(inputs()); }
   window.agInputs = inputs;
@@ -112,12 +123,14 @@
   window.agView = function (v) { AG.view = v; renderCurrentTab(); };
 
   function agKpis() {
-    var cx = ctx(), a = FP.analyze(cx), inc = cx.income;
+    var cx = ctx(), a = FP.analyze(cx), inc = cx.income, recTot = Math.round(recPrev().reduce(function (s, x) { return s + (Number(x.amount) || 0); }, 0) * 100) / 100;
+    var compPct = a.spend && a.spend.pctAll != null ? a.spend.pctAll : a.committedPct;
+    if (compPct != null && recTot > 0 && inc.amount > 0) compPct = Math.round((compPct / 100 * inc.amount + recTot) / inc.amount * 1000) / 10;
     var k = [
       ['Renda do mês', inc.amount > 0 ? brl(inc.amount) : '—', inc.amount > 0 ? 'Recebido ' + brl(inc.confirmed) + ' · previsto ' + brl(inc.expected) + ' · fonte: ' + inc.source : 'Cadastre quando você recebe'],
-      ['A pagar no mês', brl(a.pendingMonth), 'Já pago: ' + brl(a.paidMonth) + (a.undatedMonthly > 0 ? ' · +' + brl(a.undatedMonthly) + ' de parcelas sem data (estimativa)' : '')],
+      ['A pagar no mês', brl(a.pendingMonth + recTot), 'Já pago: ' + brl(a.paidMonth) + (recTot > 0 ? ' · inclui ' + brl(recTot) + ' de contas recorrentes ainda não lançadas' : '') + (a.undatedMonthly > 0 ? ' · +' + brl(a.undatedMonthly) + ' de parcelas sem data (estimativa)' : '')],
       ['Vencidos', String(a.overdue.length), a.overdue.length ? 'Total ' + brl(a.overdue.reduce(function (s, e) { return s + e.amount; }, 0)) + ' · só marco como pago quando você confirmar' : 'Nada vencido'],
-      ['Comprometido', a.committedPct == null ? '—' : String(a.committedPct).replace('.', ',') + '%', a.committedPct == null ? 'Falta a renda prevista' : 'Obrigações do mês ÷ renda considerada']
+      ['Comprometido', compPct == null ? '—' : String(compPct).replace('.', ',') + '%', compPct == null ? 'Falta a renda prevista' : (a.spend ? 'Gastos lançados + contas a pagar ÷ renda do mês' : 'Contas a pagar ÷ renda do mês')]
     ];
     return '<div class="kpi-grid mb-24 ag-kpis">' + k.map(function (x, i) { return '<div class="kpi animate-in stagger-' + (i + 1) + '"><div class="kpi-label">' + x[0] + '</div><div class="kpi-value">' + x[1] + '</div><div class="ag-sub">' + esc(x[2]) + '</div></div>'; }).join('') + '</div>';
   }
@@ -142,7 +155,8 @@
     return strip + '<div class="card animate-in"><div class="ag-nav"><button class="btn-sm" aria-label="Mês anterior" onclick="agMonth(-1)">‹</button><div class="card-title" style="margin:0">' + MONTHS[m - 1] + ' de ' + y + '</div><button class="btn-sm" aria-label="Próximo mês" onclick="agMonth(1)">›</button><button class="btn-sm" onclick="agMonth(0)">Hoje</button></div>'
       + '<div class="ag-grid">' + cells + '</div><div class="ag-legend"><span class="ag-chip ag-in">＋ Entra</span><span class="ag-chip ag-a_pagar">－ Sai (a pagar)</span><span class="ag-chip ag-proximo">Em breve</span><span class="ag-chip ag-vencido">Vencido</span><span class="ag-chip ag-pago">Pago</span><span class="ag-chip ag-aguardando">Aguardando</span></div></div>'
       + undated + no + '<div class="card animate-in" style="margin-top:16px"><div class="card-title">Próximos e pendentes</div>'
-      + (up.length ? '<div class="ag-list">' + up.map(agRow).join('') + '</div>' : '<div class="ag-sub">Nada pendente.</div>') + '</div>';
+      + (up.length ? '<div class="ag-list">' + up.map(agRow).join('') + '</div>' : (recPrev().length ? '' : '<div class="ag-sub">Nada pendente.</div>'))
+      + (recPrev().length ? '<div class="ag-sub" style="margin-top:10px"><b>Contas recorrentes ainda não lançadas neste mês</b> (pelo dia em que você costuma lançar):</div><div class="ag-list">' + recPrev().map(function (x) { return '<div class="ag-row" data-rec-prev="1"><div class="ag-rd"><b>dia ' + x.day + '</b></div><div class="ag-rm">' + esc(x.desc) + ' <span class="ag-badge">' + (x.diff === 0 ? 'hoje' : x.diff === 1 ? 'amanhã' : 'em ' + x.diff + ' dias') + '</span></div><div class="ag-ra">' + brl(x.amount) + '</div></div>'; }).join('') + '</div>' : '') + '</div>';
   }
   function agRiskDays() {   // o assistente marca no calendário os dias que merecem atenção
     var r = {}, a = FP.analyze(ctx());

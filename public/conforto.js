@@ -46,7 +46,29 @@
   }
   function rerender() { try { renderNav(); renderCurrentTab(); renderNotifications(); updateNotifBadge(); } catch (e) {} }
 
-  function toggleOculto() { S.oculto = !S.oculto; save(); atualizaBotoes(); rerender(); }
+  // Ocultar valores vale para a tela inteira: além do fmt/fmtD, esconde qualquer valor em dinheiro escrito em texto
+  // (cartões, missões, plano de dívidas, avisos). Inputs não são alterados.
+  var RXV = /(R\$|US\$|€|£)\s?[-−]?\s?\d[\d.]*(,\d{1,2})?(\s?mil\b)?/g, obs = null;
+  function mascara(raiz) {
+    if (!S.oculto || !raiz || typeof document === 'undefined') return;
+    if (raiz.nodeType === 3) raiz = raiz.parentNode;
+    if (!raiz || !raiz.ownerDocument && raiz !== document) return;
+    var w = document.createTreeWalker(raiz, 4, null), n, lista = [];
+    while ((n = w.nextNode())) {
+      var p = n.parentNode; if (!p || /^(SCRIPT|STYLE|TEXTAREA|OPTION)$/.test(p.nodeName)) continue;
+      if (p.closest && p.closest('[data-sem-mascara]')) continue;
+      RXV.lastIndex = 0; if (RXV.test(n.nodeValue)) lista.push(n);
+    }
+    lista.forEach(function (t) { t.nodeValue = t.nodeValue.replace(RXV, function (m, sim) { return sim + ' ••••'; }); });
+  }
+  function vigia() {
+    if (obs) { obs.disconnect(); obs = null; }
+    if (!S.oculto || typeof MutationObserver === 'undefined' || typeof document === 'undefined' || !document.body) return;
+    mascara(document.body);
+    obs = new MutationObserver(function (ms) { ms.forEach(function (m) { if (m.type === 'characterData') mascara(m.target); else for (var i = 0; i < m.addedNodes.length; i++) mascara(m.addedNodes[i]); }); });
+    obs.observe(document.body, { childList: true, subtree: true, characterData: true });
+  }
+  function toggleOculto() { S.oculto = !S.oculto; save(); atualizaBotoes(); rerender(); vigia(); }
   function toggleSimples() {
     S.simples = !S.simples; save(); atualizaBotoes();
     try { if (S.simples) { currentTab = 'simples'; } else if (currentTab === 'simples') { currentTab = 'dashboard'; } } catch (e) {}
@@ -151,7 +173,7 @@
   function renderSimples(c) {
     var tx = filterByPeriod(visibleList('transactions'), 'date'), ent = 0, sai = 0, cats = {};
     tx.forEach(function (t) { if (t.type === 'income') ent += t.amount; else { sai += t.amount; cats[t.cat] = (cats[t.cat] || 0) + t.amount; } });
-    var saldo = ent - sai, vazio = !tx.length;
+    var fora = (c && c.parcelasFora) || 0, saldo = (c && c.sobra != null) ? c.sobra : ent - sai, vazio = !tx.length;   // mesma sobra do painel: já desconta as parcelas não lançadas
     var topo = Object.keys(cats).map(function (k) { return [k, cats[k]]; }).sort(function (a, b) { return b[1] - a[1]; }).slice(0, 3);
     var lim = limites(state.budgets, cats);
     var contas = []; try { contas = generateNotifications().filter(function (n) { return /^(due-|debtdue-)/.test(n.id); }).slice(0, 3); } catch (e) {}
@@ -161,7 +183,7 @@
     var h = '<div class="section-header animate-in"><div><div class="section-title">Resumo</div><div class="section-desc">Só o que importa, numa tela.</div></div></div>';
     h += '<div class="card animate-in" style="text-align:center;padding:22px"><div class="card-subtitle">' + (vazio ? 'Ainda não há lançamentos neste período' : (saldo >= 0 ? 'Sobrou neste período' : 'Faltou neste período')) + '</div>'
       + '<div style="font-size:34px;font-weight:800;color:' + (vazio ? 'var(--ink-3)' : saldo >= 0 ? 'var(--income)' : 'var(--expense)') + '">' + (vazio ? '—' : fmtS(saldo)) + '</div>'
-      + (vazio ? '' : '<div style="color:var(--ink-3)">Entrou ' + fmt(ent) + ' · Saiu ' + fmt(sai) + '</div>') + '</div>';
+      + (vazio ? '' : '<div style="color:var(--ink-3)">Entrou ' + fmt(ent) + ' · Saiu ' + fmt(sai) + (fora > 0 ? ' · Parcelas ainda não lançadas ' + fmt(fora) : '') + '</div>') + '</div>';
     h += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:14px 0"><button class="btn-primary" style="flex:1;min-width:130px" onclick="openTransactionModal(\'income\')">+ Receita</button>'
       + '<button class="btn-primary" style="flex:1;min-width:130px" onclick="openTransactionModal(\'expense\')">+ Despesa</button>'
       + '<button class="btn-secondary" style="flex:1;min-width:130px" onclick="openDocUploadModal()">📄 Enviar documento</button></div>';
@@ -185,6 +207,7 @@
     try { var nv = PREFS && PREFS.data && PREFS.data.conforto; if (nv && !ls(KEY)) { S.oculto = !!nv.oculto; S.simples = !!nv.simples; S.desafio = nv.desafio || null; ls(KEY, JSON.stringify(S)); } } catch (e) {}
     atualizaBotoes();
     if (S.simples && currentTab !== 'simples') { currentTab = 'simples'; rerender(); }
+    vigia();
     if (temPin()) trava();
   }
 
@@ -192,7 +215,7 @@
     oculto: function () { return S.oculto; }, simples: function () { return S.simples; },
     toggleOculto: toggleOculto, toggleSimples: toggleSimples, abrirPin: abrirPin, salvarPin: salvarPin, trava: trava,
     desafioHtml: desafioHtml, iniciaDesafio: iniciaDesafio, semana: semana, reiniciaDesafio: reiniciaDesafio,
-    alertasLimites: alertasLimites, renderSimples: renderSimples, navSimples: navSimples, aoEntrar: aoEntrar, init: function () { load(); atualizaBotoes(); }
+    alertasLimites: alertasLimites, renderSimples: renderSimples, navSimples: navSimples, aoEntrar: aoEntrar, mascara: mascara, init: function () { load(); atualizaBotoes(); }
   });
   load();
 })(typeof window !== 'undefined' ? window : globalThis);

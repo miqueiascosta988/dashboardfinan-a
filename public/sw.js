@@ -1,6 +1,6 @@
 // Service worker do SM Financial: instalação (PWA), abertura rápida e notificações de lembrete.
 // Nunca guarda em cache chamadas de API, do Supabase ou de pagamento: dados financeiros não ficam em cache.
-const VERSION = 'sm-v3';
+const VERSION = 'sm-v4';
 const SHELL = ['/', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png'];
 
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(VERSION).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting())); });
@@ -9,10 +9,15 @@ self.addEventListener('activate', (e) => {
 });
 self.addEventListener('fetch', (e) => {
   const req = e.request, url = new URL(req.url);
+  // bibliotecas públicas (código, sem dados): guardadas para o app abrir mesmo sem internet
+  if (req.method === 'GET' && url.origin === 'https://cdn.jsdelivr.net') {
+    e.respondWith(caches.match(req).then((hit) => hit || fetch(req).then((res) => { if (res.ok) { const copy = res.clone(); caches.open(VERSION).then((c) => c.put(req, copy)); } return res; })));
+    return;
+  }
   if (req.method !== 'GET' || url.origin !== self.location.origin || url.pathname.startsWith('/api/') || url.pathname.startsWith('/interno')) return;
   // rede primeiro; se estiver offline, usa a cópia guardada do aplicativo
   e.respondWith(fetch(req).then((res) => {
-    if (res.ok && ((req.mode === 'navigate' && url.pathname === '/') || /\.(png|webmanifest)$/.test(url.pathname))) { const copy = res.clone(); caches.open(VERSION).then((c) => c.put(req.mode === 'navigate' ? '/' : req, copy)); }
+    if (res.ok && ((req.mode === 'navigate' && url.pathname === '/') || /\.(png|svg|webmanifest|js|css|woff2?)$/.test(url.pathname))) { const copy = res.clone(); caches.open(VERSION).then((c) => c.put(req.mode === 'navigate' ? '/' : req, copy)); }
     return res;
   }).catch(() => caches.match(req.mode === 'navigate' ? '/' : req)));
 });

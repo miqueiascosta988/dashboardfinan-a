@@ -91,7 +91,7 @@
   }
   function inputs() {
     var s = S(), P = prefs();
-    return { today: today(), events: evs(), spend: monthSpend(), monthlyIncome: s.monthlyIncome, avgIncome: avgIncome(), monthIncome: monthIncome(), openingBalance: P.opening == null ? null : P.opening, reserveMonthly: P.reserve == null ? null : P.reserve, avgEssential: P.essential || 0,
+    return { today: today(), events: evs(), spend: monthSpend(), monthlyIncome: s.monthlyIncome, avgIncome: avgIncome(), monthIncome: monthIncome(), archiveBefore: (window.Cuidado && Cuidado.recomecoData()) || null, openingBalance: P.opening == null ? null : P.opening, reserveMonthly: P.reserve == null ? null : P.reserve, avgEssential: P.essential || 0,
       debts: (function () {
         var ds = (typeof debtsExpanded === 'function' ? debtsExpanded() : visibleList('debts')).filter(function (d) { return d.saldo > 0; });
         var ymN = today().slice(0, 7), lanc = {};
@@ -156,6 +156,7 @@
       + '<div class="ag-grid">' + cells + '</div><div class="ag-legend"><span class="ag-chip ag-in">＋ Entra</span><span class="ag-chip ag-a_pagar">－ Sai (a pagar)</span><span class="ag-chip ag-proximo">Em breve</span><span class="ag-chip ag-vencido">Vencido</span><span class="ag-chip ag-pago">Pago</span><span class="ag-chip ag-aguardando">Aguardando</span></div></div>'
       + undated + no + '<div class="card animate-in" style="margin-top:16px"><div class="card-title">Próximos e pendentes</div>'
       + (up.length ? '<div class="ag-list">' + up.map(agRow).join('') + '</div>' : (recPrev().length ? '' : '<div class="ag-sub">Nada pendente.</div>'))
+      + (function () { try { var ar = ctx().archived || []; return ar.length ? '<div class="ag-sub" style="margin-top:10px" data-ag-antigas="1">🗂️ ' + ar.length + ' pendência(s) antiga(s), de antes do seu recomeço, guardada(s): ' + ar.slice(0, 5).map(function (e) { return esc(e.title) + ' (' + br(e.dueDate) + ')'; }).join(', ') + (ar.length > 5 ? '…' : '') + '. Marque como paga ou cancele quando puder, sem pressa.</div>' : ''; } catch (e) { return ''; } })()
       + (recPrev().length ? '<div class="ag-sub" style="margin-top:10px"><b>Contas recorrentes ainda não lançadas neste mês</b> (pelo dia em que você costuma lançar):</div><div class="ag-list">' + recPrev().map(function (x) { return '<div class="ag-row" data-rec-prev="1"><div class="ag-rd"><b>dia ' + x.day + '</b></div><div class="ag-rm">' + esc(x.desc) + ' <span class="ag-badge">' + (x.diff === 0 ? 'hoje' : x.diff === 1 ? 'amanhã' : 'em ' + x.diff + ' dias') + '</span></div><div class="ag-ra">' + brl(x.amount) + '</div></div>'; }).join('') + '</div>' : '') + '</div>';
   }
   function agRiskDays() {   // o assistente marca no calendário os dias que merecem atenção

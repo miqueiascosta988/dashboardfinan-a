@@ -45,7 +45,7 @@
   var SELOS = [
     { id: 'primeiro-lancamento', e: '✍️', nome: 'Primeiro lançamento' }, { id: 'primeiro-doc', e: '📄', nome: 'Primeiro documento' },
     { id: 'seq-3', e: '🔥', nome: '3 dias seguidos' }, { id: 'seq-7', e: '🔥', nome: '7 dias seguidos' }, { id: 'seq-30', e: '🏆', nome: '30 dias seguidos' },
-    { id: 'meta-50', e: '🎯', nome: 'Meta na metade' }, { id: 'no-azul', e: '💚', nome: 'Período no azul' }
+    { id: 'meta-50', e: '🎯', nome: 'Meta na metade' }, { id: 'no-azul', e: '💚', nome: 'Período no azul' }, { id: 'divida-quitada', e: '🎉', nome: 'Dívida quitada' }, { id: 'reserva-1-mes', e: '🛟', nome: 'Reserva de 1 mês' }
   ];
   function nivel(nota) {
     if (nota == null) return { nome: 'Sem nota ainda', dica: 'Lance renda e gastos para ver o seu nível.' };
@@ -164,6 +164,6 @@
   document.addEventListener('visibilitychange', function () { if (!document.hidden) checarLembrete(); });
   setInterval(checarLembrete, 5 * 60 * 1000);
 
-  root.Jogo = Object.assign({}, API, { registrar: registrar, visitou: visitou, cardHtml: cardHtml, alternar: alternar, lembrete: lembrete, checarLembrete: checarLembrete, notifs: notifs, aoEntrar: aoEntrar, estado: function () { return S; } });
+  root.Jogo = Object.assign({}, API, { ganhar: function (id) { try { if (!S.selos[id]) { ganha(id); save(); } } catch (e) {} }, registrar: registrar, visitou: visitou, cardHtml: cardHtml, alternar: alternar, lembrete: lembrete, checarLembrete: checarLembrete, notifs: notifs, aoEntrar: aoEntrar, estado: function () { return S; } });
   load();
 })(typeof window !== 'undefined' ? window : globalThis);

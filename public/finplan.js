@@ -128,12 +128,15 @@
     income.confirmed = money(income.confirmed); income.expected = money(income.expected);
     var nextIncome = incomeEv.filter(function (e) { return pend(e) && e.dueDate >= today; }).sort(function (a, b) { return a.dueDate < b.dueDate ? -1 : 1; })[0] || null;
     var pending = payEv.filter(function (e) { return pend(e); });
-    var overdue = pending.filter(function (e) { return e.dueDate < today; });
+    // "Recomeçar a partir de hoje": pendências vencidas antes da data de recomeço ficam guardadas como antigas (não somem, só saem do alerta)
+    var antigo = function (e) { return !!(inp.archiveBefore && e.dueDate < inp.archiveBefore); };
+    var archived = pending.filter(function (e) { return e.dueDate < today && antigo(e); });
+    var overdue = pending.filter(function (e) { return e.dueDate < today && !antigo(e); });
     var upcoming = pending.filter(function (e) { return e.dueDate >= today && e.dueDate <= horizonEnd; }).sort(function (a, b) { return a.dueDate < b.dueDate ? -1 : (a.dueDate > b.dueDate ? 1 : b.amount - a.amount); });
     // dívidas sem nenhum compromisso pendente no calendário: parcela estimada, sem data (não entra na linha do tempo)
     var covered = {}; pending.forEach(function (e) { if (e.sourceRef) covered[e.sourceRef] = true; });
     var undated = debts.filter(function (d) { return d.saldo > 0 && d.mensal > 0 && !covered[d.id] && !d.folha && !d.lancada; });   // parcela já lançada como gasto no mês: não conta de novo   // descontado em folha: não é compromisso de caixa
-    return { today: today, events: events, debts: debts, income: income, nextIncome: nextIncome, incomeEvents: incomeEv, pending: pending, overdue: overdue, upcoming: upcoming, undatedDebts: undated, openingBalance: inp.openingBalance == null ? null : Number(inp.openingBalance), reserveMonthly: inp.reserveMonthly == null ? null : Number(inp.reserveMonthly), horizonEnd: horizonEnd, avgEssential: Number(inp.avgEssential) || 0, spend: inp.spend || null };
+    return { today: today, events: events, debts: debts, income: income, nextIncome: nextIncome, incomeEvents: incomeEv, pending: pending, overdue: overdue, archived: archived, upcoming: upcoming, undatedDebts: undated, openingBalance: inp.openingBalance == null ? null : Number(inp.openingBalance), reserveMonthly: inp.reserveMonthly == null ? null : Number(inp.reserveMonthly), horizonEnd: horizonEnd, avgEssential: Number(inp.avgEssential) || 0, spend: inp.spend || null };
   }
 
   // linha do tempo diária com saldo corrido. Sem saldo inicial informado, o saldo é RELATIVO (começa em 0): não é saldo bancário.
